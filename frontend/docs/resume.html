@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Patrick Walukagga - Resume</title>
+<style>
+    body {
+        font-family: "Segoe UI", Arial, sans-serif;
+        margin: 40px auto;
+        max-width: 850px;
+        line-height: 1.6;
+        font-size: 15px;
+        color: #222;
+    }
+
+    h1 {
+        font-size: 32px;
+        margin-bottom: 4px;
+        letter-spacing: 0.5px;
+    }
+
+    .contact {
+        font-size: 14px;
+        color: #555;
+        margin-bottom: 30px;
+    }
+
+    .section-title {
+        font-weight: 600;
+        font-size: 18px;
+        margin-top: 32px;
+        padding-bottom: 6px;
+        border-bottom: 2px solid #000;
+        letter-spacing: 1px;
+        text-transform: uppercase;
+    }
+
+    .item {
+        margin-top: 18px;
+    }
+
+    .item-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: baseline;
+    }
+
+    .org {
+        font-weight: 600;
+        font-size: 16px;
+    }
+    .role {
+        font-weight: 500;
+    }
+
+    .location-date {
+        font-size: 14px;
+        color: #555;
+        text-align: right;
+    }
+
+    ul {
+        margin-top: 6px;
+        margin-bottom: 0;
+        padding-left: 20px;
+    }
+
+    .skills-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px 40px;
+        margin-top: 10px;
+    }
+
+    .label {
+        font-weight: 600;
+    }
+
+    @media print {
+        body { margin: 20px; }
+        .section-title { border-bottom: 1px solid #000; }
+    }
+</style>
+</head>
+
+<body>
+
+<h1>Patrick Walukagga</h1>
+<div class="contact">
+    Kampala, Uganda • p.walukagga@gmail.com • linkedin.com/in/patrick-walukagga-53261382 • github.com/PatrickCmd
+</div>
+
+<!-- Summary -->
+<div class="section-title">Summary</div>
+<p>
+Back-End Software Engineer with 4+ years of experience building scalable APIs, data pipelines,
+and cloud-native backend systems. Skilled in Python, Django/FastAPI, PostgreSQL, Docker, and AWS/GCP.
+Experienced in data engineering workflows, ETL automation, and ML tooling.
+Passionate about solving real-world problems using clean architecture, DevOps best practices,
+and cloud infrastructure.
+</p>
+
+<!-- Skills -->
+<div class="section-title">Skills</div>
+<div class="skills-grid">
+    <div><span class="label">Languages:</span> Python, SQL, Bash</div>
+    <div><span class="label">Frameworks:</span> Django, FastAPI, Flask, GraphQL</div>
+
+    <div><span class="label">Cloud:</span> AWS (2× Certified), GCP</div>
+    <div><span class="label">Data/ML:</span> Pandas, NumPy, Scikit-Learn</div>
+
+    <div><span class="label">DevOps:</span> Docker, GitHub Actions, CI/CD, Nginx, Gunicorn</div>
+    <div><span class="label">Databases:</span> PostgreSQL, MySQL</div>
+
+    <div><span class="label">Other:</span> LLMs, Cloud Computing, Shell Scripting</div>
+</div>
+
+<!-- Experience -->
+<div class="section-title">Experience</div>
+
+<div class="item">
+    <div class="item-header">
+        <div>
+            <div class="org">Sunbird AI</div>
+            <div class="role">Software Engineer</div>
+        </div>
+        <div class="location-date">Kampala, Uganda • Apr 2024 – Present</div>
+    </div>
+    <ul>
+        <li>Engineering backend and infrastructure components for AI-driven platforms.</li>
+        <li>Building scalable APIs and cloud-native services to support production AI systems.</li>
+        <li>Working across DevOps, backend engineering, and ML tooling integration.</li>
+    </ul>
+</div>
+
+<div class="item">
+    <div class="item-header">
+        <div>
+            <div class="org">Audersity</div>
+            <div class="role">Python/Django Backend Engineer</div>
+        </div>
+        <div class="location-date">Kampala, Uganda • May 2023 – Jun 2024</div>
+    </div>
+    <ul>
+        <li>Designed and shipped backend features across Django-based services.</li>
+        <li>Improved API reliability, performance, and maintainability.</li>
+        <li>Collaborated with cross-functional teams to deliver secure backend systems.</li>
+    </ul>
+</div>
+
+<div class="item">
+    <div class="item-header">
+        <div>
+            <div class="org">Cecure Intelligence Limited</div>
+            <div class="role">Data Engineer Graduate Trainee</div>
+        </div>
+        <div class="location-date">Lagos, Nigeria • Feb 2023 – Mar 2024</div>
+    </div>
+    <ul>
+        <li>Developed ETL pipelines and automated data ingestion workflows.</li>
+        <li>Supported analytics use cases and data-driven system components.</li>
+    </ul>
+</div>
+
+<div class="item">
+    <div class="item-header">
+        <div>
+            <div class="org">HAMWE EA</div>
+            <div class="role">Python/Django Developer</div>
+        </div>
+        <div class="location-date">Kampala, Uganda • Jun 2021 – Jun 2022</div>
+    </div>
+    <ul>
+        <li>Developed a large-scale agriculture digitization platform in partnership with MTN Rwanda.</li>
+        <li>Designed PostgreSQL schemas and backend modules for onboarding workflows.</li>
+        <li>Built USSD module for farmer collection and loan management.</li>
+        <li>Managed CI/CD pipelines using GitHub Actions, Docker, Nginx, and Gunicorn.</li>
+        <li>Cleaned and processed field data using Pandas for ingestion.</li>
+    </ul>
+</div>
+
+<div class="item">
+    <div class="item-header">
+        <div>
+            <div class="org">BoldGains</div>
+            <div class="role">Python/Django Engineer</div>
+        </div>
+        <div class="location-date">Dubai, UAE • Sep 2021 – Jan 2022</div>
+    </div>
+    <ul>
+        <li>Built backend modules for the Blockbrite payment gateway.</li>
+        <li>Developed bank transaction integration features.</li>
+        <li>Wrote unit and integration tests for critical modules.</li>
+    </ul>
+</div>
+
+<div class="item">
+    <div class="item-header">
+        <div>
+            <div class="org">Andela</div>
+            <div class="role">Software Developer</div>
+        </div>
+        <div class="location-date">Kampala, Uganda • Nov 2017 – Dec 2021</div>
+    </div>
+    <ul>
+        <li>Built scalable backend components for distributed teams.</li>
+        <li>Contributed to debugging, testing, and feature development.</li>
+    </ul>
+</div>
+
+<div class="item">
+    <div class="item-header">
+        <div>
+            <div class="org">NITA-U IT</div>
+            <div class="role">Python/Django Developer</div>
+        </div>
+        <div class="location-date">Kampala, Uganda • May 2020 – Dec 2020</div>
+    </div>
+    <ul>
+        <li>Developed REST APIs for the national IT certification extranet system.</li>
+        <li>Enhanced invoice generation and certification workflows.</li>
+        <li>Integrated SMS notifications and improved system processes.</li>
+    </ul>
+</div>
+
+<div class="item">
+    <div class="item-header">
+        <div>
+            <div class="org">Tarana Wireless</div>
+            <div class="role">Software Engineer</div>
+        </div>
+        <div class="location-date">Santa Clara, CA • Mar 2019 – Feb 2020</div>
+    </div>
+    <ul>
+        <li>Developed internal inventory and hardware reservation tools.</li>
+        <li>Automated testing workflows for device quality verification.</li>
+        <li>Built tools for cross-department testing processes.</li>
+    </ul>
+</div>
+
+<div class="item">
+    <div class="item-header">
+        <div>
+            <div class="org">Chartmetric</div>
+            <div class="role">Junior Software Developer</div>
+        </div>
+        <div class="location-date">United States • Oct 2018 – Jan 2019</div>
+    </div>
+    <ul>
+        <li>Scraped and ingested music metadata from third-party APIs into PostgreSQL.</li>
+        <li>Wrote SQL queries for client data exports.</li>
+        <li>Implemented new backend features and resolved issues.</li>
+    </ul>
+</div>
+
+<!-- Education -->
+<div class="section-title">Education</div>
+
+<div class="item">
+    <div class="item-header">
+        <div class="org">Nkumba University</div>
+        <div class="location-date">2012 – 2015</div>
+    </div>
+    <div class="role">Bachelor’s Degree in Information Technology</div>
+</div>
+
+<div class="item">
+    <div class="item-header">
+        <div class="org">Entebbe Secondary School</div>
+        <div class="location-date">2006 – 2007</div>
+    </div>
+    <div class="role">Sciences and Mathematics</div>
+</div>
+
+<!-- Certifications -->
+<div class="section-title">Certifications</div>
+<ul>
+    <li>AWS Cloud Project Bootcamp (Teal Squad)</li>
+    <li>AWS Cloud Practitioner</li>
+    <li>GitHub Copilot</li>
+    <li>Programming for Everybody</li>
+    <li>Python Data Structures</li>
+    <li>Front-End Web UI Frameworks and Tools</li>
+</ul>
+
+</body>
+</html>
