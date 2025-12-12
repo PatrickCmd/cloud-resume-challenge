@@ -1,0 +1,45 @@
+---
+# Ansible Vault Configuration Example
+# This is an example/template file showing the structure of the vault configuration
+# Copy this file to config.yml and customize with your values, then encrypt it
+#
+# To create your vault:
+#   1. cp config.example.yml config.yml
+#   2. Edit config.yml with your actual values
+#   3. ansible-vault encrypt config.yml
+#
+# DO NOT commit the unencrypted config.yml file to version control!
+
+# AWS Configuration
+aws_config:
+  region: us-east-1              # AWS region for deployment
+  profile: YOUR_AWS_PROFILE      # AWS CLI profile name (e.g., default, patrickcmd)
+
+# CloudFormation Stack Configuration
+cloudformation:
+  stack_name: YOUR_STACK_NAME    # CloudFormation stack name (e.g., portfolio-frontend-stack)
+  template_path: ../frontend.yaml # Path to CloudFormation template (relative to playbook)
+
+# S3 Bucket Configuration
+s3_config:
+  bucket_name: YOUR_BUCKET_NAME  # S3 bucket name (must be globally unique)
+  index_document: index.html     # Website index document
+  error_document: index.html     # Website error document (use index.html for SPAs)
+
+# Environment Configuration
+deployment:
+  environment: prod              # Environment: dev, staging, or prod
+
+# Stack Tags
+stack_tags:
+  Project: cloud-resume-challenge
+  Component: frontend
+  ManagedBy: ansible
+  Owner: YOUR_NAME
+
+# Sensitive AWS Credentials (Optional - prefer AWS CLI profiles)
+# Only use if not using AWS CLI profiles
+# Uncomment and add your credentials if needed
+# aws_credentials:
+#   access_key_id: YOUR_AWS_ACCESS_KEY_ID
+#   secret_access_key: YOUR_AWS_SECRET_ACCESS_KEY

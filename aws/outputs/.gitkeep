@@ -1,0 +1,2 @@
+# This directory stores CloudFormation stack outputs
+# Generated files are created by Ansible playbooks during deployment

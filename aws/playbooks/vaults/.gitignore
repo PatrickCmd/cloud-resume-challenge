@@ -1,0 +1,20 @@
+# Ansible Vault .gitignore
+
+# Unencrypted vault files (if you temporarily decrypt)
+*_decrypted.yml
+*.unencrypted.yml
+*.decrypted.yml
+
+# Backup files created during vault operations
+*.bak
+*.backup
+
+# Vault password files (should never be committed)
+*.vault_pass
+*.vault_pass.txt
+.vault_pass*
+vault_password*
+
+# Temporary files
+*.tmp
+*.temp

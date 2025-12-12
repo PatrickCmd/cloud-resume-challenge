@@ -73,23 +73,182 @@ Using Lovable.dev allowed me to:
 
 **Frontend Documentation**: See [frontend/README.md](frontend/README.md) for detailed setup and development instructions.
 
+## Infrastructure as Code
+
+### CloudFormation & Ansible
+
+For the infrastructure deployment, I chose to use **AWS CloudFormation** for infrastructure definition and **Ansible** for deployment automation, providing a robust and production-ready approach.
+
+**Why CloudFormation + Ansible?**
+
+- **CloudFormation**: Native AWS IaC tool with full AWS service support
+- **Ansible**: Agentless automation for consistent, repeatable deployments
+- **Ansible Vault**: Secure credential management with encryption
+- **Production-Ready**: Industry-standard tools used in enterprise environments
+
+### Infrastructure Components
+
+#### 1. CloudFormation Template ([aws/frontend.yaml](aws/frontend.yaml))
+
+S3 bucket configuration for static website hosting with:
+- **Static Website Hosting**: Configured for SPA routing
+- **Public Access**: Bucket policy for website content
+- **Security**: AES256 encryption, versioning enabled, SSL/TLS enforcement
+- **CloudFormation Capabilities**: CAPABILITY_NAMED_IAM, CAPABILITY_AUTO_EXPAND
+- **Failure Handling**: Automatic rollback on creation failure
+
+```yaml
+# Key Features:
+- WebsiteConfiguration with index.html and error.html
+- BucketEncryption with AES256
+- VersioningConfiguration enabled
+- PublicAccessBlockConfiguration for website hosting
+- Bucket policy with SSL/TLS enforcement
+```
+
+**Reference**: [AWS S3 Bucket CloudFormation Documentation](https://docs.aws.amazon.com/AWSCloudFormation/latest/TemplateReference/aws-resource-s3-bucket.html)
+
+#### 2. Ansible Playbook ([aws/playbooks/frontend-deploy.yml](aws/playbooks/frontend-deploy.yml))
+
+Automated deployment with:
+- **Ansible Vault**: Encrypted configuration management
+- **Task Organization**: Tagged tasks for flexible execution
+- **Error Handling**: Comprehensive failure management
+- **Output Capture**: Automatic saving of stack outputs
+
+```yaml
+# Deployment Tasks:
+1. Display deployment information
+2. Validate CloudFormation template
+3. Deploy CloudFormation stack
+4. Wait for stack creation/update
+5. Retrieve and display stack outputs
+6. Save outputs to file
+```
+
+#### 3. Deployment Scripts
+
+**Frontend Deployment** ([aws/bin/frontend-deploy](aws/bin/frontend-deploy)):
+```bash
+# User-friendly wrapper for Ansible deployment
+./aws/bin/frontend-deploy --verbose
+
+# Features:
+- Automatic prerequisite checking
+- Color-coded output
+- Multiple deployment modes
+- Variable overrides
+- Comprehensive error messages
+```
+
+**Stack Management** ([aws/bin/stack-manager](aws/bin/stack-manager)):
+```bash
+# CloudFormation stack troubleshooting tool
+./aws/bin/stack-manager events    # View stack events
+./aws/bin/stack-manager failures  # Show only failures
+./aws/bin/stack-manager status    # Check stack status
+./aws/bin/stack-manager delete    # Clean up stack
+
+# Perfect for debugging failed deployments
+```
+
+### Deployment Workflow
+
+1. **Configure Ansible Vault**:
+   ```bash
+   # Create encrypted configuration
+   cd aws/playbooks
+   cp vaults/config.example.yml vaults/config.yml
+   # Edit with your values
+   ansible-vault encrypt vaults/config.yml
+   ```
+
+2. **Deploy Infrastructure**:
+   ```bash
+   # Simple deployment
+   ./aws/bin/frontend-deploy
+
+   # With custom parameters
+   ./aws/bin/frontend-deploy --env prod --verbose
+   ```
+
+3. **Monitor Deployment**:
+   ```bash
+   # Check status
+   ./aws/bin/stack-manager status
+
+   # View outputs
+   ./aws/bin/stack-manager outputs
+   ```
+
+4. **Troubleshoot if needed**:
+   ```bash
+   # Show failures
+   ./aws/bin/stack-manager failures
+
+   # View events
+   ./aws/bin/stack-manager events --limit 30
+   ```
+
+### Security Best Practices
+
+- ✅ **Ansible Vault**: All sensitive configuration encrypted
+- ✅ **SSL/TLS Enforcement**: Denies non-HTTPS requests
+- ✅ **Server-Side Encryption**: AES256 for data at rest
+- ✅ **Versioning**: Enabled for rollback capability
+- ✅ **Least Privilege**: Public policy only allows read access
+- ✅ **Infrastructure as Code**: All changes tracked in version control
+
+### Documentation
+
+Comprehensive documentation is available for:
+
+- **[AWS Infrastructure](aws/README.md)** - CloudFormation templates and deployment
+- **[Ansible Playbooks](aws/playbooks/README.md)** - Complete Ansible guide
+- **[Ansible Vault](aws/playbooks/vaults/README.md)** - Secure configuration management
+- **[CloudFormation Config](aws/playbooks/CLOUDFORMATION_CONFIG.md)** - Deep dive on capabilities
+- **[Deployment Scripts](aws/bin/README.md)** - Script usage and examples
+- **[Quick Start](aws/playbooks/QUICKSTART.md)** - 5-minute setup guide
+
 ## Project Structure
 
 ```
 cloud-resume-challenge/
-├── frontend/           # React portfolio website
+├── frontend/                      # React portfolio website
 │   ├── src/
 │   ├── public/
+│   ├── Makefile                   # Build automation
 │   └── README.md
-├── backend/            # AWS Lambda functions (coming soon)
-├── infrastructure/     # IaC templates (coming soon)
-└── .github/           # CI/CD workflows (coming soon)
+├── aws/                           # AWS Infrastructure
+│   ├── frontend.yaml              # CloudFormation template
+│   ├── playbooks/                 # Ansible playbooks
+│   │   ├── frontend-deploy.yml    # Deployment playbook
+│   │   ├── vaults/                # Encrypted configuration
+│   │   │   ├── config.yml         # Vault (encrypted)
+│   │   │   └── README.md          # Vault documentation
+│   │   ├── ansible.cfg            # Ansible configuration
+│   │   ├── README.md              # Playbook documentation
+│   │   ├── QUICKSTART.md          # Quick setup guide
+│   │   └── CLOUDFORMATION_CONFIG.md
+│   ├── bin/                       # Deployment scripts
+│   │   ├── frontend-deploy        # Deployment wrapper
+│   │   ├── stack-manager          # Stack management tool
+│   │   └── README.md
+│   ├── outputs/                   # Stack outputs
+│   └── README.md                  # AWS infrastructure docs
+├── backend/                       # AWS Lambda functions (coming soon)
+└── .github/                       # CI/CD workflows (coming soon)
 ```
 
 ## Implementation Progress
 
-- [x] Frontend development
-- [ ] AWS S3 static website hosting
+- [x] Frontend development (React, TypeScript, Tailwind CSS)
+- [x] CloudFormation template for S3 static website hosting
+- [x] Ansible playbook for automated deployment
+- [x] Ansible Vault for secure configuration management
+- [x] Deployment automation scripts
+- [x] Stack management and troubleshooting tools
+- [ ] Upload frontend build to S3
 - [ ] CloudFront distribution setup
 - [ ] Custom domain with Route 53
 - [ ] SSL/TLS certificate with ACM
@@ -97,8 +256,8 @@ cloud-resume-challenge/
 - [ ] Lambda function for visitor count API
 - [ ] API Gateway integration
 - [ ] CI/CD pipeline with GitHub Actions
-- [ ] Infrastructure as Code (Terraform/CloudFormation)
-- [ ] Testing and monitoring
+- [ ] Monitoring and logging with CloudWatch
+- [ ] Testing and validation
 
 ## Technologies Used
 

@@ -1,0 +1,140 @@
+---
+# Ansible Playbook for deploying the Frontend S3 Static Website using CloudFormation
+# This playbook creates an S3 bucket with static website hosting enabled
+# Part of the Cloud Resume Challenge - Frontend Infrastructure Deployment
+#
+# Usage with Ansible Vault:
+#   ansible-playbook frontend-deploy.yml --ask-vault-pass
+#   ansible-playbook frontend-deploy.yml --vault-password-file ~/.vault_pass.txt
+
+- name: Deploy Frontend S3 Static Website to AWS
+  hosts: localhost
+  gather_facts: false
+
+  vars_files:
+    - vaults/config.yml
+
+  vars:
+    # AWS Configuration (loaded from vault)
+    aws_region: "{{ aws_config.region }}"
+    aws_profile: "{{ aws_config.profile }}"
+
+    # CloudFormation Stack Configuration (loaded from vault)
+    stack_name: "{{ cloudformation.stack_name }}"
+    cfn_template_path: "{{ cloudformation.template_path }}"
+
+    # Stack Parameters (loaded from vault)
+    bucket_name: "{{ s3_config.bucket_name }}"
+    index_document: "{{ s3_config.index_document }}"
+    error_document: "{{ s3_config.error_document }}"
+    deploy_environment: "{{ deployment.environment }}"
+
+    # Stack Tags (loaded from vault)
+    # Note: stack_tags is already defined in vault
+
+  tasks:
+    - name: Display deployment information
+      ansible.builtin.debug:
+        msg:
+          - "============================================"
+          - "Deploying Frontend CloudFormation Stack"
+          - "============================================"
+          - "Stack Name: {{ stack_name }}"
+          - "Region: {{ aws_region }}"
+          - "Profile: {{ aws_profile }}"
+          - "Bucket Name: {{ bucket_name }}"
+          - "Environment: {{ environment }}"
+          - "============================================"
+
+    - name: Validate CloudFormation template
+      amazon.aws.cloudformation_info:
+        stack_name: "{{ stack_name }}"
+        region: "{{ aws_region }}"
+        profile: "{{ aws_profile }}"
+      register: stack_info
+      ignore_errors: true
+      tags:
+        - validate
+
+    - name: Deploy CloudFormation stack for S3 static website
+      amazon.aws.cloudformation:
+        stack_name: "{{ stack_name }}"
+        state: present
+        region: "{{ aws_region }}"
+        profile: "{{ aws_profile }}"
+        template: "{{ cfn_template_path }}"
+        template_parameters:
+          BucketName: "{{ bucket_name }}"
+          IndexDocument: "{{ index_document }}"
+          ErrorDocument: "{{ error_document }}"
+          Environment: "{{ deploy_environment }}"
+        tags: "{{ stack_tags }}"
+        # CloudFormation Capabilities
+        # CAPABILITY_NAMED_IAM: Allows creation of IAM resources with custom names
+        # CAPABILITY_AUTO_EXPAND: Enables processing of macros and nested stacks
+        capabilities:
+          - CAPABILITY_NAMED_IAM
+          - CAPABILITY_AUTO_EXPAND
+        # On create failure, rollback all created resources (clean slate for retry)
+        # Options: ROLLBACK (default - delete all resources), DO_NOTHING (keep for debugging), DELETE (same as ROLLBACK)
+        # Note: on_create_failure and disable_rollback are mutually exclusive
+        on_create_failure: ROLLBACK
+      register: cfn_stack
+      tags:
+        - deploy
+
+    - name: Wait for CloudFormation stack to be created/updated
+      amazon.aws.cloudformation_info:
+        stack_name: "{{ stack_name }}"
+        region: "{{ aws_region }}"
+        profile: "{{ aws_profile }}"
+      register: stack_status
+      until: stack_status.cloudformation[stack_name].stack_description.stack_status in ['CREATE_COMPLETE', 'UPDATE_COMPLETE']
+      retries: 30
+      delay: 10
+      when: cfn_stack.changed
+      tags:
+        - deploy
+
+    - name: Get stack outputs
+      amazon.aws.cloudformation_info:
+        stack_name: "{{ stack_name }}"
+        stack_resources: true
+        region: "{{ aws_region }}"
+        profile: "{{ aws_profile }}"
+      register: stack_outputs
+      tags:
+        - info
+
+    - name: Display stack outputs
+      ansible.builtin.debug:
+        msg:
+          - "============================================"
+          - "Stack Deployment Complete!"
+          - "============================================"
+          - "Stack Name: {{ stack_name }}"
+          - "Stack Status: {{ stack_outputs.cloudformation[stack_name].stack_description.stack_status }}"
+          - "Outputs:"
+          - "  - Bucket Name: {{ stack_outputs.cloudformation[stack_name].stack_outputs.BucketName | default('N/A') }}"
+          - "  - Bucket ARN: {{ stack_outputs.cloudformation[stack_name].stack_outputs.BucketArn | default('N/A') }}"
+          - "  - Website URL: {{ stack_outputs.cloudformation[stack_name].stack_outputs.WebsiteURL | default('N/A') }}"
+          - "  - Bucket Domain: {{ stack_outputs.cloudformation[stack_name].stack_outputs.BucketDomainName | default('N/A') }}"
+          - "============================================"
+      tags:
+        - info
+
+    - name: Save stack outputs to file
+      ansible.builtin.copy:
+        content: |
+          # Frontend Stack Outputs
+          # Generated: {{ now(utc=true).isoformat() }}
+
+          STACK_NAME={{ stack_name }}
+          BUCKET_NAME={{ stack_outputs.cloudformation[stack_name].stack_outputs.BucketName | default('') }}
+          BUCKET_ARN={{ stack_outputs.cloudformation[stack_name].stack_outputs.BucketArn | default('') }}
+          WEBSITE_URL={{ stack_outputs.cloudformation[stack_name].stack_outputs.WebsiteURL | default('') }}
+          BUCKET_DOMAIN={{ stack_outputs.cloudformation[stack_name].stack_outputs.BucketDomainName | default('') }}
+        dest: ../outputs/frontend-stack-outputs.env
+        mode: '0644'
+      tags:
+        - info

@@ -1,0 +1,430 @@
+#!/usr/bin/env bash
+# CloudFormation Stack Management Script
+# Manages CloudFormation stacks for Cloud Resume Challenge
+#
+# Usage:
+#   ./bin/stack-manager events        # Show stack events
+#   ./bin/stack-manager status        # Show stack status
+#   ./bin/stack-manager describe      # Describe stack details
+#   ./bin/stack-manager outputs       # Show stack outputs
+#   ./bin/stack-manager delete        # Delete stack
+#   ./bin/stack-manager failures      # Show only failed events
+#   ./bin/stack-manager resources     # List stack resources
+
+set -euo pipefail
+
+# Colors for output
+readonly RED='\033[0;31m'
+readonly GREEN='\033[0;32m'
+readonly YELLOW='\033[1;33m'
+readonly BLUE='\033[0;34m'
+readonly CYAN='\033[0;36m'
+readonly NC='\033[0m'
+
+# Default configuration (can be overridden with env vars or flags)
+STACK_NAME="${STACK_NAME:-portfolio-frontend-stack}"
+AWS_PROFILE="${AWS_PROFILE:-patrickcmd}"
+AWS_REGION="${AWS_REGION:-us-east-1}"
+
+# Functions
+print_info() {
+    echo -e "${BLUE}ℹ${NC} $1"
+}
+
+print_success() {
+    echo -e "${GREEN}✓${NC} $1"
+}
+
+print_error() {
+    echo -e "${RED}✗${NC} $1" >&2
+}
+
+print_warning() {
+    echo -e "${YELLOW}⚠${NC} $1"
+}
+
+print_header() {
+    echo -e "${CYAN}$1${NC}"
+}
+
+show_help() {
+    cat << EOF
+CloudFormation Stack Management Script
+
+Usage:
+    $(basename "$0") COMMAND [OPTIONS]
+
+Commands:
+    events              Show all stack events
+    failures            Show only failed events
+    status              Show current stack status
+    describe            Show detailed stack information
+    outputs             Show stack outputs
+    resources           List all stack resources
+    delete              Delete the stack
+    wait-delete         Delete stack and wait for completion
+    help                Show this help message
+
+Options:
+    --stack NAME        Stack name (default: portfolio-frontend-stack)
+    --profile NAME      AWS profile (default: patrickcmd)
+    --region NAME       AWS region (default: us-east-1)
+    --limit N           Limit number of events shown (default: 20)
+    --all               Show all events (no limit)
+    -h, --help          Show this help message
+
+Environment Variables:
+    STACK_NAME          Override default stack name
+    AWS_PROFILE         Override default AWS profile
+    AWS_REGION          Override default AWS region
+
+Examples:
+    # Show stack events
+    $(basename "$0") events
+
+    # Show only failed events
+    $(basename "$0") failures
+
+    # Show stack status
+    $(basename "$0") status
+
+    # Show stack outputs
+    $(basename "$0") outputs
+
+    # Delete stack
+    $(basename "$0") delete
+
+    # Delete and wait for completion
+    $(basename "$0") wait-delete
+
+    # Use different stack
+    $(basename "$0") events --stack my-other-stack
+
+    # Show all events (no limit)
+    $(basename "$0") events --all
+
+    # Show last 50 events
+    $(basename "$0") events --limit 50
+
+EOF
+}
+
+check_aws_cli() {
+    if ! command -v aws &> /dev/null; then
+        print_error "AWS CLI is not installed"
+        print_info "Install from: https://aws.amazon.com/cli/"
+        exit 1
+    fi
+}
+
+check_stack_exists() {
+    if ! aws cloudformation describe-stacks \
+        --stack-name "$STACK_NAME" \
+        --profile "$AWS_PROFILE" \
+        --region "$AWS_REGION" \
+        &> /dev/null; then
+        print_error "Stack '$STACK_NAME' not found"
+        print_info "Region: $AWS_REGION"
+        print_info "Profile: $AWS_PROFILE"
+        exit 1
+    fi
+}
+
+show_events() {
+    local limit="${1:-20}"
+
+    print_header "Stack Events: $STACK_NAME"
+    echo ""
+
+    local query='StackEvents[].[Timestamp,ResourceStatus,ResourceType,LogicalResourceId,ResourceStatusReason]'
+
+    if [[ "$limit" == "all" ]]; then
+        aws cloudformation describe-stack-events \
+            --stack-name "$STACK_NAME" \
+            --profile "$AWS_PROFILE" \
+            --region "$AWS_REGION" \
+            --query "$query" \
+            --output table
+    else
+        aws cloudformation describe-stack-events \
+            --stack-name "$STACK_NAME" \
+            --profile "$AWS_PROFILE" \
+            --region "$AWS_REGION" \
+            --query "$query" \
+            --output table \
+            --max-items "$limit"
+    fi
+}
+
+show_failures() {
+    print_header "Failed Events: $STACK_NAME"
+    echo ""
+
+    local query='StackEvents[?ResourceStatus==`CREATE_FAILED` || ResourceStatus==`UPDATE_FAILED` || ResourceStatus==`DELETE_FAILED`].[Timestamp,ResourceStatus,ResourceType,LogicalResourceId,ResourceStatusReason]'
+
+    local result
+    result=$(aws cloudformation describe-stack-events \
+        --stack-name "$STACK_NAME" \
+        --profile "$AWS_PROFILE" \
+        --region "$AWS_REGION" \
+        --query "$query" \
+        --output table)
+
+    if [[ -z "$result" ]] || [[ "$result" == "None" ]]; then
+        print_success "No failed events found"
+    else
+        echo "$result"
+    fi
+}
+
+show_status() {
+    check_stack_exists
+
+    print_header "Stack Status: $STACK_NAME"
+    echo ""
+
+    local status
+    status=$(aws cloudformation describe-stacks \
+        --stack-name "$STACK_NAME" \
+        --profile "$AWS_PROFILE" \
+        --region "$AWS_REGION" \
+        --query 'Stacks[0].StackStatus' \
+        --output text)
+
+    # Color code the status
+    case "$status" in
+        *COMPLETE)
+            print_success "Status: $status"
+            ;;
+        *IN_PROGRESS)
+            print_info "Status: $status"
+            ;;
+        *FAILED|*ROLLBACK*)
+            print_error "Status: $status"
+            ;;
+        *)
+            echo "Status: $status"
+            ;;
+    esac
+
+    # Show additional info
+    echo ""
+    aws cloudformation describe-stacks \
+        --stack-name "$STACK_NAME" \
+        --profile "$AWS_PROFILE" \
+        --region "$AWS_REGION" \
+        --query 'Stacks[0].{CreationTime:CreationTime,LastUpdatedTime:LastUpdatedTime,StackId:StackId}' \
+        --output table
+}
+
+show_describe() {
+    check_stack_exists
+
+    print_header "Stack Details: $STACK_NAME"
+    echo ""
+
+    aws cloudformation describe-stacks \
+        --stack-name "$STACK_NAME" \
+        --profile "$AWS_PROFILE" \
+        --region "$AWS_REGION" \
+        --output table
+}
+
+show_outputs() {
+    check_stack_exists
+
+    print_header "Stack Outputs: $STACK_NAME"
+    echo ""
+
+    local outputs
+    outputs=$(aws cloudformation describe-stacks \
+        --stack-name "$STACK_NAME" \
+        --profile "$AWS_PROFILE" \
+        --region "$AWS_REGION" \
+        --query 'Stacks[0].Outputs' \
+        --output table)
+
+    if [[ -z "$outputs" ]] || [[ "$outputs" == "None" ]]; then
+        print_warning "No outputs found for this stack"
+    else
+        echo "$outputs"
+    fi
+}
+
+show_resources() {
+    check_stack_exists
+
+    print_header "Stack Resources: $STACK_NAME"
+    echo ""
+
+    aws cloudformation list-stack-resources \
+        --stack-name "$STACK_NAME" \
+        --profile "$AWS_PROFILE" \
+        --region "$AWS_REGION" \
+        --query 'StackResourceSummaries[].[LogicalResourceId,PhysicalResourceId,ResourceType,ResourceStatus]' \
+        --output table
+}
+
+delete_stack() {
+    local wait_for_completion="${1:-no}"
+
+    print_warning "About to delete stack: $STACK_NAME"
+    print_info "Region: $AWS_REGION"
+    print_info "Profile: $AWS_PROFILE"
+    echo ""
+
+    # Check if stack exists
+    if ! aws cloudformation describe-stacks \
+        --stack-name "$STACK_NAME" \
+        --profile "$AWS_PROFILE" \
+        --region "$AWS_REGION" \
+        &> /dev/null; then
+        print_error "Stack '$STACK_NAME' not found"
+        exit 1
+    fi
+
+    # Get current status
+    local status
+    status=$(aws cloudformation describe-stacks \
+        --stack-name "$STACK_NAME" \
+        --profile "$AWS_PROFILE" \
+        --region "$AWS_REGION" \
+        --query 'Stacks[0].StackStatus' \
+        --output text)
+
+    print_info "Current status: $status"
+    echo ""
+
+    # Confirm deletion
+    read -p "Are you sure you want to delete this stack? (yes/no): " -r
+    echo ""
+
+    if [[ ! $REPLY =~ ^[Yy][Ee][Ss]$ ]]; then
+        print_info "Deletion cancelled"
+        exit 0
+    fi
+
+    print_info "Deleting stack..."
+
+    aws cloudformation delete-stack \
+        --stack-name "$STACK_NAME" \
+        --profile "$AWS_PROFILE" \
+        --region "$AWS_REGION"
+
+    print_success "Delete initiated"
+
+    if [[ "$wait_for_completion" == "yes" ]]; then
+        echo ""
+        print_info "Waiting for deletion to complete..."
+
+        if aws cloudformation wait stack-delete-complete \
+            --stack-name "$STACK_NAME" \
+            --profile "$AWS_PROFILE" \
+            --region "$AWS_REGION"; then
+            echo ""
+            print_success "Stack deleted successfully"
+        else
+            echo ""
+            print_error "Stack deletion failed or timed out"
+            print_info "Check events with: $(basename "$0") events"
+            exit 1
+        fi
+    else
+        echo ""
+        print_info "Monitor deletion progress with:"
+        print_info "  $(basename "$0") events"
+        print_info "  $(basename "$0") status"
+    fi
+}
+
+parse_arguments() {
+    local limit="20"
+
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --stack)
+                STACK_NAME="$2"
+                shift 2
+                ;;
+            --profile)
+                AWS_PROFILE="$2"
+                shift 2
+                ;;
+            --region)
+                AWS_REGION="$2"
+                shift 2
+                ;;
+            --limit)
+                limit="$2"
+                shift 2
+                ;;
+            --all)
+                limit="all"
+                shift
+                ;;
+            *)
+                break
+                ;;
+        esac
+    done
+
+    echo "$limit"
+}
+
+main() {
+    local command="${1:-}"
+    shift || true
+
+    # Parse global options
+    local limit
+    limit=$(parse_arguments "$@")
+
+    # Check AWS CLI
+    check_aws_cli
+
+    case "$command" in
+        events)
+            check_stack_exists
+            show_events "$limit"
+            ;;
+        failures)
+            check_stack_exists
+            show_failures
+            ;;
+        status)
+            show_status
+            ;;
+        describe)
+            show_describe
+            ;;
+        outputs)
+            show_outputs
+            ;;
+        resources)
+            show_resources
+            ;;
+        delete)
+            delete_stack "no"
+            ;;
+        wait-delete)
+            delete_stack "yes"
+            ;;
+        help|-h|--help)
+            show_help
+            ;;
+        "")
+            print_error "No command specified"
+            echo ""
+            show_help
+            exit 1
+            ;;
+        *)
+            print_error "Unknown command: $command"
+            echo ""
+            show_help
+            exit 1
+            ;;
+    esac
+}
+
+main "$@"

@@ -1,0 +1,120 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: >
+  CloudFormation template for deploying a static website to S3 with website hosting enabled.
+  This template creates an S3 bucket configured for static website hosting with public read access.
+  Part of the Cloud Resume Challenge - Frontend Infrastructure.
+
+Parameters:
+  BucketName:
+    Type: String
+    Description: Name of the S3 bucket for static website hosting (must be globally unique)
+    Default: patrick-portfolio-website
+    AllowedPattern: ^[a-z0-9][a-z0-9-]*[a-z0-9]$
+    ConstraintDescription: Bucket name must be lowercase, can contain hyphens, and must start/end with alphanumeric characters
+
+  IndexDocument:
+    Type: String
+    Description: The name of the index document for the website
+    Default: index.html
+
+  ErrorDocument:
+    Type: String
+    Description: The name of the error document for the website
+    Default: index.html
+
+  Environment:
+    Type: String
+    Description: Environment name (dev, staging, prod)
+    Default: prod
+    AllowedValues:
+      - dev
+      - staging
+      - prod
+
+Resources:
+  # S3 Bucket for Static Website Hosting
+  # Reference: https://docs.aws.amazon.com/AWSCloudFormation/latest/TemplateReference/aws-resource-s3-bucket.html
+  WebsiteBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Ref BucketName
+      WebsiteConfiguration:
+        IndexDocument: !Ref IndexDocument
+        ErrorDocument: !Ref ErrorDocument
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: false
+        BlockPublicPolicy: false
+        IgnorePublicAcls: false
+        RestrictPublicBuckets: false
+      OwnershipControls:
+        Rules:
+          - ObjectOwnership: ObjectWriter
+      # Enable versioning for better content management and rollback capability
+      VersioningConfiguration:
+        Status: Enabled
+      # Enable server-side encryption for data at rest
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      Tags:
+        - Key: Name
+          Value: !Sub ${BucketName}-${Environment}
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Project
+          Value: cloud-resume-challenge
+        - Key: ManagedBy
+          Value: CloudFormation
+
+  # Bucket Policy to allow public read access to website content
+  # Reference: https://docs.aws.amazon.com/AWSCloudFormation/latest/TemplateReference/aws-resource-s3-bucketpolicy.html
+  WebsiteBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref WebsiteBucket
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          # Allow public read access for website content
+          - Sid: PublicReadGetObject
+            Effect: Allow
+            Principal: '*'
+            Action: s3:GetObject
+            Resource: !Sub ${WebsiteBucket.Arn}/*
+          # Enforce SSL/TLS for all requests
+          - Sid: DenyInsecureTransport
+            Effect: Deny
+            Principal: '*'
+            Action: s3:*
+            Resource:
+              - !Sub ${WebsiteBucket.Arn}
+              - !Sub ${WebsiteBucket.Arn}/*
+            Condition:
+              Bool:
+                aws:SecureTransport: false
+
+Outputs:
+  BucketName:
+    Description: Name of the S3 bucket
+    Value: !Ref WebsiteBucket
+    Export:
+      Name: !Sub ${AWS::StackName}-BucketName
+
+  BucketArn:
+    Description: ARN of the S3 bucket
+    Value: !GetAtt WebsiteBucket.Arn
+    Export:
+      Name: !Sub ${AWS::StackName}-BucketArn
+
+  WebsiteURL:
+    Description: URL for website hosted on S3
+    Value: !GetAtt WebsiteBucket.WebsiteURL
+    Export:
+      Name: !Sub ${AWS::StackName}-WebsiteURL
+
+  BucketDomainName:
+    Description: Domain name of the S3 bucket
+    Value: !GetAtt WebsiteBucket.DomainName
+    Export:
+      Name: !Sub ${AWS::StackName}-BucketDomainName
