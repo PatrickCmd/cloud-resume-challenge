@@ -24,17 +24,52 @@ Before using these playbooks, ensure you have:
 
 ## Ansible Installation
 
-### Option 1: Install via pip (Recommended)
+### Quick Setup (Recommended)
+
+The fastest way to get started is using the provided requirements files:
+
+```bash
+# Navigate to playbooks directory
+cd aws/playbooks
+
+# Install Python dependencies (Ansible + AWS SDK)
+pip install -r requirements.txt
+
+# Install Ansible collections (AWS modules)
+ansible-galaxy collection install -r requirements.yml
+
+# Verify installation
+ansible --version
+ansible-galaxy collection list
+```
+
+**What gets installed**:
+- ✅ Ansible (automation platform)
+- ✅ boto3 & botocore (AWS SDK for Python)
+- ✅ amazon.aws collection (core AWS modules)
+- ✅ community.aws collection (extended AWS modules including S3 sync)
+- ✅ community.general collection (general-purpose modules)
+
+### Alternative Installation Methods
+
+#### Option 1: Install via pip (Manual)
 
 ```bash
 # Install Ansible
 pip install ansible
 
+# Install AWS SDK
+pip install boto3 botocore
+
+# Install collections manually
+ansible-galaxy collection install amazon.aws
+ansible-galaxy collection install community.aws
+
 # Verify installation
 ansible --version
 ```
 
-### Option 2: Install via Homebrew (macOS)
+#### Option 2: Install via Homebrew (macOS)
 
 ```bash
 # Install Ansible
@@ -44,7 +79,7 @@ brew install ansible
 ansible --version
 ```
 
-### Option 3: Install via apt (Ubuntu/Debian)
+#### Option 3: Install via apt (Ubuntu/Debian)
 
 ```bash
 # Update package index
@@ -57,7 +92,7 @@ sudo apt install ansible -y
 ansible --version
 ```
 
-### Option 4: Install via dnf (Fedora/RHEL)
+#### Option 4: Install via dnf (Fedora/RHEL)
 
 ```bash
 # Install Ansible
@@ -280,7 +315,8 @@ See: **[vaults/README.md](vaults/README.md)**
 
 ### Available Playbooks
 
-- **frontend-deploy.yaml** - Deploy S3 static website infrastructure
+- **frontend-deploy.yml** - Deploy S3 static website infrastructure using CloudFormation
+- **s3-upload.yml** - Build and upload React + Vite frontend to S3 bucket
 
 ### Running the Frontend Deployment Playbook
 
@@ -431,6 +467,147 @@ ansible-vault edit vaults/prod-config.yml
 ansible-playbook frontend-deploy.yml \
   --vault-password-file ~/.vault_pass.txt \
   -e @vaults/dev-config.yml
+```
+
+---
+
+### Running the S3 Upload Playbook
+
+The `s3-upload.yml` playbook builds your React + Vite frontend and uploads it to your S3 bucket.
+
+#### Basic Usage
+
+```bash
+# Navigate to playbooks directory
+cd aws/playbooks
+
+# Build and upload (default)
+ansible-playbook s3-upload.yml --vault-password-file ~/.vault_pass.txt
+
+# Build and upload with verbose output
+ansible-playbook s3-upload.yml --vault-password-file ~/.vault_pass.txt -v
+```
+
+#### Using Tags for Selective Operations
+
+```bash
+# Only build (don't upload)
+ansible-playbook s3-upload.yml \
+  --vault-password-file ~/.vault_pass.txt \
+  --tags build
+
+# Only upload (requires existing build)
+ansible-playbook s3-upload.yml \
+  --vault-password-file ~/.vault_pass.txt \
+  --tags upload
+
+# Clean build artifacts (removes dist/ and node_modules/)
+ansible-playbook s3-upload.yml \
+  --vault-password-file ~/.vault_pass.txt \
+  --tags clean
+```
+
+#### Build Modes
+
+```bash
+# Production build (default)
+ansible-playbook s3-upload.yml \
+  --vault-password-file ~/.vault_pass.txt
+
+# Development build
+ansible-playbook s3-upload.yml \
+  --vault-password-file ~/.vault_pass.txt \
+  -e build_mode=development
+```
+
+#### Recommended: Use the Wrapper Script
+
+Instead of running the playbook directly, use the wrapper script for better UX:
+
+```bash
+# From project root
+./aws/bin/s3-upload --verbose
+./aws/bin/s3-upload --build
+./aws/bin/s3-upload --upload
+./aws/bin/s3-upload --dev
+```
+
+See [aws/bin/README.md](../bin/README.md#s3-upload) for full script documentation.
+
+#### What the Playbook Does
+
+1. **Validation**:
+   - Checks frontend directory exists
+   - Verifies package.json is present
+   - Checks build directory for upload-only operations
+
+2. **Build**:
+   - Installs npm dependencies if `node_modules/` doesn't exist
+   - Runs `npm run build` (production) or `npm run build:dev` (development)
+   - Verifies dist/ directory was created
+
+3. **Upload**:
+   - Syncs all files from `frontend/dist/` to S3 bucket
+   - Sets proper MIME types for all file extensions
+   - Configures cache control headers:
+     - Assets (JS, CSS, images): `public, max-age=31536000, immutable`
+     - HTML files: `no-cache, no-store, must-revalidate`
+   - Deletes files in S3 that don't exist locally (clean sync)
+
+4. **Clean** (optional):
+   - Removes `frontend/dist/` directory
+   - Removes `frontend/node_modules/` directory
+
+#### Cache Control Strategy
+
+The playbook implements an optimal caching strategy for Vite builds:
+
+**Long-term caching for assets**:
+- JavaScript, CSS, images, fonts
+- Cache-Control: `public, max-age=31536000, immutable`
+- Safe because Vite uses content hashes in filenames
+- Example: `app-abc123.js` changes when content changes
+
+**No caching for HTML**:
+- index.html, 404.html
+- Cache-Control: `no-cache, no-store, must-revalidate`
+- Ensures users always get the latest HTML
+- HTML references the correct hashed assets
+
+#### Troubleshooting
+
+**Build fails**:
+```bash
+# Check Node.js version (needs 16+ for Vite)
+node --version
+
+# Install dependencies manually
+cd frontend
+npm install
+
+# Try building manually
+npm run build
+```
+
+**Upload fails**:
+```bash
+# Verify S3 bucket exists
+aws s3 ls s3://patrickcmd.dev --profile patrickcmd
+
+# Check AWS credentials
+aws sts get-caller-identity --profile patrickcmd
+
+# Verify vault configuration
+ansible-vault view vaults/config.yml
+```
+
+**Permission errors**:
+```bash
+# Check IAM permissions
+aws iam get-user --profile patrickcmd
+
+# Test S3 permissions
+aws s3 cp test.txt s3://patrickcmd.dev/test.txt --profile patrickcmd
 ```
 
 ## Playbook Inventory
@@ -693,6 +870,391 @@ With `on_create_failure: ROLLBACK`, CloudFormation automatically:
      --profile default
    ```
 
+---
+
+### S3 Upload & Website Hosting Issues
+
+#### Issue 9: Ansible Callback Plugin Deprecated
+
+**Error Message**:
+```
+[ERROR]: The 'community.general.yaml' callback plugin has been removed.
+The plugin has been superseded by the option `result_format=yaml` in callback plugin ansible.builtin.default
+```
+
+**Cause**:
+The Ansible configuration was using the deprecated `community.general.yaml` callback plugin which was removed in newer versions of Ansible.
+
+**Solution**:
+Update `ansible.cfg` to use the modern callback configuration:
+
+```ini
+# ansible.cfg
+[defaults]
+# Use default callback with YAML result format (ansible-core 2.13+)
+stdout_callback = ansible.builtin.default
+bin_ansible_callbacks = True
+callback_result_format = yaml
+```
+
+**What changed**:
+- ❌ Old: `stdout_callback = yaml` (deprecated)
+- ✅ New: `stdout_callback = ansible.builtin.default` + `callback_result_format = yaml`
+
+---
+
+#### Issue 10: Ansible Reserved Variable Name Warning
+
+**Warning Message**:
+```
+[WARNING]: Found variable using reserved name 'environment'.
+```
+
+**Cause**:
+The playbook was using `environment` as a variable name, which is a reserved name in Ansible.
+
+**Solution**:
+Rename the variable to avoid the reserved name:
+
+```yaml
+# Before
+vars:
+  environment: "{{ deployment.environment }}"
+
+# After
+vars:
+  deploy_environment: "{{ deployment.environment }}"
+```
+
+**Impact**: Minor - this is just a warning, but fixing it improves code quality and avoids potential conflicts.
+
+---
+
+#### Issue 11: CloudFormation Parameter Mutual Exclusion
+
+**Error Message**:
+```
+[ERROR]: Task failed: Module failed: parameters are mutually exclusive: disable_rollback|on_create_failure
+```
+
+**Cause**:
+The playbook had both `disable_rollback: false` and `on_create_failure: ROLLBACK` parameters, which are mutually exclusive in the Ansible CloudFormation module.
+
+**Solution**:
+Remove the `disable_rollback` parameter and keep only `on_create_failure`:
+
+```yaml
+# Before
+amazon.aws.cloudformation:
+  disable_rollback: false
+  on_create_failure: ROLLBACK
+
+# After
+amazon.aws.cloudformation:
+  on_create_failure: ROLLBACK
+```
+
+**Why**: `on_create_failure` is more explicit and provides better control over failure handling behavior.
+
+---
+
+#### Issue 12: CloudFormation Template Bucket Name Validation
+
+**Error Message**:
+```
+Parameter BucketName failed to satisfy constraint: Bucket name must be lowercase,
+can contain hyphens, and must start/end with alphanumeric characters
+```
+
+**Cause**:
+The CloudFormation template's `AllowedPattern` for bucket names didn't allow periods (`.`), which are valid in S3 bucket names but commonly used in domain names like `patrickcmd.dev`.
+
+**AWS S3 Requirements**:
+S3 bucket names can contain:
+- Lowercase letters (a-z)
+- Numbers (0-9)
+- Hyphens (-)
+- **Periods (.)** ← This was missing!
+
+**Solution**:
+Update the CloudFormation template's `AllowedPattern` to include periods:
+
+```yaml
+# Before
+Parameters:
+  BucketName:
+    AllowedPattern: ^[a-z0-9][a-z0-9-]*[a-z0-9]$
+
+# After
+Parameters:
+  BucketName:
+    AllowedPattern: ^[a-z0-9][a-z0-9.-]*[a-z0-9]$
+```
+
+**Testing**:
+```bash
+# Validate pattern accepts domain names
+echo "patrickcmd.dev" | grep -E '^[a-z0-9][a-z0-9.-]*[a-z0-9]$'  # ✅ Matches
+echo "my-bucket-123" | grep -E '^[a-z0-9][a-z0-9.-]*[a-z0-9]$'  # ✅ Matches
+```
+
+---
+
+#### Issue 13: S3 Sync Module Not Found
+
+**Error Message**:
+```
+[ERROR]: couldn't resolve module/action 'amazon.aws.s3_sync'.
+This often indicates a misspelling, missing collection, or incorrect module path.
+```
+
+**Cause**:
+The `s3_sync` module is not in the `amazon.aws` collection; it's in the `community.aws` collection.
+
+**Solution**:
+1. Install the `community.aws` collection:
+   ```bash
+   ansible-galaxy collection install community.aws
+   ```
+
+2. Update the playbook to use the correct module:
+   ```yaml
+   # Before
+   - name: Sync build files to S3 bucket
+     amazon.aws.s3_sync:  # ❌ Wrong collection
+
+   # After
+   - name: Sync build files to S3 bucket
+     community.aws.s3_sync:  # ✅ Correct collection
+   ```
+
+**Verification**:
+```bash
+# Verify collection is installed
+ansible-galaxy collection list | grep community.aws
+
+# Check module availability
+ansible-doc community.aws.s3_sync
+```
+
+**Module Collections**:
+- `amazon.aws` - Core AWS modules (S3 object, CloudFormation, EC2, etc.)
+- `community.aws` - Extended AWS modules (S3 sync, S3 lifecycle, etc.)
+
+---
+
+#### Issue 14: S3 Website Access Denied (HTTP vs HTTPS)
+
+**Error Message**:
+```
+HTTP/1.1 403 Forbidden
+x-amz-error-code: AccessDenied
+x-amz-error-message: Access Denied
+```
+
+**Cause**:
+The S3 bucket has a policy that enforces SSL/TLS (HTTPS only):
+
+```json
+{
+  "Sid": "DenyInsecureTransport",
+  "Effect": "Deny",
+  "Principal": "*",
+  "Action": "s3:*",
+  "Condition": {
+    "Bool": {
+      "aws:SecureTransport": "false"
+    }
+  }
+}
+```
+
+However, the S3 website endpoint uses HTTP by default:
+- ❌ `http://patrickcmd.dev.s3-website-us-east-1.amazonaws.com/` (blocked)
+- ✅ `https://s3.us-east-1.amazonaws.com/patrickcmd.dev/index.html` (works)
+
+**Understanding the Issue**:
+
+1. **S3 Website Endpoint** (Static Website Hosting):
+   - URL: `http://bucket-name.s3-website-region.amazonaws.com`
+   - Protocol: **HTTP only**
+   - Features: index.html routing, error document support
+   - **Problem**: Blocked by SSL enforcement policy
+
+2. **S3 REST API Endpoint**:
+   - URL: `https://s3.region.amazonaws.com/bucket-name/object`
+   - Protocol: **HTTPS**
+   - Features: Direct object access
+   - **Works**: Not blocked, but no website features
+
+**Solutions**:
+
+**Option 1: Access via HTTPS REST API** (Current Workaround):
+```bash
+# Works but no index.html routing
+https://s3.us-east-1.amazonaws.com/patrickcmd.dev/index.html
+```
+
+**Option 2: Remove SSL Enforcement** (Not Recommended):
+```yaml
+# Remove DenyInsecureTransport from bucket policy
+# ⚠️ Not recommended - exposes data to HTTP attacks
+```
+
+**Option 3: Use CloudFront with HTTPS** (✅ Recommended - Next Step):
+```
+CloudFront (HTTPS) → S3 Bucket (Internal HTTP)
+```
+
+Benefits:
+- ✅ Serves content over HTTPS
+- ✅ SSL/TLS certificate support
+- ✅ CDN caching globally
+- ✅ Custom domain support
+- ✅ Keeps S3 bucket private (no public access needed)
+
+**Verification Commands**:
+
+```bash
+# Test S3 website endpoint (HTTP) - Will fail with SSL enforcement
+curl -I http://patrickcmd.dev.s3-website-us-east-1.amazonaws.com/
+
+# Test S3 REST API (HTTPS) - Works
+curl -I https://s3.us-east-1.amazonaws.com/patrickcmd.dev/index.html
+
+# Verify bucket policy
+aws s3api get-bucket-policy --bucket patrickcmd.dev --profile patrickcmd
+
+# List uploaded files
+aws s3 ls s3://patrickcmd.dev/ --profile patrickcmd
+```
+
+**Next Steps**:
+Add CloudFront distribution in front of S3 bucket (covered in CloudFormation CloudFront template).
+
+---
+
+#### Issue 15: S3 Object Mode Requires Source
+
+**Error Message**:
+```
+mode is put but any of the following are missing: content, content_base64, src
+```
+
+**Cause**:
+The playbook was trying to update cache-control headers on existing S3 objects using `mode: put`, but this mode requires providing the object content (which we don't want to re-upload).
+
+**Solution**:
+Use `mode: copy` with `copy_src` to copy the object to itself while updating metadata:
+
+```yaml
+# Before (doesn't work)
+- name: Set cache control for HTML files
+  amazon.aws.s3_object:
+    mode: put  # ❌ Requires content/src
+    cache_control: "no-cache"
+
+# After (works)
+- name: Set cache control for HTML files
+  amazon.aws.s3_object:
+    mode: copy  # ✅ Copy object to itself
+    copy_src:
+      bucket: "{{ bucket_name }}"
+      object: "{{ item }}"
+    cache_control: "no-cache, no-store, must-revalidate"
+    metadata_directive: "REPLACE"
+    content_type: "text/html"
+```
+
+**What this does**:
+1. Copies the object to itself (same bucket and key)
+2. Replaces metadata with new values (`metadata_directive: REPLACE`)
+3. Sets new cache-control headers
+4. Preserves the object content
+
+**Verification**:
+```bash
+# Check cache-control headers on HTML file
+aws s3api head-object \
+  --bucket patrickcmd.dev \
+  --key index.html \
+  --profile patrickcmd \
+  | jq -r '.CacheControl'
+
+# Should output: no-cache, no-store, must-revalidate
+```
+
+---
+
+### Debugging Workflow Summary
+
+Here's the complete debugging workflow we used:
+
+1. **Identify the error** from Ansible output
+2. **Check module documentation**:
+   ```bash
+   ansible-doc amazon.aws.cloudformation
+   ansible-doc community.aws.s3_sync
+   ```
+3. **Verify AWS credentials and permissions**:
+   ```bash
+   aws sts get-caller-identity --profile patrickcmd
+   aws s3 ls --profile patrickcmd
+   ```
+4. **Test AWS resources directly**:
+   ```bash
+   aws s3 ls s3://patrickcmd.dev/ --profile patrickcmd
+   curl -I http://patrickcmd.dev.s3-website-us-east-1.amazonaws.com/
+   ```
+5. **Check bucket policies and configurations**:
+   ```bash
+   aws s3api get-bucket-policy --bucket patrickcmd.dev
+   aws s3api get-bucket-website --bucket patrickcmd.dev
+   ```
+6. **Run with verbose mode**:
+   ```bash
+   ansible-playbook s3-upload.yml -vvv
+   ```
+7. **Review Ansible logs**:
+   ```bash
+   cat playbooks/ansible.log
+   ```
+
+## Files in This Directory
+
+### Configuration Files
+
+| File | Purpose | Usage |
+|------|---------|-------|
+| `requirements.txt` | Python dependencies (Ansible, boto3, etc.) | `pip install -r requirements.txt` |
+| `requirements.yml` | Ansible Galaxy collections | `ansible-galaxy collection install -r requirements.yml` |
+| `ansible.cfg` | Ansible configuration (callbacks, vault, logging) | Automatically loaded |
+| `setup.sh` | Automated setup script | `./setup.sh` |
+
+### Playbooks
+
+| File | Purpose | Usage |
+|------|---------|-------|
+| `frontend-deploy.yml` | Deploy S3 bucket with CloudFormation | `ansible-playbook frontend-deploy.yml` |
+| `s3-upload.yml` | Build and upload React frontend to S3 | `ansible-playbook s3-upload.yml` |
+
+### Documentation
+
+| File | Purpose |
+|------|---------|
+| `README.md` | Complete playbooks documentation (this file) |
+| `QUICKSTART.md` | 5-minute setup guide |
+| `CLOUDFORMATION_CONFIG.md` | CloudFormation capabilities and failure handling |
+| `vaults/README.md` | Ansible Vault guide (500+ lines) |
+| `vaults/config.example.yml` | Example vault configuration |
+
+### Directories
+
+| Directory | Contents |
+|-----------|----------|
+| `vaults/` | Ansible Vault encrypted configuration files |
+| `inventory/` | Ansible inventory files (hosts) |
+
 ## Best Practices
 
 1. **Use Version Control**: Keep playbooks in Git for version control
@@ -702,6 +1264,55 @@ With `on_create_failure: ROLLBACK`, CloudFormation automatically:
 5. **Use Check Mode**: Run with `--check` flag to preview changes
 6. **Secure Credentials**: Never commit AWS credentials to version control
 7. **Use IAM Roles**: When possible, use IAM roles instead of access keys
+8. **Pin Versions**: Use `requirements.txt` and `requirements.yml` for reproducibility
+9. **Virtual Environments**: Use Python virtual environments to isolate dependencies
+10. **Document Changes**: Update README when adding new playbooks or features
+
+## Automated Setup
+
+For the fastest setup experience, use the provided setup script:
+
+```bash
+# Navigate to playbooks directory
+cd aws/playbooks
+
+# Run automated setup
+./setup.sh
+```
+
+This script will:
+1. ✅ Check prerequisites (Python, pip)
+2. ✅ Install Python dependencies from `requirements.txt`
+3. ✅ Install Ansible collections from `requirements.yml`
+4. ✅ Verify all installations
+5. ✅ Show next steps
+
+**Alternative manual setup**:
+```bash
+# Install Python dependencies
+pip install -r requirements.txt
+
+# Install Ansible collections
+ansible-galaxy collection install -r requirements.yml
+```
+
+## Reproducibility
+
+The `requirements.txt` and `requirements.yml` files ensure:
+
+✅ **Consistent versions** across different machines
+✅ **Easy onboarding** for new team members
+✅ **CI/CD compatibility** for automated deployments
+✅ **Version pinning** to avoid breaking changes
+✅ **Documentation** of all dependencies
+
+**Example CI/CD usage** (GitHub Actions):
+```yaml
+- name: Install dependencies
+  run: |
+    pip install -r aws/playbooks/requirements.txt
+    ansible-galaxy collection install -r aws/playbooks/requirements.yml
+```
 
 ## Additional Resources
 

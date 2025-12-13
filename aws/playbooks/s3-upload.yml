@@ -1,0 +1,237 @@
+---
+# Ansible Playbook for building and uploading Frontend to S3
+# This playbook builds the React + Vite frontend and uploads it to S3 bucket
+# Part of the Cloud Resume Challenge - Frontend Deployment
+#
+# Usage with Ansible Vault:
+#   ansible-playbook s3-upload.yml --ask-vault-pass
+#   ansible-playbook s3-upload.yml --vault-password-file ~/.vault_pass.txt
+#
+# Tags:
+#   - build: Only build the frontend
+#   - upload: Only upload to S3 (requires existing build)
+#   - clean: Clean build artifacts
+
+- name: Build and Upload Frontend to S3
+  hosts: localhost
+  gather_facts: false
+
+  vars_files:
+    - vaults/config.yml
+
+  vars:
+    # AWS Configuration (loaded from vault)
+    aws_region: "{{ aws_config.region }}"
+    aws_profile: "{{ aws_config.profile }}"
+
+    # S3 Configuration (loaded from vault)
+    bucket_name: "{{ s3_config.bucket_name }}"
+
+    # Frontend paths
+    frontend_dir: "../../frontend"
+    build_dir: "{{ frontend_dir }}/dist"
+    node_modules_dir: "{{ frontend_dir }}/node_modules"
+
+    # Build configuration
+    build_mode: "production"  # Can be overridden with --extra-vars
+
+  tasks:
+    - name: Display deployment information
+      ansible.builtin.debug:
+        msg:
+          - "============================================"
+          - "Building and Uploading Frontend to S3"
+          - "============================================"
+          - "Frontend Directory: {{ frontend_dir }}"
+          - "Build Directory: {{ build_dir }}"
+          - "S3 Bucket: {{ bucket_name }}"
+          - "AWS Region: {{ aws_region }}"
+          - "AWS Profile: {{ aws_profile }}"
+          - "Build Mode: {{ build_mode }}"
+          - "============================================"
+      tags:
+        - always
+
+    # ========================================
+    # BUILD TASKS
+    # ========================================
+
+    - name: Check if frontend directory exists
+      ansible.builtin.stat:
+        path: "{{ frontend_dir }}"
+      register: frontend_dir_stat
+      tags:
+        - build
+        - validate
+
+    - name: Fail if frontend directory does not exist
+      ansible.builtin.fail:
+        msg: "Frontend directory not found at {{ frontend_dir }}"
+      when: not frontend_dir_stat.stat.exists
+      tags:
+        - build
+        - validate
+
+    - name: Check if package.json exists
+      ansible.builtin.stat:
+        path: "{{ frontend_dir }}/package.json"
+      register: package_json_stat
+      tags:
+        - build
+        - validate
+
+    - name: Fail if package.json does not exist
+      ansible.builtin.fail:
+        msg: "package.json not found in {{ frontend_dir }}"
+      when: not package_json_stat.stat.exists
+      tags:
+        - build
+        - validate
+
+    - name: Check if node_modules exists
+      ansible.builtin.stat:
+        path: "{{ node_modules_dir }}"
+      register: node_modules_stat
+      tags:
+        - build
+
+    - name: Install npm dependencies if needed
+      ansible.builtin.command:
+        cmd: npm install
+        chdir: "{{ frontend_dir }}"
+      when: not node_modules_stat.stat.exists
+      changed_when: true
+      tags:
+        - build
+
+    - name: Build frontend (production mode)
+      ansible.builtin.command:
+        cmd: npm run build
+        chdir: "{{ frontend_dir }}"
+      when: build_mode == 'production'
+      changed_when: true
+      register: build_output
+      tags:
+        - build
+
+    - name: Build frontend (development mode)
+      ansible.builtin.command:
+        cmd: npm run build:dev
+        chdir: "{{ frontend_dir }}"
+      when: build_mode == 'development'
+      changed_when: true
+      register: build_dev_output
+      tags:
+        - build
+
+    - name: Display build output
+      ansible.builtin.debug:
+        msg: "{{ build_output.stdout_lines | default(build_dev_output.stdout_lines) }}"
+      when: build_output.stdout_lines is defined or build_dev_output.stdout_lines is defined
+      tags:
+        - build
+
+    - name: Verify build directory exists
+      ansible.builtin.stat:
+        path: "{{ build_dir }}"
+      register: build_dir_stat
+      tags:
+        - build
+        - upload
+
+    - name: Fail if build directory does not exist
+      ansible.builtin.fail:
+        msg: "Build directory not found at {{ build_dir }}. Run with --tags build first."
+      when: not build_dir_stat.stat.exists
+      tags:
+        - upload
+
+    # ========================================
+    # UPLOAD TASKS
+    # ========================================
+
+    - name: Sync build files to S3 bucket
+      community.aws.s3_sync:
+        bucket: "{{ bucket_name }}"
+        file_root: "{{ build_dir }}"
+        region: "{{ aws_region }}"
+        profile: "{{ aws_profile }}"
+        # Delete files in S3 that don't exist locally (clean sync)
+        delete: true
+        # Set appropriate cache control headers
+        cache_control: "public, max-age=31536000, immutable"
+        # Include all files
+        include: "*"
+        # Set content types for common file extensions
+        mime_map:
+          .html: "text/html"
+          .css: "text/css"
+          .js: "application/javascript"
+          .json: "application/json"
+          .png: "image/png"
+          .jpg: "image/jpeg"
+          .jpeg: "image/jpeg"
+          .gif: "image/gif"
+          .svg: "image/svg+xml"
+          .ico: "image/x-icon"
+          .woff: "font/woff"
+          .woff2: "font/woff2"
+          .ttf: "font/ttf"
+          .eot: "application/vnd.ms-fontobject"
+        # Override cache control for HTML files (no caching for index.html)
+        file_change_strategy: checksum
+      register: s3_sync_result
+      tags:
+        - upload
+
+    - name: Set cache control for HTML files (no caching)
+      amazon.aws.s3_object:
+        bucket: "{{ bucket_name }}"
+        object: "{{ item }}"
+        region: "{{ aws_region }}"
+        profile: "{{ aws_profile }}"
+        mode: copy
+        copy_src:
+          bucket: "{{ bucket_name }}"
+          object: "{{ item }}"
+        cache_control: "no-cache, no-store, must-revalidate"
+        metadata_directive: "REPLACE"
+        content_type: "text/html"
+      loop:
+        - "index.html"
+      ignore_errors: true
+      tags:
+        - upload
+
+    - name: Display sync results
+      ansible.builtin.debug:
+        msg:
+          - "============================================"
+          - "S3 Upload Complete!"
+          - "============================================"
+          - "Bucket: {{ bucket_name }}"
+          - "Files synced from: {{ build_dir }}"
+          - "Website URL: http://{{ bucket_name }}.s3-website-{{ aws_region }}.amazonaws.com"
+          - "============================================"
+      tags:
+        - upload
+
+    # ========================================
+    # CLEAN TASKS
+    # ========================================
+
+    - name: Remove build directory
+      ansible.builtin.file:
+        path: "{{ build_dir }}"
+        state: absent
+      tags:
+        - clean
+        - never
+
+    - name: Remove node_modules directory
+      ansible.builtin.file:
+        path: "{{ node_modules_dir }}"
+        state: absent
+      tags:
+        - clean
+        - never

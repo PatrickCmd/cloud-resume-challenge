@@ -4,11 +4,34 @@ This guide will get you up and running with Ansible Vault for AWS deployments in
 
 ## Prerequisites
 
-- Ansible installed
+- Python 3.8 or higher
 - AWS CLI configured with a profile
-- boto3 and amazon.aws collection installed
 
 ## Step-by-Step Setup
+
+### 0. Install Dependencies (First Time Only)
+
+```bash
+# Navigate to playbooks directory
+cd aws/playbooks
+
+# Install Python dependencies (Ansible + AWS SDK)
+pip install -r requirements.txt
+
+# Install Ansible collections (AWS modules)
+ansible-galaxy collection install -r requirements.yml
+
+# Verify installation
+ansible --version
+ansible-galaxy collection list | grep -E "(amazon|community)"
+```
+
+**What this installs**:
+- ✅ Ansible 8.0+
+- ✅ boto3 & botocore (AWS SDK)
+- ✅ amazon.aws collection (CloudFormation, S3 object, etc.)
+- ✅ community.aws collection (S3 sync, etc.)
+- ✅ community.general collection
 
 ### 1. Create Vault Password File
 

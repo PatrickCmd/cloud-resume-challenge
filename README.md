@@ -126,19 +126,50 @@ Automated deployment with:
 6. Save outputs to file
 ```
 
-#### 3. Deployment Scripts
+#### 3. S3 Upload Playbook ([aws/playbooks/s3-upload.yml](aws/playbooks/s3-upload.yml))
+
+Automated frontend build and upload:
+- **Build Automation**: Builds React + Vite frontend in production or dev mode
+- **S3 Sync**: Syncs built files to S3 with proper MIME types
+- **Cache Control**: Optimized headers for performance
+- **Clean Sync**: Removes stale files from S3
+
+```yaml
+# Upload Tasks:
+1. Validate frontend directory and package.json
+2. Install npm dependencies if needed
+3. Build frontend (production or development)
+4. Sync files to S3 with checksum verification
+5. Set cache control headers (1 year for assets, no-cache for HTML)
+6. Display sync results
+```
+
+#### 4. Deployment Scripts
 
 **Frontend Deployment** ([aws/bin/frontend-deploy](aws/bin/frontend-deploy)):
 ```bash
-# User-friendly wrapper for Ansible deployment
+# Deploy S3 bucket infrastructure
 ./aws/bin/frontend-deploy --verbose
 
 # Features:
 - Automatic prerequisite checking
 - Color-coded output
-- Multiple deployment modes
+- Multiple deployment modes (validate, deploy, info)
 - Variable overrides
 - Comprehensive error messages
+```
+
+**S3 Upload** ([aws/bin/s3-upload](aws/bin/s3-upload)):
+```bash
+# Build and upload frontend to S3
+./aws/bin/s3-upload --verbose
+
+# Features:
+- Automated build process
+- Selective operations (build-only, upload-only, clean)
+- Development and production modes
+- Proper cache control headers
+- MIME type detection
 ```
 
 **Stack Management** ([aws/bin/stack-manager](aws/bin/stack-manager)):
@@ -152,43 +183,115 @@ Automated deployment with:
 # Perfect for debugging failed deployments
 ```
 
+#### 5. Reproducibility & Setup
+
+**Automated Setup** ([aws/playbooks/setup.sh](aws/playbooks/setup.sh)):
+```bash
+# One-command setup for all dependencies
+cd aws/playbooks
+./setup.sh
+
+# Installs:
+- Ansible and required Python packages
+- AWS SDK (boto3, botocore)
+- Ansible collections (amazon.aws, community.aws)
+```
+
+**Requirements Files**:
+- **[requirements.txt](aws/playbooks/requirements.txt)** - Python dependencies with version pinning
+- **[requirements.yml](aws/playbooks/requirements.yml)** - Ansible Galaxy collections
+
+Benefits:
+- ✅ Consistent versions across all machines
+- ✅ Easy onboarding for new team members
+- ✅ CI/CD ready
+- ✅ Version control friendly
+
 ### Deployment Workflow
 
-1. **Configure Ansible Vault**:
+#### Initial Setup (One-Time)
+
+1. **Install Dependencies**:
    ```bash
-   # Create encrypted configuration
    cd aws/playbooks
+   ./setup.sh
+   ```
+
+2. **Configure Ansible Vault**:
+   ```bash
+   # Create vault password file
+   echo "your-strong-password" > ~/.vault_pass.txt
+   chmod 600 ~/.vault_pass.txt
+
+   # Copy and edit configuration
    cp vaults/config.example.yml vaults/config.yml
-   # Edit with your values
-   ansible-vault encrypt vaults/config.yml
+   nano vaults/config.yml  # Update with your values
+
+   # Encrypt the vault
+   ansible-vault encrypt vaults/config.yml --vault-password-file ~/.vault_pass.txt
    ```
 
-2. **Deploy Infrastructure**:
-   ```bash
-   # Simple deployment
-   ./aws/bin/frontend-deploy
+#### Deploying Infrastructure
 
-   # With custom parameters
-   ./aws/bin/frontend-deploy --env prod --verbose
-   ```
-
-3. **Monitor Deployment**:
+3. **Deploy S3 Bucket**:
    ```bash
-   # Check status
+   # Deploy infrastructure (creates S3 bucket)
+   ./aws/bin/frontend-deploy --verbose
+
+   # Verify deployment
    ./aws/bin/stack-manager status
-
-   # View outputs
    ./aws/bin/stack-manager outputs
    ```
 
-4. **Troubleshoot if needed**:
+#### Deploying Frontend
+
+4. **Build and Upload Frontend**:
    ```bash
-   # Show failures
+   # Build React app and upload to S3
+   ./aws/bin/s3-upload --verbose
+
+   # Or do it in steps:
+   ./aws/bin/s3-upload --build    # Build only
+   ./aws/bin/s3-upload --upload   # Upload only
+   ```
+
+#### Monitoring and Troubleshooting
+
+5. **Monitor Deployment**:
+   ```bash
+   # Check CloudFormation stack status
+   ./aws/bin/stack-manager status
+
+   # View stack outputs (S3 website URL)
+   ./aws/bin/stack-manager outputs
+
+   # Verify files uploaded to S3
+   aws s3 ls s3://patrickcmd.dev/ --profile patrickcmd
+   ```
+
+6. **Troubleshoot if needed**:
+   ```bash
+   # Show only failures
    ./aws/bin/stack-manager failures
 
-   # View events
+   # View recent events
    ./aws/bin/stack-manager events --limit 30
+
+   # Very verbose deployment for debugging
+   ./aws/bin/frontend-deploy -vvv
+   ./aws/bin/s3-upload -vvv
    ```
+
+#### Quick Update Workflow
+
+After making frontend code changes:
+```bash
+# Rebuild and redeploy
+./aws/bin/s3-upload --verbose
+
+# Test at S3 website URL
+# (Get URL from: ./aws/bin/stack-manager outputs)
+```
 
 ### Security Best Practices
 
@@ -201,109 +304,332 @@ Automated deployment with:
 
 ### Documentation
 
-Comprehensive documentation is available for:
+Comprehensive documentation is available for all components:
 
-- **[AWS Infrastructure](aws/README.md)** - CloudFormation templates and deployment
-- **[Ansible Playbooks](aws/playbooks/README.md)** - Complete Ansible guide
-- **[Ansible Vault](aws/playbooks/vaults/README.md)** - Secure configuration management
-- **[CloudFormation Config](aws/playbooks/CLOUDFORMATION_CONFIG.md)** - Deep dive on capabilities
-- **[Deployment Scripts](aws/bin/README.md)** - Script usage and examples
+**Infrastructure & Deployment**:
+- **[AWS Infrastructure](aws/README.md)** - CloudFormation templates and deployment overview
+- **[Ansible Playbooks](aws/playbooks/README.md)** - Complete Ansible guide (1200+ lines)
 - **[Quick Start](aws/playbooks/QUICKSTART.md)** - 5-minute setup guide
+- **[Setup Script](aws/playbooks/setup.sh)** - Automated dependency installation
+
+**Security & Configuration**:
+- **[Ansible Vault](aws/playbooks/vaults/README.md)** - Secure configuration management (500+ lines)
+- **[CloudFormation Config](aws/playbooks/CLOUDFORMATION_CONFIG.md)** - Capabilities & failure handling (400+ lines)
+
+**Scripts & Tools**:
+- **[Deployment Scripts](aws/bin/README.md)** - Script usage and examples
+  - frontend-deploy - Infrastructure deployment
+  - s3-upload - Build and upload frontend
+  - stack-manager - Stack troubleshooting
+
+**Troubleshooting**:
+- **[Debugging Guide](aws/playbooks/README.md#troubleshooting)** - 15 documented issues with solutions
+  - Ansible configuration issues
+  - CloudFormation errors
+  - S3 sync problems
+  - HTTP vs HTTPS access
+  - Complete debugging workflow
 
 ## Project Structure
 
 ```
 cloud-resume-challenge/
-├── frontend/                      # React portfolio website
-│   ├── src/
-│   ├── public/
-│   ├── Makefile                   # Build automation
-│   └── README.md
-├── aws/                           # AWS Infrastructure
-│   ├── frontend.yaml              # CloudFormation template
-│   ├── playbooks/                 # Ansible playbooks
-│   │   ├── frontend-deploy.yml    # Deployment playbook
-│   │   ├── vaults/                # Encrypted configuration
-│   │   │   ├── config.yml         # Vault (encrypted)
-│   │   │   └── README.md          # Vault documentation
-│   │   ├── ansible.cfg            # Ansible configuration
-│   │   ├── README.md              # Playbook documentation
-│   │   ├── QUICKSTART.md          # Quick setup guide
-│   │   └── CLOUDFORMATION_CONFIG.md
-│   ├── bin/                       # Deployment scripts
-│   │   ├── frontend-deploy        # Deployment wrapper
-│   │   ├── stack-manager          # Stack management tool
-│   │   └── README.md
-│   ├── outputs/                   # Stack outputs
-│   └── README.md                  # AWS infrastructure docs
-├── backend/                       # AWS Lambda functions (coming soon)
-└── .github/                       # CI/CD workflows (coming soon)
+├── frontend/                          # React portfolio website
+│   ├── src/                           # React source code
+│   ├── public/                        # Static assets
+│   ├── dist/                          # Production build output
+│   ├── Makefile                       # Build automation
+│   ├── package.json                   # Node.js dependencies
+│   └── README.md                      # Frontend documentation
+│
+├── aws/                               # AWS Infrastructure
+│   ├── frontend.yaml                  # CloudFormation S3 template
+│   │
+│   ├── playbooks/                     # Ansible automation
+│   │   ├── frontend-deploy.yml        # Infrastructure deployment
+│   │   ├── s3-upload.yml              # Build & upload frontend
+│   │   ├── requirements.txt           # Python dependencies
+│   │   ├── requirements.yml           # Ansible collections
+│   │   ├── setup.sh                   # Automated setup script
+│   │   ├── ansible.cfg                # Ansible configuration
+│   │   ├── README.md                  # Complete playbooks guide (1200+ lines)
+│   │   ├── QUICKSTART.md              # 5-minute setup guide
+│   │   ├── CLOUDFORMATION_CONFIG.md   # CFN deep dive (400+ lines)
+│   │   └── vaults/                    # Encrypted configuration
+│   │       ├── config.yml             # Encrypted vault
+│   │       ├── config.example.yml     # Example configuration
+│   │       └── README.md              # Vault guide (500+ lines)
+│   │
+│   ├── bin/                           # Deployment scripts
+│   │   ├── frontend-deploy            # Deploy S3 infrastructure
+│   │   ├── s3-upload                  # Build & upload frontend
+│   │   ├── stack-manager              # Stack troubleshooting
+│   │   └── README.md                  # Scripts documentation
+│   │
+│   ├── outputs/                       # CloudFormation outputs
+│   │   └── frontend-stack-outputs.env # Stack outputs (generated)
+│   │
+│   └── README.md                      # AWS infrastructure overview
+│
+├── backend/                           # AWS Lambda functions (planned)
+├── .github/                           # CI/CD workflows (planned)
+└── README.md                          # This file
 ```
 
 ## Implementation Progress
 
-- [x] Frontend development (React, TypeScript, Tailwind CSS)
+### ✅ Completed
+
+**Frontend Development**:
+- [x] React + TypeScript portfolio website
+- [x] GitHub-inspired UI design
+- [x] Dark/light theme toggle
+- [x] Responsive mobile-first design
+- [x] Professional sections (Overview, Certifications, Projects, CV)
+
+**Infrastructure as Code**:
 - [x] CloudFormation template for S3 static website hosting
-- [x] Ansible playbook for automated deployment
+- [x] S3 bucket with encryption, versioning, SSL/TLS enforcement
+- [x] Ansible playbook for infrastructure deployment
+- [x] Ansible playbook for frontend build & upload
 - [x] Ansible Vault for secure configuration management
-- [x] Deployment automation scripts
+
+**Automation & Tooling**:
+- [x] Deployment automation scripts (frontend-deploy, s3-upload, stack-manager)
 - [x] Stack management and troubleshooting tools
-- [ ] Upload frontend build to S3
+- [x] Automated setup script with dependency management
+- [x] Requirements files for reproducibility (requirements.txt, requirements.yml)
+- [x] Comprehensive documentation (2000+ lines across 7 files)
+
+**Deployment**:
+- [x] Upload frontend build to S3
+- [x] Proper cache control headers (1 year for assets, no-cache for HTML)
+- [x] MIME type configuration
+- [x] Clean sync functionality
+
+### 🚧 In Progress / Planned
+
+**CDN & Domain**:
 - [ ] CloudFront distribution setup
-- [ ] Custom domain with Route 53
+- [ ] Custom domain with Route 53 (patrickcmd.dev)
 - [ ] SSL/TLS certificate with ACM
-- [ ] DynamoDB visitor counter
+
+**Backend & Database**:
+- [ ] DynamoDB visitor counter table
 - [ ] Lambda function for visitor count API
 - [ ] API Gateway integration
+- [ ] CORS configuration
+
+**DevOps**:
 - [ ] CI/CD pipeline with GitHub Actions
+- [ ] Automated testing
 - [ ] Monitoring and logging with CloudWatch
-- [ ] Testing and validation
+- [ ] Infrastructure testing and validation
+
+**Documentation**:
+- [ ] Architecture diagram
+- [ ] Cost analysis
+- [ ] Performance optimization guide
 
 ## Technologies Used
 
 ### Frontend
-- React 18
-- TypeScript
-- Vite
-- Tailwind CSS
-- shadcn-ui
-- React Router
-- TanStack Query
+- **React 18** - UI framework
+- **TypeScript** - Type-safe JavaScript
+- **Vite** - Build tool and dev server
+- **Tailwind CSS** - Utility-first CSS framework
+- **shadcn-ui** - Re-usable component library
+- **React Router** - Client-side routing
+- **TanStack Query** - Data fetching and caching
 
-### Backend (Planned)
-- AWS Lambda (Python/Node.js)
-- API Gateway
-- DynamoDB
-- CloudWatch
+### Infrastructure as Code
+- **AWS CloudFormation** - Infrastructure definition
+- **Ansible** - Deployment automation
+- **Ansible Vault** - Secure credential management
+- **Python** - Ansible runtime
+- **Bash** - Deployment scripts
 
-### Infrastructure (Planned)
-- AWS S3
-- CloudFront
-- Route 53
-- ACM (Certificate Manager)
-- Terraform or CloudFormation
+### AWS Services (Current)
+- **S3** - Static website hosting with encryption and versioning
+- **CloudFormation** - Stack management
+- **IAM** - Access control
 
-### DevOps (Planned)
-- GitHub Actions
-- AWS CLI
-- Infrastructure as Code
+### AWS Services (Planned)
+- **CloudFront** - CDN and HTTPS
+- **Route 53** - DNS and domain management
+- **ACM** - SSL/TLS certificates
+- **Lambda** - Serverless functions
+- **API Gateway** - API management
+- **DynamoDB** - NoSQL database
+- **CloudWatch** - Monitoring and logging
+
+### DevOps & Automation
+- **Ansible** 9.13.0 - Configuration management
+- **boto3** - AWS SDK for Python
+- **community.aws** - Extended Ansible AWS modules
+- **Git** - Version control
+- **GitHub Actions** (planned) - CI/CD pipelines
+- **Make** - Build automation
+- **npm** - Package management
+
+### Development Tools
+- **Lovable.dev** - AI-powered frontend development
+- **VS Code** - IDE
+- **AWS CLI** - Command-line AWS interface
+- **ansible-galaxy** - Ansible collection management
 
 ## Getting Started
 
-### Frontend Setup
+### Prerequisites
 
-See the detailed instructions in [frontend/README.md](frontend/README.md).
+- **Python 3.8+** - For Ansible
+- **Node.js 16+** - For React/Vite frontend
+- **AWS Account** - With appropriate permissions
+- **AWS CLI** - Configured with a profile
 
-Quick start:
+### Quick Start Guide
+
+#### 1. Clone the Repository
+
 ```bash
+git clone https://github.com/PatrickCmd/cloud-resume-challenge.git
+cd cloud-resume-challenge
+```
+
+#### 2. Frontend Development (Optional)
+
+```bash
+# Navigate to frontend
 cd frontend
+
+# Install dependencies
 npm install
+
+# Start dev server
 npm run dev
+
+# Visit http://localhost:5173
+```
+
+See [frontend/README.md](frontend/README.md) for detailed frontend setup.
+
+#### 3. Infrastructure Setup
+
+```bash
+# Navigate to playbooks
+cd aws/playbooks
+
+# Run automated setup
+./setup.sh
+
+# This installs:
+# - Ansible and Python dependencies
+# - AWS SDK (boto3, botocore)
+# - Ansible collections (amazon.aws, community.aws)
+```
+
+#### 4. Configure Deployment
+
+```bash
+# Create vault password file
+echo "your-strong-password" > ~/.vault_pass.txt
+chmod 600 ~/.vault_pass.txt
+
+# Copy and edit configuration
+cp vaults/config.example.yml vaults/config.yml
+nano vaults/config.yml  # Update bucket name and AWS profile
+
+# Encrypt vault
+ansible-vault encrypt vaults/config.yml --vault-password-file ~/.vault_pass.txt
+```
+
+#### 5. Deploy to AWS
+
+```bash
+# Deploy S3 bucket infrastructure
+cd ../..  # Back to project root
+./aws/bin/frontend-deploy --verbose
+
+# Build and upload frontend
+./aws/bin/s3-upload --verbose
+
+# Get website URL
+./aws/bin/stack-manager outputs
+```
+
+#### 6. Access Your Website
+
+```bash
+# The S3 website URL will be displayed in the outputs
+# Example: http://patrickcmd.dev.s3-website-us-east-1.amazonaws.com
+
+# Or access via HTTPS (REST API endpoint)
+# https://s3.us-east-1.amazonaws.com/patrickcmd.dev/index.html
+```
+
+### Making Updates
+
+After making changes to your frontend code:
+
+```bash
+# Rebuild and redeploy
+./aws/bin/s3-upload --verbose
+
+# Or do it in steps
+./aws/bin/s3-upload --build    # Build only
+./aws/bin/s3-upload --upload   # Upload only
 ```
 
 ## Deployment
 
-Deployment instructions will be added as infrastructure components are implemented.
+Complete deployment documentation is available in:
+
+- **[Quick Start Guide](aws/playbooks/QUICKSTART.md)** - Get started in 5 minutes
+- **[Ansible Playbooks README](aws/playbooks/README.md)** - Comprehensive guide
+- **[Deployment Scripts README](aws/bin/README.md)** - Script usage and examples
+
+### Deployment Architecture
+
+```
+┌─────────────────────────────────────────────────────────┐
+│  Developer Machine                                      │
+│  ┌──────────────────────────────────────────────────┐  │
+│  │  1. Run: ./aws/bin/frontend-deploy               │  │
+│  │     → Deploys CloudFormation template            │  │
+│  │     → Creates S3 bucket with website config      │  │
+│  └──────────────────────────────────────────────────┘  │
+│  ┌──────────────────────────────────────────────────┐  │
+│  │  2. Run: ./aws/bin/s3-upload                     │  │
+│  │     → Builds React app (npm run build)           │  │
+│  │     → Uploads to S3 with sync                    │  │
+│  │     → Sets cache headers                         │  │
+│  └──────────────────────────────────────────────────┘  │
+└─────────────────────────────────────────────────────────┘
+                          │
+                          ▼
+        ┌────────────────────────────────┐
+        │  AWS CloudFormation            │
+        │  ┌──────────────────────────┐  │
+        │  │  S3 Bucket               │  │
+        │  │  - Website hosting       │  │
+        │  │  - Encryption (AES256)   │  │
+        │  │  - Versioning enabled    │  │
+        │  │  - SSL/TLS enforcement   │  │
+        │  └──────────────────────────┘  │
+        └────────────────────────────────┘
+                          │
+                          ▼
+        ┌────────────────────────────────┐
+        │  Website URL (S3 REST API)     │
+        │  https://s3.us-east-1.         │
+        │  amazonaws.com/patrickcmd.dev/ │
+        └────────────────────────────────┘
+```
+
+**Next Steps** (CloudFront + Route 53):
+```
+CloudFront (HTTPS) → S3 Bucket → patrickcmd.dev
+```
 
 ## License
 

@@ -480,6 +480,279 @@ When adding new deployment scripts to this directory:
 
 6. **Update this README**
 
+---
+
+### `s3-upload`
+
+Build and upload React + Vite frontend to S3 bucket.
+
+#### Features
+
+- ✅ Automated frontend build (production or development mode)
+- ✅ Direct S3 upload with sync
+- ✅ Proper cache control headers
+- ✅ MIME type detection
+- ✅ Dependency installation if needed
+- ✅ Build verification
+- ✅ Selective operations (build-only, upload-only)
+- ✅ Clean build artifacts
+
+#### Usage
+
+```bash
+# Build and upload (default)
+./bin/s3-upload
+
+# Build and upload with verbose output
+./bin/s3-upload --verbose
+
+# Only build (don't upload)
+./bin/s3-upload --build
+
+# Only upload (requires existing build)
+./bin/s3-upload --upload
+
+# Build in development mode
+./bin/s3-upload --dev
+
+# Clean build artifacts
+./bin/s3-upload --clean
+
+# Very verbose output
+./bin/s3-upload -vvv
+
+# Show help
+./bin/s3-upload --help
+```
+
+#### Options
+
+| Option | Description |
+|--------|-------------|
+| `-h, --help` | Show help message |
+| `-v, --verbose` | Verbose output (-v, -vv, -vvv) |
+| `--build` | Only build the frontend |
+| `--upload` | Only upload to S3 |
+| `--clean` | Clean build artifacts |
+| `--dev` | Build in development mode |
+| `--prod` | Build in production mode (default) |
+| `--vault-password-file` | Path to vault password file |
+
+#### What It Does
+
+1. **Checks Prerequisites**:
+   - Node.js and npm installed
+   - Ansible installed
+   - Vault password file exists
+   - Frontend directory exists
+
+2. **Builds Frontend**:
+   - Installs npm dependencies if needed
+   - Runs `npm run build` (production) or `npm run build:dev`
+   - Verifies build directory created
+
+3. **Uploads to S3**:
+   - Syncs files from `frontend/dist/` to S3 bucket
+   - Sets proper MIME types (.html, .css, .js, etc.)
+   - Configures cache control headers
+   - Removes files from S3 not in local build (clean sync)
+
+#### Cache Control Strategy
+
+The script sets optimized cache headers:
+
+- **Assets (JS, CSS, images)**: `public, max-age=31536000, immutable`
+  - Cached for 1 year
+  - Perfect for content-hashed files from Vite
+
+- **HTML files**: `no-cache, no-store, must-revalidate`
+  - Never cached
+  - Ensures users always get latest version
+
+#### Examples
+
+##### Example 1: Full Build and Upload
+
+```bash
+./bin/s3-upload
+```
+
+This will:
+1. Check prerequisites
+2. Install npm dependencies if needed
+3. Build frontend in production mode
+4. Upload all files to S3
+5. Set proper cache headers
+
+##### Example 2: Build Only
+
+```bash
+./bin/s3-upload --build
+```
+
+Useful when:
+- You want to test the build locally first
+- You're iterating on build configuration
+- You want to review dist/ before uploading
+
+##### Example 3: Upload Existing Build
+
+```bash
+./bin/s3-upload --upload
+```
+
+Useful when:
+- Build already exists in dist/
+- You've manually modified dist/ contents
+- You want to re-upload without rebuilding
+
+##### Example 4: Development Build
+
+```bash
+./bin/s3-upload --dev
+```
+
+This will:
+1. Build using `npm run build:dev`
+2. Upload to S3
+3. Useful for staging environments
+
+##### Example 5: Clean Artifacts
+
+```bash
+./bin/s3-upload --clean
+```
+
+This will:
+- Remove `frontend/dist/` directory
+- Remove `frontend/node_modules/` directory
+- Useful for freeing disk space
+
+##### Example 6: Verbose Deployment
+
+```bash
+./bin/s3-upload -vvv
+```
+
+Shows:
+- All Ansible task details
+- S3 sync progress
+- File-by-file upload information
+
+#### Workflow Integration
+
+**Typical Development Workflow**:
+
+```bash
+# 1. Make changes to frontend code
+# (edit files in frontend/src/)
+
+# 2. Build and upload to S3
+./bin/s3-upload --verbose
+
+# 3. Test the website
+# Visit the S3 website URL from stack outputs
+
+# 4. If issues found, iterate
+./bin/s3-upload --build  # Build only to test locally
+./bin/s3-upload --upload # Upload when ready
+```
+
+**Production Deployment**:
+
+```bash
+# Full deployment flow
+./bin/frontend-deploy     # Deploy infrastructure
+./bin/s3-upload           # Build and upload frontend
+./bin/stack-manager outputs  # Get website URL
+```
+
+#### Prerequisites
+
+1. **Node.js and npm**:
+   ```bash
+   node --version  # Should be v16+ for Vite
+   npm --version
+   ```
+
+2. **Ansible with AWS collection**:
+   ```bash
+   pip install ansible boto3 botocore
+   ansible-galaxy collection install amazon.aws
+   ```
+
+3. **Vault Password File**:
+   ```bash
+   echo "your-vault-password" > ~/.vault_pass.txt
+   chmod 600 ~/.vault_pass.txt
+   ```
+
+4. **S3 Bucket**: Must be created first
+   ```bash
+   ./bin/frontend-deploy  # Creates S3 bucket
+   ```
+
+#### Troubleshooting
+
+**Build Fails**:
+```bash
+# Install dependencies manually
+cd frontend
+npm install
+
+# Try building manually
+npm run build
+
+# Check for errors in package.json
+```
+
+**Upload Fails**:
+```bash
+# Verify AWS credentials
+aws s3 ls --profile patrickcmd
+
+# Check bucket exists
+./bin/stack-manager status
+
+# Verify bucket name in vault config
+ansible-vault view playbooks/vaults/config.yml
+
+# Run with verbose mode
+./bin/s3-upload --upload -vvv
+```
+
+**Permission Errors**:
+```bash
+# Check AWS IAM permissions for S3
+aws iam get-user --profile patrickcmd
+
+# Verify bucket policy allows PutObject
+aws s3api get-bucket-policy --bucket patrickcmd.dev
+```
+
+#### Advanced Usage
+
+**Custom Vault Location**:
+```bash
+./bin/s3-upload --vault-password-file /path/to/vault_pass.txt
+```
+
+**Environment Variable**:
+```bash
+export VAULT_PASSWORD_FILE=/custom/path/vault_pass.txt
+./bin/s3-upload
+```
+
+**Build-only in CI/CD**:
+```yaml
+# GitHub Actions
+- name: Build Frontend
+  run: ./aws/bin/s3-upload --build
+
+- name: Upload to S3
+  run: ./aws/bin/s3-upload --upload
+```
+
 ## Directory Structure
 
 ```
@@ -487,6 +760,7 @@ bin/
 ├── README.md              # This file
 ├── stack-manager          # CloudFormation stack management tool
 ├── frontend-deploy        # Frontend deployment script
+├── s3-upload              # Build and upload frontend to S3
 └── [future scripts]       # Backend, CDN, etc.
 ```
 
@@ -494,9 +768,14 @@ bin/
 
 ### Common Workflows
 
-**Deploy Frontend**:
+**Deploy Infrastructure**:
 ```bash
 ./bin/frontend-deploy --verbose
+```
+
+**Build and Upload Frontend**:
+```bash
+./bin/s3-upload --verbose
 ```
 
 **Check Deployment Status**:
@@ -517,14 +796,23 @@ bin/
 
 **Full Deployment Cycle**:
 ```bash
-# Deploy
+# 1. Deploy infrastructure (S3 bucket)
 ./bin/frontend-deploy
 
-# Check status
+# 2. Build and upload frontend
+./bin/s3-upload
+
+# 3. Check status
 ./bin/stack-manager status
 
-# View outputs
+# 4. View outputs (website URL)
 ./bin/stack-manager outputs
+```
+
+**Quick Frontend Update**:
+```bash
+# After making code changes, rebuild and upload
+./bin/s3-upload --verbose
 ```
 
 ## Related Documentation

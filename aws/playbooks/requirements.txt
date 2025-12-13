@@ -1,0 +1,48 @@
+# Python Requirements for Ansible AWS Playbooks
+# This file specifies all Python packages needed for the Cloud Resume Challenge playbooks
+#
+# Installation:
+#   pip install -r requirements.txt
+#
+# Installation in virtual environment (recommended):
+#   python3 -m venv venv
+#   source venv/bin/activate  # On Windows: venv\Scripts\activate
+#   pip install -r requirements.txt
+#
+# Upgrade to latest versions:
+#   pip install -r requirements.txt --upgrade
+
+# Ansible
+# Automation platform for configuration management and deployment
+# Version 8.0+ required for modern callback plugins and features
+ansible>=8.0.0,<10.0.0
+
+# Boto3
+# AWS SDK for Python - required by all Ansible AWS modules
+# Provides programmatic access to AWS services
+boto3>=1.28.0
+
+# Botocore
+# Low-level interface to AWS services (boto3 dependency)
+# Must be compatible with boto3 version
+botocore>=1.31.0
+
+# Jinja2
+# Templating engine used by Ansible
+# Usually installed with Ansible, but specified for completeness
+jinja2>=3.0.0
+
+# PyYAML
+# YAML parser and emitter for Python
+# Required for parsing Ansible playbooks and variables
+PyYAML>=6.0
+
+# Cryptography
+# Required for Ansible Vault encryption/decryption
+# Provides secure cryptographic recipes
+cryptography>=41.0.0
+
+# Packaging
+# Core utilities for Python package handling
+# Used by Ansible for version comparisons
+packaging>=21.0
