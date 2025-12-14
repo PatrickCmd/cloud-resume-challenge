@@ -506,13 +506,15 @@ Comprehensive documentation is available for all components:
 - **[CloudFormation Config](aws/playbooks/CLOUDFORMATION_CONFIG.md)** - Capabilities & failure handling (400+ lines)
 
 **Scripts & Tools**:
-- **[Deployment Scripts](aws/bin/README.md)** - Script usage and examples (1600+ lines)
+- **[Deployment Scripts](aws/bin/README.md)** - Script usage and examples (2200+ lines)
   - frontend-deploy - Infrastructure deployment (S3 + CloudFront)
   - s3-upload - Build and upload frontend
   - cloudfront-invalidate - Cache invalidation with cost optimization
   - route53-setup - Automated DNS configuration
   - test-website - Comprehensive testing suite (5 tests)
   - stack-manager - Stack troubleshooting
+  - budget-setup - AWS Budget monitoring with email alerts
+  - billing-alarm-setup - CloudWatch billing alarms (more reliable emails)
 
 **Troubleshooting**:
 - **[Debugging Guide](aws/playbooks/README.md#troubleshooting)** - 15 documented issues with solutions
@@ -569,7 +571,9 @@ cloud-resume-challenge/
 │   │   ├── route53-setup              # DNS configuration automation
 │   │   ├── test-website               # Comprehensive testing suite
 │   │   ├── stack-manager              # Stack troubleshooting
-│   │   └── README.md                  # Scripts documentation (1600+ lines)
+│   │   ├── budget-setup               # AWS Budget monitoring and management
+│   │   ├── billing-alarm-setup        # CloudWatch billing alarms (recommended)
+│   │   └── README.md                  # Scripts documentation (2200+ lines)
 │   │
 │   ├── outputs/                       # CloudFormation outputs
 │   │   └── frontend-stack-outputs.env # Stack outputs (generated)
@@ -634,6 +638,16 @@ cloud-resume-challenge/
 - [x] Comprehensive website testing suite (5 tests)
 - [x] CloudFront, DNS, HTTPS, redirect, and SSL certificate testing
 
+**Cost Monitoring & Budget Management**:
+- [x] AWS Budgets setup script (budget-setup) for monthly budget tracking
+- [x] CloudWatch billing alarms (billing-alarm-setup) with reliable SNS email notifications
+- [x] Automated threshold alerts at 80% of monthly budget ($16 of $20)
+- [x] Email notifications for cost overruns
+- [x] Budget status monitoring and management tools
+- [x] IAM billing access configuration documentation
+- [x] AWS Free Tier usage monitoring and alerts (web console guide)
+- [x] CloudWatch billing alarm setup via web console (clickops with screenshots)
+
 ### 🚧 In Progress / Planned
 
 **Backend & Database**:
@@ -645,7 +659,7 @@ cloud-resume-challenge/
 **DevOps**:
 - [ ] CI/CD pipeline with GitHub Actions
 - [ ] Automated testing
-- [ ] Monitoring and logging with CloudWatch
+- [ ] Application monitoring and logging with CloudWatch
 - [ ] Infrastructure testing and validation
 
 **Documentation**:
@@ -679,13 +693,15 @@ cloud-resume-challenge/
 - **CloudFormation** - Infrastructure as Code stack management
 - **IAM** - Access control and service principals
 - **Origin Access Control (OAC)** - Secure S3-CloudFront integration
+- **Route 53** - DNS and domain management (A records to CloudFront)
+- **CloudWatch** - Billing alarms and cost monitoring
+- **SNS (Simple Notification Service)** - Email notifications for billing alerts
+- **AWS Budgets** - Monthly budget tracking and threshold alerts
 
 ### AWS Services (Planned)
-- **Route 53** - DNS and domain management (A records to CloudFront)
 - **Lambda** - Serverless functions for visitor counter
 - **API Gateway** - RESTful API management
 - **DynamoDB** - NoSQL database for visitor count
-- **CloudWatch** - Monitoring, logging, and metrics
 
 ### DevOps & Automation
 - **Ansible** 9.13.0 - Configuration management

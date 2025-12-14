@@ -1356,6 +1356,1186 @@ aws cloudfront list-invalidations --distribution-id $DIST_ID --profile patrickcm
 
 ---
 
+### `budget-setup`
+
+Monitor and manage AWS monthly budgets with email notifications.
+
+#### Features
+
+- ✅ Create recurring monthly budgets
+- ✅ Configure spending thresholds with email alerts
+- ✅ Update existing budgets
+- ✅ Check budget status and current spend
+- ✅ List all budgets
+- ✅ Delete budgets with confirmation
+- ✅ Automatic AWS account ID detection
+- ✅ Color-coded output for readability
+
+#### Prerequisites
+
+**IMPORTANT: IAM Billing Access Required**
+
+By default, IAM users and roles in an AWS account cannot access the Billing and Cost Management console, even if they have the AdministratorAccess policy attached. Both `budget-setup` and `billing-alarm-setup` require billing access to be enabled.
+
+See the [billing-alarm-setup Prerequisites](#prerequisites) section for detailed steps to enable IAM billing access.
+
+**Note on Email Notifications:**
+AWS Budgets notification emails are often unreliable. If you don't receive confirmation emails, consider using [billing-alarm-setup](#billing-alarm-setup) instead, which provides more reliable email notifications via direct SNS control.
+
+#### Usage
+
+```bash
+# Create budget with defaults ($20, 80% threshold)
+./bin/budget-setup --create
+
+# Create budget with custom values
+./bin/budget-setup --create --amount 50 --threshold 90 --email your@email.com
+
+# Update existing budget
+./bin/budget-setup --update --amount 30
+
+# Check budget status
+./bin/budget-setup --status
+
+# List all budgets
+./bin/budget-setup --list
+
+# Delete budget (with confirmation)
+./bin/budget-setup --delete
+
+# Show help
+./bin/budget-setup --help
+```
+
+#### Options
+
+| Option | Description |
+|--------|-------------|
+| `-h, --help` | Show help message |
+| `-c, --create` | Create a new budget |
+| `-u, --update` | Update existing budget |
+| `-d, --delete` | Delete budget (requires confirmation) |
+| `-s, --status` | Show budget status (default) |
+| `-l, --list` | List all budgets |
+| `--amount AMOUNT` | Budget amount in USD (default: 20) |
+| `--threshold PERCENT` | Alert threshold percentage (default: 80) |
+| `--email EMAIL` | Email for notifications (default: pwalukagga@gmail.com) |
+| `--name NAME` | Budget name (default: cloud-resume-challenge-budget) |
+| `--profile PROFILE` | AWS profile to use (default: patrickcmd) |
+
+#### What It Does
+
+1. **Checks Prerequisites**:
+   - AWS CLI installed
+   - AWS profile configured
+   - Valid AWS credentials
+
+2. **Gets Account ID**:
+   - Automatically retrieves your AWS account ID
+   - Validates credentials are working
+
+3. **Creates/Updates Budget**:
+   - Sets up monthly cost budget
+   - Configures notification thresholds
+   - Sets up email alerts via SNS
+
+4. **Shows Status**:
+   - Current spend vs budget limit
+   - Forecasted spend (if available)
+   - Budget percentage used
+   - Notification configuration
+
+#### Budget Configuration
+
+**Default Configuration:**
+- Budget Name: `cloud-resume-challenge-budget`
+- Amount: `$20/month`
+- Threshold: `80%` (alert when spending reaches $16)
+- Email: `pwalukagga@gmail.com`
+- AWS Profile: `patrickcmd`
+
+**Environment Variables:**
+You can set defaults via environment variables:
+
+```bash
+export BUDGET_NAME=my-custom-budget
+export BUDGET_AMOUNT=50
+export THRESHOLD_PERCENT=90
+export EMAIL_ADDRESS=your@email.com
+export AWS_PROFILE=myprofile
+
+./bin/budget-setup --create
+```
+
+#### Examples
+
+##### Example 1: Create Budget with Defaults
+
+```bash
+./bin/budget-setup --create
+```
+
+This will:
+1. Create a monthly budget of $20
+2. Set alert threshold at 80% ($16)
+3. Send email notifications to pwalukagga@gmail.com
+4. You'll receive a confirmation email from AWS
+
+##### Example 2: Create Custom Budget
+
+```bash
+./bin/budget-setup --create \
+  --amount 100 \
+  --threshold 75 \
+  --email team@company.com \
+  --name production-budget
+```
+
+This creates:
+- Monthly budget: $100
+- Alert at: $75 (75%)
+- Email: team@company.com
+- Budget name: production-budget
+
+##### Example 3: Update Existing Budget
+
+```bash
+# Increase budget limit
+./bin/budget-setup --update --amount 30
+
+# Change threshold
+./bin/budget-setup --update --threshold 90
+
+# Update both
+./bin/budget-setup --update --amount 40 --threshold 85
+```
+
+##### Example 4: Check Budget Status
+
+```bash
+./bin/budget-setup --status
+```
+
+Output shows:
+```
+Budget Details:
+  Name: cloud-resume-challenge-budget
+  Amount: $20.0 USD
+  Time Period: MONTHLY
+  Type: COST
+  Current Spend: $4.25 (21.3%)
+  Forecasted Spend: $8.50 (42.5%)
+
+Notifications:
+  GREATER_THAN | 80.0 | PERCENTAGE | ACTUAL
+```
+
+##### Example 5: List All Budgets
+
+```bash
+./bin/budget-setup --list
+```
+
+Shows table of all budgets in your account:
+```
+BudgetName                      | Amount | Unit | TimeUnit
+--------------------------------|--------|------|----------
+cloud-resume-challenge-budget   | 20.0   | USD  | MONTHLY
+production-budget               | 100.0  | USD  | MONTHLY
+```
+
+##### Example 6: Delete Budget
+
+```bash
+./bin/budget-setup --delete
+# Prompts: Are you sure you want to delete this budget? (yes/no):
+```
+
+#### Email Notifications
+
+**What You'll Receive:**
+
+When your spending reaches the threshold (e.g., 80% of $20 = $16):
+
+1. **Initial Setup**: AWS sends a subscription confirmation email
+   - You MUST click the confirmation link
+   - Check spam folder if not received
+
+2. **Alert Email**: When threshold is reached
+   - Subject: "AWS Budgets: cloud-resume-challenge-budget has exceeded your alert threshold"
+   - Body: Current spend, budget limit, percentage used
+   - Sent immediately when threshold is crossed
+
+**Email Setup Steps:**
+
+1. Run `./bin/budget-setup --create`
+2. Check your email for "AWS Notification - Subscription Confirmation"
+3. Click "Confirm subscription" link
+4. You'll receive a confirmation page
+5. Future alerts will be delivered to this email
+
+#### Cost Tracking
+
+**What's Included in Budget:**
+
+The budget tracks these AWS costs:
+- ✅ Tax
+- ✅ Subscriptions (e.g., Support plans)
+- ✅ Upfront costs (e.g., Reserved Instances)
+- ✅ Recurring costs
+- ✅ Support charges
+- ✅ Discounts (shown as negative)
+- ❌ Refunds (excluded)
+- ❌ Credits (excluded)
+
+**Typical Cloud Resume Challenge Costs:**
+
+| Service | Monthly Cost |
+|---------|-------------|
+| S3 Storage (1GB) | $0.02 |
+| S3 Requests (10k) | $0.01 |
+| CloudFront (1GB transfer) | $0.09 |
+| Route 53 (hosted zone) | $0.50 |
+| ACM Certificate | **FREE** |
+| Lambda (within free tier) | **FREE** |
+| **Estimated Total** | **$0.62/month** |
+
+A $20 budget provides comfortable headroom for:
+- Development/testing cycles
+- Traffic spikes
+- Learning experiments
+
+#### Monitoring and Alerts
+
+**Budget Status:**
+```bash
+# Check current spend
+./bin/budget-setup --status
+
+# Monitor regularly
+watch -n 3600 ./bin/budget-setup --status  # Check hourly
+```
+
+**AWS Console:**
+- View budgets: [AWS Budgets Console](https://console.aws.amazon.com/billing/home#/budgets)
+- See cost breakdown by service
+- View spend patterns over time
+
+**Cost Explorer:**
+```bash
+# Enable Cost Explorer (one-time, free)
+aws ce get-cost-and-usage \
+  --time-period Start=2025-12-01,End=2025-12-14 \
+  --granularity MONTHLY \
+  --metrics BlendedCost \
+  --profile patrickcmd
+```
+
+#### Workflow Integration
+
+**Initial Setup:**
+```bash
+# After deploying infrastructure
+./bin/frontend-deploy
+./bin/s3-upload
+
+# Set up budget monitoring
+./bin/budget-setup --create
+
+# Confirm subscription email
+# Check inbox for AWS confirmation
+```
+
+**Regular Monitoring:**
+```bash
+# Weekly check
+./bin/budget-setup --status
+
+# Monthly review before billing cycle
+./bin/budget-setup --status
+aws ce get-cost-and-usage \
+  --time-period Start=$(date -v-1m +%Y-%m-01),End=$(date +%Y-%m-%d) \
+  --granularity MONTHLY \
+  --metrics BlendedCost \
+  --profile patrickcmd
+```
+
+**Adjust Budget:**
+```bash
+# After adding new services
+./bin/budget-setup --update --amount 30
+
+# Before major traffic event
+./bin/budget-setup --update --threshold 95
+```
+
+#### Troubleshooting
+
+**Budget Creation Fails:**
+```bash
+# Check AWS credentials
+aws sts get-caller-identity --profile patrickcmd
+
+# Verify IAM permissions (budgets:CreateBudget required)
+aws iam get-user --profile patrickcmd
+
+# Check if budget name already exists
+./bin/budget-setup --list
+```
+
+**Not Receiving Email Notifications:**
+```bash
+# 1. Check subscription status
+aws sns list-subscriptions --profile patrickcmd
+
+# 2. Re-create notification
+./bin/budget-setup --delete
+./bin/budget-setup --create
+
+# 3. Check spam folder for confirmation email
+
+# 4. Verify email address is correct
+./bin/budget-setup --status
+```
+
+**Budget Not Updating:**
+```bash
+# Budget must exist to update
+./bin/budget-setup --list
+
+# If doesn't exist, create first
+./bin/budget-setup --create
+
+# Then update
+./bin/budget-setup --update --amount 30
+```
+
+**AWS CLI Not Found:**
+```bash
+# Install AWS CLI
+pip install awscli
+
+# Or on macOS
+brew install awscli
+
+# Configure profile
+aws configure --profile patrickcmd
+```
+
+#### Best Practices
+
+1. **Set Realistic Budgets:**
+   - Start conservative ($20 for learning projects)
+   - Increase as you understand costs
+   - Review actual spend monthly
+
+2. **Use Multiple Thresholds:**
+   - 50% threshold: Early warning
+   - 80% threshold: Action required
+   - 100% threshold: Budget exceeded
+
+   ```bash
+   # Create multiple budgets with different thresholds
+   ./bin/budget-setup --create --name early-warning --threshold 50
+   ./bin/budget-setup --create --name action-required --threshold 80
+   ```
+
+3. **Monitor Regularly:**
+   - Weekly status checks
+   - Monthly cost analysis
+   - Quarterly budget reviews
+
+4. **Clean Up Unused Resources:**
+   ```bash
+   # Delete unused stacks
+   ./bin/stack-manager delete
+
+   # Empty S3 buckets
+   aws s3 rm s3://your-bucket --recursive --profile patrickcmd
+
+   # Delete Route 53 hosted zones
+   ./bin/route53-setup --delete
+   ```
+
+5. **Use AWS Free Tier:**
+   - Stay within free tier limits when learning
+   - Enable free tier alerts in AWS Console
+   - Monitor free tier usage: [Free Tier Dashboard](https://console.aws.amazon.com/billing/home#/freetier)
+
+#### Related AWS Services
+
+- **AWS Cost Explorer**: Detailed cost analysis and forecasting
+- **AWS Cost Anomaly Detection**: ML-based unusual spend detection
+- **AWS Trusted Advisor**: Cost optimization recommendations
+- **AWS Billing Alarms**: CloudWatch-based billing alerts (older method)
+
+---
+
+### billing-alarm-setup
+
+**Alternative Budget Monitoring via CloudWatch Billing Alarms**
+
+A more reliable alternative to AWS Budgets that uses CloudWatch billing alarms with direct SNS control for email notifications.
+
+#### Prerequisites
+
+**IMPORTANT: IAM Billing Access Required**
+
+By default, IAM users and roles in an AWS account cannot access the Billing and Cost Management console, even if they have the AdministratorAccess policy attached. To enable this access, you must configure the Activate IAM Access setting and assign the necessary permissions.
+
+**Steps to Enable Billing Access:**
+
+1. **Sign in with the Root Account:**
+   - Use the Root account credentials to sign in to the AWS Management Console.
+
+2. **Activate IAM Access:**
+   - Navigate to **My Account**.
+   - Scroll down to **IAM User and Role Access to Billing Information**.
+   - Click **Edit**, select the checkbox for **Activate IAM Access**, and choose **Update**.
+
+3. **Assign Billing Permissions:**
+   - In the AWS Management Console, search for **IAM** in the dashboard.
+   - Go to the **Users** section and select the IAM user you want to grant billing access.
+   - Click **Add Permissions**:
+     - Choose **Add Permission** > **Create Group** (if needed).
+     - Add the policy **AWSBillingReadOnlyAccess** (or other relevant policies).
+     - Save changes.
+
+4. **Test Access:**
+   - Log out of the root account and log in using the IAM user account to confirm billing console access.
+
+**Note:**
+If using the new AWS console UI, adding billing permissions via IAM may be required even after activating IAM access. For full administrative access, ensure the AdministratorAccess policy is also attached.
+
+#### Features
+
+- **CloudWatch Billing Alarms**: Uses CloudWatch EstimatedCharges metric instead of AWS Budgets
+- **Direct SNS Control**: Creates and manages SNS topic directly for reliable email delivery
+- **Immediate Test Email**: Sends test alarm to verify email notifications work
+- **Simple Configuration**: Single command to set up complete monitoring
+- **Cost Effective**: CloudWatch alarms are free for billing metrics, SNS notifications are $0.50 per million emails
+
+#### Why Use This Instead of budget-setup?
+
+**Advantages over AWS Budgets:**
+- ✅ More reliable email notifications (AWS Budgets confirmation emails often don't arrive)
+- ✅ Direct control over SNS topic and subscriptions
+- ✅ Immediate test capability to verify emails work
+- ✅ Simpler setup - one command does everything
+- ✅ Can trigger test alarms anytime
+
+**Trade-offs:**
+- ❌ No native "monthly budget" concept (uses continuous monitoring)
+- ❌ Threshold is absolute dollar amount, not percentage
+- ❌ No cost forecasting features
+
+#### Usage
+
+**Create Billing Alarm (Default: $16 threshold)**:
+```bash
+./bin/billing-alarm-setup
+```
+
+**Create with Custom Threshold**:
+```bash
+THRESHOLD=25 EMAIL_ADDRESS=your@email.com ./bin/billing-alarm-setup
+```
+
+**Environment Variables**:
+```bash
+ALARM_NAME="cloud-resume-challenge-billing-alarm"  # CloudWatch alarm name
+THRESHOLD="16"                                     # Alert at $16 USD (80% of $20)
+EMAIL_ADDRESS="pwalukagga@gmail.com"              # Email for notifications
+AWS_PROFILE="patrickcmd"                          # AWS CLI profile
+SNS_TOPIC_NAME="billing-alarm-notifications"     # SNS topic name
+AWS_REGION="us-east-1"                            # Must be us-east-1 for billing metrics
+```
+
+#### What It Does
+
+1. **Checks Prerequisites**:
+   - Verifies AWS CLI is installed
+   - Confirms AWS profile exists
+   - Gets AWS Account ID
+
+2. **Creates SNS Topic**:
+   - Creates topic: `billing-alarm-notifications`
+   - Or reuses existing topic if already created
+
+3. **Subscribes Email**:
+   - Subscribes your email to SNS topic
+   - Sends confirmation email (you must click the link!)
+   - Or confirms subscription already exists
+
+4. **Creates CloudWatch Alarm**:
+   - Monitors `AWS/Billing` EstimatedCharges metric
+   - Triggers when total charges ≥ threshold
+   - Evaluates every 6 hours (21600 seconds)
+   - Sends email via SNS when alarm state changes
+
+5. **Sends Test Email**:
+   - Optionally triggers test alarm to verify notifications work immediately
+
+#### Important Notes
+
+**Email Confirmation Required:**
+After running the script, you MUST:
+1. Check your email inbox (and spam folder)
+2. Look for email from: `AWS Notifications <no-reply@sns.amazonaws.com>`
+3. Subject: `AWS Notification - Subscription Confirmation`
+4. Click the confirmation link
+5. You won't receive alerts until confirmed!
+
+**Billing Metric Delays:**
+- AWS billing metrics update every 4-6 hours
+- Total charges are estimated, not real-time
+- Alarm evaluation period: 6 hours
+- You may receive alert after already exceeding threshold
+
+**Cost:**
+- CloudWatch alarms for billing metrics: **FREE**
+- SNS email notifications: **$0.50 per 1 million emails** (effectively free)
+- First 1,000 SNS emails/month: **FREE**
+
+#### Testing the Alarm
+
+**Send Test Email Immediately:**
+```bash
+aws cloudwatch set-alarm-state \
+  --alarm-name cloud-resume-challenge-billing-alarm \
+  --state-value ALARM \
+  --state-reason 'Testing billing alarm notification - this is a test' \
+  --region us-east-1 \
+  --profile patrickcmd
+```
+
+This triggers the alarm manually, sending an immediate email to verify notifications work.
+
+#### Checking Alarm Status
+
+**View Alarm Details:**
+```bash
+aws cloudwatch describe-alarms \
+  --alarm-names cloud-resume-challenge-billing-alarm \
+  --region us-east-1 \
+  --profile patrickcmd
+```
+
+**Check SNS Subscriptions:**
+```bash
+# Get SNS topic ARN
+SNS_TOPIC_ARN=$(aws sns list-topics \
+  --region us-east-1 \
+  --profile patrickcmd \
+  --query "Topics[?contains(TopicArn, 'billing-alarm-notifications')].TopicArn" \
+  --output text)
+
+# List subscriptions
+aws sns list-subscriptions-by-topic \
+  --topic-arn $SNS_TOPIC_ARN \
+  --region us-east-1 \
+  --profile patrickcmd
+```
+
+**View Current Billing:**
+```bash
+aws cloudwatch get-metric-statistics \
+  --namespace AWS/Billing \
+  --metric-name EstimatedCharges \
+  --dimensions Name=Currency,Value=USD \
+  --start-time $(date -u -v-1d +%Y-%m-%dT%H:%M:%S) \
+  --end-time $(date -u +%Y-%m-%dT%H:%M:%S) \
+  --period 86400 \
+  --statistics Maximum \
+  --region us-east-1 \
+  --profile patrickcmd
+```
+
+#### Email Notification Example
+
+When the alarm triggers, you'll receive an email like:
+
+```
+Subject: ALARM: "cloud-resume-challenge-billing-alarm" in US East (N. Virginia)
+
+You are receiving this email because your Amazon CloudWatch Alarm
+"cloud-resume-challenge-billing-alarm" in the US East (N. Virginia)
+region has entered the ALARM state, because "Threshold Crossed: 1 datapoint
+[16.23 (14/12/24 12:00:00)] was greater than or equal to the threshold (16.0)."
+
+View this alarm in the AWS Management Console:
+https://console.aws.amazon.com/cloudwatch/home?region=us-east-1#alarm:...
+
+Alarm Details:
+- Name: cloud-resume-challenge-billing-alarm
+- Description: Billing alarm for cloud-resume-challenge - triggers at $16
+- State Change: OK -> ALARM
+- Reason: Threshold Crossed
+- Timestamp: Sunday 14 December, 2024 12:00:00 UTC
+```
+
+#### Troubleshooting
+
+**Not Receiving Emails:**
+1. Check email confirmation:
+   ```bash
+   aws sns list-subscriptions-by-topic \
+     --topic-arn arn:aws:sns:us-east-1:ACCOUNT_ID:billing-alarm-notifications \
+     --region us-east-1 \
+     --profile patrickcmd
+   ```
+   - If `SubscriptionArn` shows `PendingConfirmation`, check your email and click the link
+
+2. Check spam/junk folder for AWS notification emails
+
+3. Send test alarm to verify delivery:
+   ```bash
+   aws cloudwatch set-alarm-state \
+     --alarm-name cloud-resume-challenge-billing-alarm \
+     --state-value ALARM \
+     --state-reason 'Testing' \
+     --region us-east-1 \
+     --profile patrickcmd
+   ```
+
+**Alarm Not Triggering:**
+1. Verify alarm exists:
+   ```bash
+   aws cloudwatch describe-alarms \
+     --alarm-names cloud-resume-challenge-billing-alarm \
+     --region us-east-1 \
+     --profile patrickcmd
+   ```
+
+2. Check current charges haven't exceeded threshold yet
+
+3. Remember: billing metrics update every 4-6 hours (not real-time)
+
+**IAM Permissions Issues:**
+If you get access denied errors:
+1. Verify billing access is enabled (see Prerequisites above)
+2. Ensure IAM user has these policies:
+   - `CloudWatchFullAccess` (for creating alarms)
+   - `AmazonSNSFullAccess` (for SNS topics)
+   - `AWSBillingReadOnlyAccess` (for billing metrics)
+
+#### Comparison: billing-alarm-setup vs budget-setup
+
+| Feature | billing-alarm-setup | budget-setup |
+|---------|-------------------|--------------|
+| **Email Reliability** | ✅ Excellent (direct SNS) | ⚠️ Poor (AWS internal SNS) |
+| **Test Capability** | ✅ Immediate test emails | ❌ No test feature |
+| **Setup Complexity** | ✅ Simple (one command) | ⚠️ Complex (confirmation issues) |
+| **Monthly Budget** | ❌ No (continuous monitoring) | ✅ Yes (native monthly budgets) |
+| **Threshold Type** | Dollar amount ($16) | Percentage (80%) |
+| **Cost Forecasting** | ❌ No | ✅ Yes |
+| **Multiple Thresholds** | ❌ One alarm per threshold | ✅ Multiple alerts per budget |
+| **Budget Updates** | ❌ Must recreate alarm | ✅ Easy updates |
+| **Historical Tracking** | ⚠️ Via CloudWatch | ✅ Native budget tracking |
+
+**Recommendation**: Use `billing-alarm-setup` for reliable email notifications. Use `budget-setup` if you need detailed budget tracking and forecasting (but accept unreliable emails).
+
+#### Example Workflow
+
+**Complete Billing Monitoring Setup:**
+```bash
+# 1. Ensure IAM billing access is enabled (see Prerequisites)
+#    - Login as root
+#    - Activate IAM access in My Account
+#    - Add billing permissions to IAM user
+
+# 2. Create billing alarm
+./bin/billing-alarm-setup
+
+# 3. Check email for confirmation
+#    - Subject: "AWS Notification - Subscription Confirmation"
+#    - From: no-reply@sns.amazonaws.com
+#    - Click "Confirm subscription" link
+
+# 4. Send test email to verify it works
+aws cloudwatch set-alarm-state \
+  --alarm-name cloud-resume-challenge-billing-alarm \
+  --state-value ALARM \
+  --state-reason 'Testing billing alarm - ignore this test' \
+  --region us-east-1 \
+  --profile patrickcmd
+
+# 5. You should receive test email within 1-2 minutes
+
+# 6. Check alarm status
+aws cloudwatch describe-alarms \
+  --alarm-names cloud-resume-challenge-billing-alarm \
+  --region us-east-1 \
+  --profile patrickcmd \
+  --query 'MetricAlarms[0].[AlarmName,StateValue,StateReason]' \
+  --output table
+```
+
+**Monthly Review:**
+```bash
+# Check current month's charges
+aws ce get-cost-and-usage \
+  --time-period Start=$(date -u +%Y-%m-01),End=$(date -u +%Y-%m-%d) \
+  --granularity MONTHLY \
+  --metrics BlendedCost \
+  --profile patrickcmd \
+  --region us-east-1
+```
+
+---
+
+## AWS Free Tier Usage Monitoring
+
+### Understanding AWS Free Tier
+
+The AWS Free Tier allows new AWS account holders to access certain services for free for the first 12 months. This provides an opportunity to experiment with cloud services without incurring costs.
+
+**Official Documentation**: [AWS Free Tier](https://aws.amazon.com/free/)
+
+#### Key Free Tier Offerings
+
+**12-Month Free Tier** (starts when you create your AWS account):
+- **EC2**: 750 hours/month of t2.micro or t3.micro instances (Linux, RHEL, or Windows)
+- **S3**: 5GB of standard storage
+- **RDS**: 750 hours/month of db.t2.micro, db.t3.micro, or db.t4g.micro database instances
+- **Lambda**: 1 million free requests/month
+- **CloudFront**: 1TB of data transfer out
+- **DynamoDB**: 25GB of storage
+
+**Always Free** (doesn't expire):
+- **Lambda**: 1 million requests/month
+- **DynamoDB**: 25GB storage, 200 million requests/month
+- **CloudWatch**: 10 custom metrics, 10 alarms
+- **SNS**: 1,000 email notifications/month
+
+**Free Trials** (varies by service):
+- **RDS**: Free for first 2 months only
+- **Other services**: Check AWS Free Tier page for details
+
+**IMPORTANT**: Read the fine print for each service as stipulations vary!
+
+### Setting Up Free Tier Usage Alerts (AWS Console)
+
+#### Step 1: Enable Free Tier Usage Alerts
+
+1. **Log into AWS Management Console**
+   - Verify you're in the correct account (check top-right corner)
+   - Switch to **N. Virginia (us-east-1)** region (billing metrics only available here)
+
+2. **Navigate to Billing Dashboard**
+   - Type "Billing" in the AWS Console search bar
+   - Click on "Billing and Cost Management"
+
+3. **Access Billing Preferences**
+   - In the left-hand navigation pane, click **Preferences** (formerly "Billing preferences")
+
+4. **Enable Free Tier Alerts**
+   - Under the **Alert preferences** section, click **Edit**
+   - Check ✅ **Receive AWS Free Tier usage alerts**
+     - You'll be notified by email when you reach approximately **85% of Free Tier usage**
+   - Optionally add alternate email addresses to receive alerts
+   - Click **Update**
+
+**What You'll Receive**:
+- Email notifications when approaching Free Tier limits (typically at 85% usage)
+- Alerts for services like EC2, S3, RDS, Lambda, etc.
+- Example: "Your Free Tier usage limit is here and you have exceeded it"
+
+#### Step 2: Enable CloudWatch Billing Alerts
+
+1. **Still in Alert Preferences Section**
+   - Click **Edit** again
+   - Check ✅ **Receive CloudWatch billing alerts**
+     - This enables billing metrics collection in CloudWatch
+   - Click **Update**
+
+2. **Create CloudWatch Billing Alarm** (after enabling)
+   - Go to **CloudWatch** (search in AWS Console)
+   - Ensure you're in **N. Virginia (us-east-1)** region
+   - Navigate to **Alarms** → **Billing** → **Create alarm**
+   - Select metric: **Billing** → **Total Estimated Charge**
+   - Set threshold (e.g., $16 for 80% of $20 budget)
+   - Configure SNS topic for email notifications
+   - Create alarm
+
+**Note**: This is the same as running `./bin/billing-alarm-setup` but done through the web console.
+
+**Detailed Web Console Steps:**
+
+1. **Navigate to CloudWatch Console**
+   - Go to [CloudWatch Management Console](https://console.aws.amazon.com/cloudwatch)
+   - **IMPORTANT**: Switch to **N. Virginia (us-east-1)** region (top-right corner)
+   - Billing metrics are ONLY available in us-east-1
+
+2. **Create Billing Alarm**
+   - In left-hand pane, click **Billing**
+   - Click **Create Alarm** button
+
+   ![CloudWatch Billing](https://exampro-support.s3.amazonaws.com/AWS/CCP/Getting+Started/Billing+Alarm/2022-08-23+11_31_49-CloudWatch+Management+Console+-+Brave.png)
+
+3. **Specify Metric and Conditions**
+   - Click **Select metric** button
+
+   ![Specify Metric](https://exampro-support.s3.amazonaws.com/AWS/CCP/Getting+Started/Billing+Alarm/2022-08-23+11_33_29-CloudWatch+Management+Console+-+Brave.png)
+
+4. **Select Billing Metric**
+   - In Browse tab, click **Billing**
+
+   ![Select Billing](https://exampro-support.s3.amazonaws.com/AWS/CCP/Getting+Started/Billing+Alarm/2022-08-23+11_37_39-CloudWatch+Management+Console+-+Brave.png)
+
+   - Select **Total Estimated Charge**
+
+   ![Total Estimated Charge](https://exampro-support.s3.amazonaws.com/AWS/CCP/Getting+Started/Billing+Alarm/2022-08-23+11_38_51-CloudWatch+Management+Console+-+Brave.png)
+
+   - In Currency dropdown, ensure **USD** is selected
+   - Click **Select metric**
+
+   ![Select USD](https://exampro-support.s3.amazonaws.com/AWS/CCP/Getting+Started/Billing+Alarm/2022-08-23+11_40_11-CloudWatch+Management+Console+-+Brave.png)
+
+5. **Configure Alarm Conditions**
+   - Set **Statistic** to **Maximum**
+   - Set **Period** to **6 hours** (recommended) or any preferred interval
+   - Under **Threshold type**, select **Static**
+   - Under **Define the threshold value**, select **Greater than**
+   - Enter threshold value (e.g., **16** for $16 USD, which is 80% of $20)
+   - Click **Next**
+
+   ![Set Threshold](https://exampro-support.s3.amazonaws.com/AWS/CCP/Getting+Started/Billing+Alarm/2022-08-23+11_45_26-CloudWatch+Management+Console+-+Brave.png)
+
+6. **Configure Notifications (SNS Topic)**
+   - Under **Notification**, select **Create new SNS topic**
+   - **Topic name**: Enter `billing-alarm-notifications` (or any descriptive name)
+   - **Email endpoints**: Enter your email address (e.g., `pwalukagga@gmail.com`)
+   - Click **Create topic**
+   - Click **Next**
+
+   ![Configure SNS](https://exampro-support.s3.amazonaws.com/AWS/CCP/Getting+Started/Billing+Alarm/2022-08-23+11_47_40-CloudWatch+Management+Console+-+Brave.png)
+
+   **IMPORTANT**: You will receive a **subscription confirmation email** from AWS SNS:
+   - Check your email inbox (and spam folder)
+   - Look for: "AWS Notification - Subscription Confirmation"
+   - From: `no-reply@sns.amazonaws.com`
+   - Click **Confirm subscription** link
+   - Status should change from "Pending confirmation" to "Confirmed"
+
+7. **Configure Actions (Optional)**
+   - You can add actions to stop/scale resources when alarm triggers
+   - For billing monitoring, typically not needed
+   - Click **Next**
+
+8. **Add Name and Description**
+   - **Alarm name**: Enter `cloud-resume-challenge-billing-alarm` (or descriptive name)
+   - **Description**: Enter `Billing alarm for Cloud Resume Challenge - triggers at $16`
+   - Click **Next**
+
+   ![Add Name](https://exampro-support.s3.amazonaws.com/AWS/CCP/Getting+Started/Billing+Alarm/2022-08-23+11_55_16-CloudWatch+Management+Console+-+Brave.png)
+
+9. **Review and Create**
+   - Review all settings:
+     - Metric: Billing > Total Estimated Charge (USD)
+     - Threshold: Greater than $16
+     - Period: 6 hours
+     - SNS Topic: billing-alarm-notifications
+   - Click **Create alarm**
+
+10. **Confirm Email Subscription**
+    - Open your email inbox
+    - Find email from AWS SNS
+    - Click **Confirm subscription** link
+    - Go back to SNS Console to verify status shows "Confirmed"
+
+11. **Monitor Alarm Status**
+    - Go to **CloudWatch** > **Alarms**
+    - Find your newly created billing alarm
+    - Status should show **OK** (green) until threshold is exceeded
+    - When charges reach $16, status changes to **In alarm** (red)
+    - You'll receive email notification
+
+**Testing the Alarm (via Console)**:
+1. Go to **CloudWatch** > **Alarms**
+2. Select your billing alarm
+3. Click **Actions** > **Set alarm state**
+4. Select **In alarm**
+5. Click **Update state**
+6. You should receive a test email within 1-2 minutes
+
+**Troubleshooting Web Console Setup:**
+
+**Billing Metrics Not Showing?**
+- Ensure you're in **N. Virginia (us-east-1)** region
+- Verify billing alerts are enabled (Billing Preferences)
+- Billing metrics may take a few hours for new AWS accounts
+- Wait 4-6 hours and try again
+
+**No Email Notifications?**
+- Check spam/junk folder
+- Verify SNS subscription is **Confirmed** (not Pending)
+- Go to SNS Console > Subscriptions > Check status
+- Re-send confirmation: Select subscription > Request confirmation
+- Ensure alarm threshold is set correctly
+
+**Alarm Shows "Insufficient Data"?**
+- Normal for new alarms
+- Billing data updates every 4-6 hours
+- Wait up to 24 hours for first data point
+- Alarm will show "OK" once data is available
+
+**Can't Find CloudWatch Billing Option?**
+- Ensure you enabled "Receive CloudWatch billing alerts" in Billing Preferences
+- This must be enabled BEFORE billing metrics appear in CloudWatch
+- After enabling, wait 15-30 minutes for metrics to populate
+
+#### Step 3: Monitor Free Tier Usage
+
+**Option 1: Billing Dashboard**
+1. Go to **Billing Dashboard**
+2. Click **Free Tier** in the left navigation
+3. View current usage for all Free Tier services
+4. See remaining hours/GB/requests for each service
+5. Track usage trends over time
+
+**Option 2: Cost Explorer**
+1. Navigate to **Cost Explorer** (may need to enable first)
+2. Filter by service to see detailed usage
+3. Create custom reports for Free Tier services
+4. Set up anomaly detection
+
+**Option 3: AWS Budgets** (More Advanced)
+1. Go to **AWS Budgets** in Billing Dashboard
+2. Click **Create budget**
+3. Choose **Zero spend budget** template for Free Tier accounts
+4. Set alerts for when you exceed $0.01
+5. Add email recipients
+
+### Free Tier Usage Alerts vs Billing Alarms
+
+| Feature | Free Tier Alerts | Billing Alarms (billing-alarm-setup) |
+|---------|-----------------|-------------------------------------|
+| **Setup** | Web console only | Script + CloudWatch + SNS |
+| **Triggers** | 85% of Free Tier limits | Custom dollar threshold ($16) |
+| **Granularity** | Per-service (EC2, S3, etc.) | Total account spending |
+| **Email Delivery** | AWS managed (less reliable) | Direct SNS (more reliable) |
+| **Free Tier Specific** | ✅ Yes | ❌ No (monitors all spending) |
+| **Test Capability** | ❌ No | ✅ Yes (can trigger test) |
+| **Best For** | Staying within Free Tier | Overall budget control |
+
+**Recommendation**: Use **both** for comprehensive monitoring:
+- Enable Free Tier alerts to track individual service limits
+- Use `billing-alarm-setup` script for overall spending control
+
+### Common Free Tier Pitfalls
+
+**EC2 Instances**:
+```bash
+# Problem: Running t3.small instead of t2.micro/t3.micro
+# Solution: Always use t2.micro or t3.micro for Free Tier
+aws ec2 describe-instances \
+  --query 'Reservations[*].Instances[*].[InstanceId,InstanceType,State.Name]' \
+  --output table \
+  --profile patrickcmd
+
+# Check if instances are Free Tier eligible
+# Free Tier: t2.micro, t3.micro
+# NOT Free Tier: t2.small, t3.small, t2.medium, etc.
+```
+
+**S3 Storage**:
+- Free Tier: 5GB of S3 Standard storage
+- Watch out for: S3 Glacier, S3 Intelligent-Tiering (not Free Tier)
+- Data transfer OUT is limited to 100GB/month for first 12 months
+
+**RDS Databases**:
+- Free Tier: 750 hours/month of db.t2.micro, db.t3.micro, or db.t4g.micro
+- Only for first **2 months** (not 12 months like EC2!)
+- Watch out for: Multi-AZ deployments (doubles usage)
+
+**CloudFront**:
+- Free Tier: 1TB data transfer out
+- 10 million HTTP/HTTPS requests
+- For this project: Portfolio website should stay well under limits
+
+**Lambda**:
+- Always Free: 1 million requests/month
+- 400,000 GB-seconds of compute time
+- For this project: Visitor counter should be well under limits
+
+### Monitoring Your Cloud Resume Challenge Costs
+
+**Current Infrastructure** (All Free Tier):
+- ✅ S3 bucket (< 1GB) → Well under 5GB limit
+- ✅ CloudFront distribution (< 100GB/month) → Well under 1TB limit
+- ✅ Route 53 (Hosted zone: $0.50/month) → **NOT FREE** but minimal
+- ✅ CloudWatch alarms (< 10 alarms) → Free (Always Free tier)
+- ✅ SNS email notifications (< 1,000/month) → Free (Always Free tier)
+- ✅ AWS Budgets (2 budgets free) → Free
+
+**Planned Backend** (Will be Free Tier):
+- ✅ DynamoDB (< 25GB, < 200M requests) → Always Free
+- ✅ Lambda visitor counter (< 1M requests) → Always Free
+- ✅ API Gateway (< 1M requests) → Free for 12 months
+
+**Expected Monthly Cost**:
+- Route 53 Hosted Zone: **$0.50**
+- Everything else: **$0.00** (if staying within Free Tier)
+- **Total**: **~$0.50/month**
+
+### Example: Setting Up Complete Free Tier Monitoring
+
+**Step-by-Step Workflow**:
+
+```bash
+# 1. Enable IAM billing access (see billing-alarm-setup Prerequisites)
+#    - Login as root
+#    - Activate IAM access in My Account
+#    - Add billing permissions to IAM user
+
+# 2. Set up CloudWatch billing alarm (via script)
+./bin/billing-alarm-setup
+
+# This creates:
+# - SNS topic for email notifications
+# - CloudWatch alarm for $16 threshold (80% of $20)
+# - Test email to verify delivery
+```
+
+**Then in AWS Console**:
+
+```
+3. Enable Free Tier Alerts:
+   - Go to Billing Dashboard → Preferences
+   - Check "Receive AWS Free Tier usage alerts"
+   - Add email: pwalukagga@gmail.com
+   - Save
+
+4. Monitor Usage:
+   - Billing Dashboard → Free Tier
+   - Check usage weekly
+   - Watch for services approaching limits
+
+5. Set Up Budget (optional):
+   - AWS Budgets → Create budget
+   - Choose "Zero spend budget" template
+   - Alert when spending > $0.01
+   - Add email recipients
+```
+
+### Troubleshooting Free Tier Issues
+
+**Not Receiving Free Tier Alerts:**
+1. Check email address in Billing Preferences
+2. Check spam/junk folder for AWS emails
+3. Verify Free Tier alerts are enabled
+4. Wait 24 hours for system to update
+
+**Free Tier Services Showing Charges:**
+1. Verify service is Free Tier eligible
+   - Check [AWS Free Tier page](https://aws.amazon.com/free/)
+   - Confirm instance/service type matches Free Tier
+2. Check if you exceeded Free Tier limits
+   - Billing Dashboard → Free Tier → View usage
+3. Confirm Free Tier period hasn't expired
+   - Free Tier starts when account is created
+   - Most services: 12 months
+   - Some services: 2 months (RDS) or Always Free
+
+**Unexpected Charges:**
+```bash
+# Check detailed cost breakdown
+aws ce get-cost-and-usage \
+  --time-period Start=2025-12-01,End=2025-12-14 \
+  --granularity DAILY \
+  --metrics BlendedCost \
+  --group-by Type=SERVICE \
+  --profile patrickcmd \
+  --region us-east-1
+```
+
+### Best Practices for Staying in Free Tier
+
+**1. Regular Monitoring:**
+```bash
+# Check billing weekly
+./bin/budget-setup --status
+
+# Monitor Free Tier usage in console
+# Billing Dashboard → Free Tier (check weekly)
+```
+
+**2. Resource Cleanup:**
+```bash
+# Stop unused EC2 instances (you're charged by the hour)
+aws ec2 stop-instances --instance-ids i-1234567890abcdef0 --profile patrickcmd
+
+# Delete unused S3 objects
+aws s3 rm s3://bucket-name/path --recursive --profile patrickcmd
+
+# Delete unused CloudFormation stacks
+./bin/stack-manager delete
+```
+
+**3. Use Free Tier Eligible Resources:**
+- EC2: Always use t2.micro or t3.micro
+- RDS: Use db.t2.micro, db.t3.micro, or db.t4g.micro
+- S3: Use S3 Standard (not Glacier or Intelligent-Tiering)
+- Lambda: Monitor request counts (should be < 1M/month)
+
+**4. Set Multiple Alerts:**
+- ✅ Free Tier usage alerts (85% of limits)
+- ✅ CloudWatch billing alarm ($16 threshold)
+- ✅ AWS Budget (zero spend for Free Tier validation)
+- ✅ Cost anomaly detection (optional)
+
+**5. Understand Service Limits:**
+- 750 hours/month EC2 = **1 instance running 24/7** or **2 instances for 12 hours/day**
+- If running multiple instances, monitor total hours carefully
+- S3 Free Tier includes only first 5GB (not per bucket, but total account)
+
+### Summary: Complete Monitoring Setup
+
+For the Cloud Resume Challenge, here's the recommended monitoring setup:
+
+**Via Scripts** (Recommended):
+```bash
+# 1. CloudWatch billing alarm
+./bin/billing-alarm-setup
+
+# 2. AWS Budget tracking (optional but useful)
+./bin/budget-setup --create
+
+# 3. Test alarm works
+aws cloudwatch set-alarm-state \
+  --alarm-name cloud-resume-challenge-billing-alarm \
+  --state-value ALARM \
+  --state-reason 'Testing' \
+  --region us-east-1 \
+  --profile patrickcmd
+```
+
+**Via AWS Console**:
+```
+1. Enable Free Tier usage alerts
+   → Billing → Preferences → Free Tier alerts
+
+2. Enable CloudWatch billing alerts
+   → Billing → Preferences → CloudWatch alerts
+
+3. Monitor Free Tier usage
+   → Billing → Free Tier (check weekly)
+
+4. Create Zero Spend Budget (optional)
+   → AWS Budgets → Create → Zero spend template
+```
+
+**Email Notifications You'll Receive**:
+- Free Tier usage approaching 85% (from AWS Free Tier system)
+- Spending reaches $16 (from CloudWatch alarm via SNS)
+- Budget threshold exceeded if using AWS Budgets
+- Cost anomaly detection (if enabled)
+
+This comprehensive setup ensures you stay within Free Tier limits while building your Cloud Resume Challenge project!
+
+---
+
 ## Directory Structure
 
 ```
@@ -1367,6 +2547,8 @@ bin/
 ├── route53-setup            # Configure Route 53 DNS for CloudFront
 ├── test-website             # Comprehensive website testing tool
 ├── cloudfront-invalidate    # CloudFront cache invalidation
+├── budget-setup             # AWS Budget monitoring and management
+├── billing-alarm-setup      # CloudWatch billing alarms (more reliable than budget-setup)
 └── [future scripts]         # Backend, API, etc.
 ```
 
@@ -1455,6 +2637,26 @@ STACK_NAME=cloud-resume-challenge-portfolio-frontend-stack ./bin/route53-setup
 
 # Monitor continuously until DNS propagates
 watch -n 60 ./bin/test-website
+```
+
+**Setup Billing Monitoring (Recommended)**:
+```bash
+# Setup CloudWatch billing alarm (more reliable)
+./bin/billing-alarm-setup
+
+# Or create AWS Budget (has detailed tracking but unreliable emails)
+./bin/budget-setup --create
+
+# Send test email to verify billing alarm works
+aws cloudwatch set-alarm-state \
+  --alarm-name cloud-resume-challenge-billing-alarm \
+  --state-value ALARM \
+  --state-reason 'Testing billing alarm' \
+  --region us-east-1 \
+  --profile patrickcmd
+
+# Check budget status
+./bin/budget-setup --status
 ```
 
 ## Related Documentation

@@ -1,0 +1,225 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# ============================================
+# CloudWatch Billing Alarm Setup Script
+# ============================================
+# Alternative to AWS Budgets - uses CloudWatch billing alarms
+# More reliable email notifications via SNS
+
+# Colors for output
+BLUE='\033[0;34m'
+GREEN='\033[0;32m'
+RED='\033[0;31m'
+YELLOW='\033[1;33m'
+NC='\033[0m' # No Color
+
+# Function to print colored messages
+print_info() {
+    echo -e "${BLUE}ℹ ${1}${NC}"
+}
+
+print_success() {
+    echo -e "${GREEN}✓ ${1}${NC}"
+}
+
+print_error() {
+    echo -e "${RED}✗ ${1}${NC}"
+}
+
+print_warning() {
+    echo -e "${YELLOW}⚠ ${1}${NC}"
+}
+
+# Function to print header
+print_header() {
+    echo ""
+    echo "╔════════════════════════════════════════════════════════════╗"
+    echo "║        CloudWatch Billing Alarm Setup                     ║"
+    echo "╚════════════════════════════════════════════════════════════╝"
+    echo ""
+}
+
+print_header
+
+# Default configuration
+ALARM_NAME="${ALARM_NAME:-cloud-resume-challenge-billing-alarm}"
+THRESHOLD="${THRESHOLD:-16}"  # 80% of $20
+EMAIL_ADDRESS="${EMAIL_ADDRESS:-pwalukagga@gmail.com}"
+AWS_PROFILE="${AWS_PROFILE:-patrickcmd}"
+SNS_TOPIC_NAME="billing-alarm-notifications"
+AWS_REGION="us-east-1"  # Billing metrics only in us-east-1
+
+print_info "Configuration:"
+echo "  Alarm Name: ${ALARM_NAME}"
+echo "  Threshold: \$${THRESHOLD} USD"
+echo "  Email: ${EMAIL_ADDRESS}"
+echo "  Profile: ${AWS_PROFILE}"
+echo "  Region: ${AWS_REGION}"
+echo ""
+
+# ============================================
+# Prerequisites Check
+# ============================================
+
+print_info "Checking prerequisites..."
+
+# Check if AWS CLI is installed
+if ! command -v aws &> /dev/null; then
+    print_error "AWS CLI not found. Please install it first."
+    exit 1
+fi
+print_success "AWS CLI found"
+
+# Check if AWS profile exists
+if ! aws configure list-profiles | grep -q "^${AWS_PROFILE}$"; then
+    print_error "AWS profile '${AWS_PROFILE}' not found"
+    exit 1
+fi
+print_success "AWS profile '${AWS_PROFILE}' found"
+
+# Get AWS Account ID
+ACCOUNT_ID=$(aws sts get-caller-identity \
+    --profile "${AWS_PROFILE}" \
+    --query 'Account' \
+    --output text 2>/dev/null)
+
+if [ -z "$ACCOUNT_ID" ]; then
+    print_error "Failed to get AWS Account ID. Check your credentials."
+    exit 1
+fi
+print_success "AWS Account ID: ${ACCOUNT_ID}"
+
+echo ""
+
+# ============================================
+# Create SNS Topic
+# ============================================
+
+print_info "Creating SNS topic for notifications..."
+
+SNS_TOPIC_ARN=$(aws sns create-topic \
+    --name "${SNS_TOPIC_NAME}" \
+    --region "${AWS_REGION}" \
+    --profile "${AWS_PROFILE}" \
+    --query 'TopicArn' \
+    --output text 2>/dev/null || echo "")
+
+if [ -z "$SNS_TOPIC_ARN" ]; then
+    # Topic might already exist, try to get it
+    SNS_TOPIC_ARN=$(aws sns list-topics \
+        --region "${AWS_REGION}" \
+        --profile "${AWS_PROFILE}" \
+        --query "Topics[?contains(TopicArn, '${SNS_TOPIC_NAME}')].TopicArn" \
+        --output text)
+fi
+
+if [ -z "$SNS_TOPIC_ARN" ]; then
+    print_error "Failed to create or find SNS topic"
+    exit 1
+fi
+
+print_success "SNS Topic: ${SNS_TOPIC_ARN}"
+
+# ============================================
+# Subscribe Email to SNS Topic
+# ============================================
+
+print_info "Subscribing ${EMAIL_ADDRESS} to SNS topic..."
+
+# Check if subscription already exists
+EXISTING_SUB=$(aws sns list-subscriptions-by-topic \
+    --topic-arn "${SNS_TOPIC_ARN}" \
+    --region "${AWS_REGION}" \
+    --profile "${AWS_PROFILE}" \
+    --query "Subscriptions[?Endpoint=='${EMAIL_ADDRESS}'].SubscriptionArn" \
+    --output text 2>/dev/null || echo "")
+
+if [ -n "$EXISTING_SUB" ] && [ "$EXISTING_SUB" != "PendingConfirmation" ]; then
+    print_success "Email already subscribed and confirmed"
+else
+    # Create subscription
+    SUBSCRIPTION_ARN=$(aws sns subscribe \
+        --topic-arn "${SNS_TOPIC_ARN}" \
+        --protocol email \
+        --notification-endpoint "${EMAIL_ADDRESS}" \
+        --region "${AWS_REGION}" \
+        --profile "${AWS_PROFILE}" \
+        --query 'SubscriptionArn' \
+        --output text 2>/dev/null)
+
+    if [ "$SUBSCRIPTION_ARN" = "pending confirmation" ]; then
+        print_success "Subscription created"
+        print_warning "CHECK YOUR EMAIL: Confirmation email sent to ${EMAIL_ADDRESS}"
+        print_warning "You MUST click the confirmation link in the email!"
+        echo ""
+        print_info "Look for email from: AWS Notifications <no-reply@sns.amazonaws.com>"
+        print_info "Subject: AWS Notification - Subscription Confirmation"
+    else
+        print_success "Email subscribed successfully"
+    fi
+fi
+
+echo ""
+
+# ============================================
+# Create CloudWatch Billing Alarm
+# ============================================
+
+print_info "Creating CloudWatch billing alarm..."
+
+aws cloudwatch put-metric-alarm \
+    --alarm-name "${ALARM_NAME}" \
+    --alarm-description "Billing alarm for cloud-resume-challenge - triggers at \$${THRESHOLD}" \
+    --actions-enabled \
+    --alarm-actions "${SNS_TOPIC_ARN}" \
+    --metric-name EstimatedCharges \
+    --namespace AWS/Billing \
+    --statistic Maximum \
+    --dimensions Name=Currency,Value=USD \
+    --period 21600 \
+    --evaluation-periods 1 \
+    --threshold "${THRESHOLD}" \
+    --comparison-operator GreaterThanOrEqualToThreshold \
+    --region "${AWS_REGION}" \
+    --profile "${AWS_PROFILE}"
+
+print_success "Billing alarm created successfully"
+
+echo ""
+
+# ============================================
+# Summary
+# ============================================
+
+print_success "Setup complete!"
+echo ""
+
+print_info "What was configured:"
+echo "  ✅ SNS Topic: ${SNS_TOPIC_NAME}"
+echo "  ✅ Email Subscription: ${EMAIL_ADDRESS}"
+echo "  ✅ Billing Alarm: ${ALARM_NAME}"
+echo "  ✅ Threshold: \$${THRESHOLD} USD"
+echo ""
+
+print_warning "IMPORTANT: Check your email!"
+echo "  1. Look for: 'AWS Notification - Subscription Confirmation'"
+echo "  2. From: no-reply@sns.amazonaws.com"
+echo "  3. Click the confirmation link"
+echo "  4. You won't receive alerts until confirmed!"
+echo ""
+
+print_info "How it works:"
+echo "  • CloudWatch monitors your total estimated charges"
+echo "  • When charges reach \$${THRESHOLD}, alarm triggers"
+echo "  • SNS sends email to ${EMAIL_ADDRESS}"
+echo "  • You get immediate notification"
+echo ""
+
+print_info "Check alarm status:"
+echo "  aws cloudwatch describe-alarms --alarm-names ${ALARM_NAME} --region ${AWS_REGION} --profile ${AWS_PROFILE}"
+echo ""
+
+print_info "Test the alarm (sends test email):"
+echo "  aws cloudwatch set-alarm-state --alarm-name ${ALARM_NAME} --state-value ALARM --state-reason 'Testing' --region ${AWS_REGION} --profile ${AWS_PROFILE}"
+echo ""
