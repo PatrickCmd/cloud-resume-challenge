@@ -29,6 +29,10 @@
     error_document: "{{ s3_config.error_document }}"
     deploy_environment: "{{ deployment.environment }}"
 
+    # Domain and CloudFront Configuration (loaded from vault)
+    domain_name: "{{ domain_config.domain_name }}"
+    acm_certificate_arn: "{{ domain_config.acm_certificate_arn }}"
+
     # Stack Tags (loaded from vault)
     # Note: stack_tags is already defined in vault
 
@@ -43,7 +47,8 @@
           - "Region: {{ aws_region }}"
           - "Profile: {{ aws_profile }}"
           - "Bucket Name: {{ bucket_name }}"
-          - "Environment: {{ environment }}"
+          - "Domain: {{ domain_name }}"
+          - "Environment: {{ deploy_environment }}"
           - "============================================"
 
     - name: Validate CloudFormation template
@@ -56,7 +61,7 @@
       tags:
         - validate
 
-    - name: Deploy CloudFormation stack for S3 static website
+    - name: Deploy CloudFormation stack for S3 static website with CloudFront
       amazon.aws.cloudformation:
         stack_name: "{{ stack_name }}"
         state: present
@@ -65,6 +70,8 @@
         template: "{{ cfn_template_path }}"
         template_parameters:
           BucketName: "{{ bucket_name }}"
+          DomainName: "{{ domain_name }}"
+          ACMCertificateArn: "{{ acm_certificate_arn }}"
           IndexDocument: "{{ index_document }}"
           ErrorDocument: "{{ error_document }}"
           Environment: "{{ deploy_environment }}"
@@ -114,11 +121,25 @@
           - "============================================"
           - "Stack Name: {{ stack_name }}"
           - "Stack Status: {{ stack_outputs.cloudformation[stack_name].stack_description.stack_status }}"
-          - "Outputs:"
+          - ""
+          - "S3 Bucket Outputs:"
           - "  - Bucket Name: {{ stack_outputs.cloudformation[stack_name].stack_outputs.BucketName | default('N/A') }}"
           - "  - Bucket ARN: {{ stack_outputs.cloudformation[stack_name].stack_outputs.BucketArn | default('N/A') }}"
-          - "  - Website URL: {{ stack_outputs.cloudformation[stack_name].stack_outputs.WebsiteURL | default('N/A') }}"
-          - "  - Bucket Domain: {{ stack_outputs.cloudformation[stack_name].stack_outputs.BucketDomainName | default('N/A') }}"
+          - ""
+          - "CloudFront Outputs:"
+          - "  - Distribution ID: {{ stack_outputs.cloudformation[stack_name].stack_outputs.CloudFrontDistributionId | default('N/A') }}"
+          - "  - Distribution Domain: {{ stack_outputs.cloudformation[stack_name].stack_outputs.CloudFrontDistributionDomainName | default('N/A') }}"
+          - "  - CloudFront URL: {{ stack_outputs.cloudformation[stack_name].stack_outputs.CloudFrontDistributionURL | default('N/A') }}"
+          - ""
+          - "Website URLs:"
+          - "  - Primary URL: {{ stack_outputs.cloudformation[stack_name].stack_outputs.WebsiteURL | default('N/A') }}"
+          - "  - WWW URL (redirects): {{ stack_outputs.cloudformation[stack_name].stack_outputs.WwwWebsiteURL | default('N/A') }}"
+          - ""
+          - "Next Steps:"
+          - "  1. Upload content with: ./bin/s3-upload"
+          - "  2. Update Route 53 DNS to point to CloudFront distribution"
+          - "  3. Test: https://{{ domain_name }}"
+          - "  4. Test redirect: https://www.{{ domain_name }}"
           - "============================================"
       tags:
         - info
@@ -129,11 +150,26 @@
           # Frontend Stack Outputs
           # Generated: {{ now(utc=true).isoformat() }}
 
+          # Stack Information
           STACK_NAME={{ stack_name }}
+          STACK_STATUS={{ stack_outputs.cloudformation[stack_name].stack_description.stack_status }}
+
+          # S3 Bucket
           BUCKET_NAME={{ stack_outputs.cloudformation[stack_name].stack_outputs.BucketName | default('') }}
           BUCKET_ARN={{ stack_outputs.cloudformation[stack_name].stack_outputs.BucketArn | default('') }}
-          WEBSITE_URL={{ stack_outputs.cloudformation[stack_name].stack_outputs.WebsiteURL | default('') }}
           BUCKET_DOMAIN={{ stack_outputs.cloudformation[stack_name].stack_outputs.BucketDomainName | default('') }}
+
+          # CloudFront Distribution
+          CLOUDFRONT_DISTRIBUTION_ID={{ stack_outputs.cloudformation[stack_name].stack_outputs.CloudFrontDistributionId | default('') }}
+          CLOUDFRONT_DISTRIBUTION_DOMAIN={{ stack_outputs.cloudformation[stack_name].stack_outputs.CloudFrontDistributionDomainName | default('') }}
+          CLOUDFRONT_DISTRIBUTION_URL={{ stack_outputs.cloudformation[stack_name].stack_outputs.CloudFrontDistributionURL | default('') }}
+
+          # Website URLs
+          WEBSITE_URL={{ stack_outputs.cloudformation[stack_name].stack_outputs.WebsiteURL | default('') }}
+          WWW_WEBSITE_URL={{ stack_outputs.cloudformation[stack_name].stack_outputs.WwwWebsiteURL | default('') }}
+
+          # CloudFront Function
+          WWW_REDIRECT_FUNCTION_ARN={{ stack_outputs.cloudformation[stack_name].stack_outputs.WwwRedirectFunctionArn | default('') }}
         dest: ../outputs/frontend-stack-outputs.env
         mode: '0644'
       tags:

@@ -22,9 +22,15 @@ cloudformation:
 
 # S3 Bucket Configuration
 s3_config:
-  bucket_name: YOUR_BUCKET_NAME  # S3 bucket name (must be globally unique)
+  bucket_name: YOUR_BUCKET_NAME  # S3 bucket name (must be globally unique, should match domain)
   index_document: index.html     # Website index document
   error_document: index.html     # Website error document (use index.html for SPAs)
+
+# Domain and SSL/TLS Configuration
+domain_config:
+  domain_name: YOUR_DOMAIN        # Primary domain name (e.g., patrickcmd.dev)
+  acm_certificate_arn: YOUR_ACM_CERTIFICATE_ARN  # ACM certificate ARN (must be in us-east-1)
+  # Example ARN format: arn:aws:acm:us-east-1:123456789012:certificate/xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
 
 # Environment Configuration
 deployment:

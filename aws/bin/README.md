@@ -753,15 +753,621 @@ export VAULT_PASSWORD_FILE=/custom/path/vault_pass.txt
   run: ./aws/bin/s3-upload --upload
 ```
 
+---
+
+### `route53-setup`
+
+Automate Route 53 DNS configuration for CloudFront distribution.
+
+#### Features
+
+- ✅ Retrieves CloudFront distribution domain from stack
+- ✅ Creates A records for both apex and www domains
+- ✅ Uses Route 53 alias records (free, no queries charged)
+- ✅ Waits for DNS propagation (monitors change status)
+- ✅ Verifies DNS records after creation
+- ✅ Color-coded output with progress indicators
+
+#### Usage
+
+```bash
+# Default usage (uses default stack name)
+./bin/route53-setup
+
+# With custom stack name
+STACK_NAME=your-stack-name ./bin/route53-setup
+
+# With environment variables
+AWS_PROFILE=yourprofile DOMAIN_NAME=yourdomain.com ./bin/route53-setup
+```
+
+#### What It Does
+
+1. **Retrieves CloudFront Information**:
+   - Gets CloudFront distribution domain from CloudFormation stack
+   - Example: `d3jnyva6fvgm7y.cloudfront.net`
+
+2. **Gets Route 53 Hosted Zone**:
+   - Finds hosted zone ID for your domain
+   - Verifies hosted zone exists
+
+3. **Creates DNS Records**:
+   - Creates A record for apex domain (patrickcmd.dev)
+   - Creates A record for www subdomain (www.patrickcmd.dev)
+   - Both point to CloudFront distribution (alias records)
+   - Uses UPSERT action (creates or updates)
+
+4. **Waits for Propagation**:
+   - Monitors Route 53 change status
+   - Typically completes in 1-5 minutes
+
+5. **Verifies Setup**:
+   - Lists created A records
+   - Tests DNS resolution
+   - Shows next steps
+
+#### Environment Variables
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `STACK_NAME` | `portfolio-frontend-stack` | CloudFormation stack name |
+| `AWS_REGION` | `us-east-1` | AWS region |
+| `AWS_PROFILE` | `patrickcmd` | AWS CLI profile |
+| `DOMAIN_NAME` | `patrickcmd.dev` | Primary domain |
+
+#### Example
+
+```bash
+$ STACK_NAME=cloud-resume-challenge-portfolio-frontend-stack ./bin/route53-setup
+
+╔════════════════════════════════════════════════════════════╗
+║   Route 53 DNS Setup for CloudFront Distribution          ║
+╚════════════════════════════════════════════════════════════╝
+
+ℹ Configuration:
+  Stack Name: cloud-resume-challenge-portfolio-frontend-stack
+  AWS Region: us-east-1
+  AWS Profile: patrickcmd
+  Domain: patrickcmd.dev
+
+ℹ Getting CloudFront distribution domain from stack...
+✓ CloudFront Domain: d3jnyva6fvgm7y.cloudfront.net
+
+ℹ Getting Route 53 hosted zone ID...
+✓ Hosted Zone ID: Z062129419D3W5L72N4G6
+
+ℹ Checking for existing A records...
+ℹ No existing A record for patrickcmd.dev
+ℹ No existing A record for www.patrickcmd.dev
+
+ℹ Creating DNS change batch...
+✓ DNS change batch created
+
+ℹ Applying DNS changes to Route 53...
+✓ DNS changes submitted successfully!
+
+ℹ Waiting for DNS changes to propagate...
+..✓ DNS changes have propagated!
+
+✓ Route 53 DNS setup complete!
+
+ℹ Verifying DNS records...
+----------------------------------------------------------------
+|                    ListResourceRecordSets                    |
++----------------------+----+----------------------------------+
+|  patrickcmd.dev.     |  A |  d3jnyva6fvgm7y.cloudfront.net.  |
+|  www.patrickcmd.dev. |  A |  d3jnyva6fvgm7y.cloudfront.net.  |
++----------------------+----+----------------------------------+
+
+✓ Your website should now be accessible at:
+  • https://patrickcmd.dev
+  • https://www.patrickcmd.dev (redirects to apex)
+
+✓ Setup complete! 🚀
+```
+
+#### Troubleshooting
+
+**Hosted Zone Not Found**:
+```bash
+# List all hosted zones
+aws route53 list-hosted-zones --profile patrickcmd
+
+# Create hosted zone if needed
+aws route53 create-hosted-zone \
+  --name patrickcmd.dev \
+  --caller-reference $(date +%s) \
+  --profile patrickcmd
+```
+
+**Stack Not Found**:
+```bash
+# List all stacks
+aws cloudformation list-stacks \
+  --profile patrickcmd \
+  --region us-east-1 \
+  | grep StackName
+
+# Use correct stack name
+STACK_NAME=actual-stack-name ./bin/route53-setup
+```
+
+---
+
+### `test-website`
+
+Comprehensive website testing tool for CloudFront and DNS.
+
+#### Features
+
+- ✅ Tests CloudFront distribution directly
+- ✅ Monitors DNS propagation status
+- ✅ Verifies HTTPS access to custom domain
+- ✅ Tests www to apex redirect (301)
+- ✅ Validates SSL/TLS certificate
+- ✅ Shows cache status (Hit/Miss)
+- ✅ Color-coded test results
+
+#### Usage
+
+```bash
+# Default usage
+./bin/test-website
+
+# With custom domains/CloudFront
+CLOUDFRONT_DOMAIN=your-cf-domain.cloudfront.net \
+APEX_DOMAIN=yourdomain.com \
+./bin/test-website
+
+# Monitor continuously (run every 60 seconds)
+watch -n 60 ./bin/test-website
+```
+
+#### What It Tests
+
+1. **CloudFront Distribution**:
+   - HTTPS accessibility
+   - Cache status (Hit/Miss from cloudfront)
+   - Content type headers
+
+2. **DNS Resolution**:
+   - Apex domain (patrickcmd.dev)
+   - WWW subdomain (www.patrickcmd.dev)
+   - Shows if DNS has propagated
+
+3. **HTTPS Access**:
+   - Tests custom domain HTTPS
+   - Shows response status
+   - Displays cache headers
+
+4. **WWW Redirect**:
+   - Verifies 301 redirect
+   - Checks redirect location
+   - Confirms target is apex domain
+
+5. **SSL/TLS Certificate**:
+   - Validates certificate
+   - Shows certificate subject
+   - Displays expiration date
+
+#### Example Output
+
+```bash
+$ ./bin/test-website
+
+╔════════════════════════════════════════════════════════════╗
+║           Website Testing - CloudFront + DNS              ║
+╚════════════════════════════════════════════════════════════╝
+
+ℹ Test 1: CloudFront Distribution Direct Access
+  Testing: https://d3jnyva6fvgm7y.cloudfront.net
+
+✓ CloudFront distribution is accessible
+ℹ Cache Status: Hit from cloudfront
+ℹ Content Type: text/html
+
+ℹ Test 2: DNS Resolution
+
+ℹ Checking DNS for patrickcmd.dev...
+✓ DNS resolved: patrickcmd.dev → 13.224.123.45
+
+ℹ Checking DNS for www.patrickcmd.dev...
+✓ DNS resolved: www.patrickcmd.dev → 13.224.123.45
+
+ℹ Test 3: HTTPS Access to Apex Domain
+  Testing: https://patrickcmd.dev
+
+✓ Apex domain is accessible via HTTPS
+ℹ Cache Status: Hit from cloudfront
+
+ℹ Test 4: WWW to Apex Redirect
+  Testing: https://www.patrickcmd.dev → https://patrickcmd.dev
+
+✓ WWW redirect is working (301 Moved Permanently)
+ℹ Redirects to: https://patrickcmd.dev/
+✓ Redirect target is correct
+
+ℹ Test 5: SSL/TLS Certificate
+
+✓ SSL certificate is valid
+ℹ Subject: CN=*.patrickcmd.dev
+ℹ Expires: Jan 15 12:00:00 2026 GMT
+
+╔════════════════════════════════════════════════════════════╗
+║                      Test Summary                          ║
+╚════════════════════════════════════════════════════════════╝
+
+✓ All DNS records propagated
+ℹ Your website should be fully accessible at:
+  • https://patrickcmd.dev
+  • https://www.patrickcmd.dev (redirects to apex)
+
+ℹ Open in browser:
+  https://patrickcmd.dev
+
+ℹ CloudFront direct access (always works):
+  https://d3jnyva6fvgm7y.cloudfront.net
+```
+
+#### Use Cases
+
+**Monitor DNS Propagation**:
+```bash
+# Run continuously until DNS propagates
+watch -n 60 ./bin/test-website
+```
+
+**Pre-Deployment Verification**:
+```bash
+# Test CloudFront before configuring DNS
+./bin/test-website
+# CloudFront test will pass, DNS tests will warn (expected)
+```
+
+**Post-Deployment Validation**:
+```bash
+# Verify everything works after DNS setup
+./bin/test-website
+# All 5 tests should pass
+```
+
+**Troubleshooting**:
+```bash
+# Identify which component is failing
+./bin/test-website
+# Check test output to isolate the issue
+```
+
+---
+
+### `cloudfront-invalidate`
+
+Invalidate CloudFront cache to serve fresh content immediately.
+
+#### Features
+
+- ✅ Invalidates CloudFront distribution cache
+- ✅ Multiple invalidation strategies (all, HTML-only, custom paths)
+- ✅ Cost-aware (first 1,000 paths/month free)
+- ✅ Retrieves distribution ID from CloudFormation stack
+- ✅ Progress tracking and status checking
+- ✅ Verbose mode for debugging
+
+#### Usage
+
+```bash
+# Invalidate everything (default)
+./bin/cloudfront-invalidate
+
+# Invalidate only HTML files (recommended for SPAs)
+./bin/cloudfront-invalidate --html
+
+# Invalidate specific paths
+./bin/cloudfront-invalidate --paths "/index.html,/assets/main.js"
+
+# Verbose mode
+./bin/cloudfront-invalidate --verbose
+
+# Show help
+./bin/cloudfront-invalidate --help
+```
+
+#### Options
+
+| Option | Description |
+|--------|-------------|
+| `-h, --help` | Show help message |
+| `-v, --verbose` | Verbose output (-v, -vv, -vvv) |
+| `--all` | Invalidate all paths (/* - default) |
+| `--html` | Invalidate only HTML files |
+| `--paths PATHS` | Invalidate specific paths (comma-separated) |
+| `--vault-password-file` | Path to vault password file |
+
+#### What It Does
+
+1. **Checks Prerequisites**:
+   - Ansible installed
+   - Vault password file exists
+   - Playbook exists
+
+2. **Gets Distribution ID**:
+   - Retrieves from CloudFormation stack outputs
+   - Uses stack name from vault configuration
+
+3. **Creates Invalidation**:
+   - Submits invalidation request to CloudFront
+   - Returns invalidation ID and status
+
+4. **Provides Guidance**:
+   - Timeline expectations (1-5 minutes)
+   - How to verify cache is cleared
+   - How to check invalidation status
+
+#### Invalidation Strategies
+
+**`--all` (Default)**:
+- Invalidates everything (`/*`)
+- Use after major updates or full deployments
+- Cost: 1 path
+
+**`--html` (Recommended for SPAs)**:
+- Invalidates only HTML files (`/index.html`, `/*.html`)
+- Use for content updates in React/Vue/Angular apps
+- Assets (JS, CSS, images) remain cached (good!)
+- Cost: 2 paths
+
+**`--paths` (Custom)**:
+- Invalidate specific files or patterns
+- Use when you know exactly what changed
+- Cost: 1 path per file (wildcards count as 1)
+
+#### Examples
+
+##### Example 1: After Frontend Update (Recommended)
+
+```bash
+# Upload new content
+./bin/s3-upload
+
+# Invalidate only HTML (assets are content-hashed by Vite)
+./bin/cloudfront-invalidate --html
+
+# This is the most cost-effective approach for SPAs
+```
+
+##### Example 2: Full Cache Clear
+
+```bash
+# After major deployment changes
+./bin/cloudfront-invalidate --all
+
+# Or explicitly
+./bin/cloudfront-invalidate
+```
+
+##### Example 3: Specific Files
+
+```bash
+# Changed only index.html and about page
+./bin/cloudfront-invalidate --paths "/index.html,/about.html"
+
+# Changed images
+./bin/cloudfront-invalidate --paths "/images/*"
+
+# Changed specific assets
+./bin/cloudfront-invalidate --paths "/assets/logo.png,/assets/main.css"
+```
+
+##### Example 4: Verbose Output
+
+```bash
+# See detailed Ansible output
+./bin/cloudfront-invalidate --html -vv
+
+# Maximum verbosity
+./bin/cloudfront-invalidate --all -vvv
+```
+
+#### Cost Information
+
+CloudFront invalidation pricing:
+
+| Volume | Cost |
+|--------|------|
+| First 1,000 paths/month | **FREE** |
+| After 1,000 paths | $0.005 per path |
+
+**Path counting:**
+- Wildcard `/*` = 1 path
+- `/index.html` = 1 path
+- `/file1,/file2,/file3` = 3 paths
+
+**Cost optimization:**
+- Use `--html` instead of `--all` for SPAs
+- Use Vite's content hashing (automatic)
+- Invalidate only when necessary
+
+#### Why HTML-Only Invalidation Works for SPAs
+
+**Understanding Vite's Content Hashing:**
+
+When you build with Vite (`npm run build`), it automatically generates unique filenames for all assets:
+
+```
+dist/
+├── index.html
+└── assets/
+    ├── index-a1b2c3d4.js      # Hash changes when JS changes
+    ├── index-e5f6g7h8.css     # Hash changes when CSS changes
+    └── logo-i9j0k1l2.png      # Hash changes when image changes
+```
+
+**Why you only need to invalidate HTML files:**
+
+1. **Assets have unique filenames** - When you change JS/CSS, Vite creates a new file with a different hash
+   - Before: `index-a1b2c3d4.js`
+   - After: `index-x9y8z7w6.js`
+   - CloudFront sees this as a new file (cache miss) and fetches it from S3
+
+2. **HTML references new assets** - When you invalidate `index.html`, CloudFront serves fresh HTML that points to the new asset filenames
+
+3. **Cache headers optimize performance**:
+   - Assets: `max-age=31536000,immutable` (1 year cache - safe because filenames change)
+   - HTML: `no-cache,must-revalidate` (always fetch fresh)
+
+**Example workflow:**
+```bash
+# 1. You change some React code
+# 2. Build creates: assets/index-NEW123.js (different hash)
+# 3. Upload to S3
+./bin/s3-upload
+
+# 4. Invalidate HTML only
+./bin/cloudfront-invalidate --html
+
+# Result:
+# - Fresh index.html is served (references NEW123.js)
+# - CloudFront fetches NEW123.js from S3 (cache miss)
+# - Old assets (OLD123.js) stay in cache but are never requested
+```
+
+**This is why `--html` is recommended for SPAs!**
+
+#### When to Invalidate
+
+**✅ Invalidate when:**
+- HTML content changed (use `--html`)
+- Critical bug fixes need immediate deployment
+- SEO-critical meta tags updated
+- Branding/design overhaul deployed
+- You updated JS/CSS/images (use `--html` - see above)
+
+**❌ Don't invalidate when:**
+- Assets have content hashes and you're using `--html` (they'll be fetched automatically)
+- You can wait 24 hours for natural cache expiration
+- Testing changes locally before deployment
+- You modified an asset in-place without changing the filename (don't do this!)
+
+**❌ Don't invalidate assets separately when:**
+- Using Vite or any build tool with content hashing
+- Your assets are in the `assets/` folder with hash-based filenames
+- You're already invalidating HTML files (the new asset references will be fetched automatically)
+
+#### Workflow Integration
+
+**Recommended SPA Update Workflow:**
+
+```bash
+# 1. Make changes to frontend
+cd frontend
+# ... edit files ...
+
+# 2. Build and upload
+cd ../aws
+./bin/s3-upload
+
+# 3. Invalidate HTML only (assets are versioned)
+./bin/cloudfront-invalidate --html
+
+# 4. Verify
+./bin/test-website
+```
+
+**Full Deployment Workflow:**
+
+```bash
+# Major changes: infrastructure, all content, etc.
+./bin/frontend-deploy
+./bin/s3-upload
+./bin/cloudfront-invalidate --all
+./bin/test-website
+```
+
+#### Verify Invalidation
+
+**Check invalidation status:**
+
+```bash
+# Get distribution ID
+DIST_ID=$(aws cloudformation describe-stacks \
+  --stack-name cloud-resume-challenge-portfolio-frontend-stack \
+  --region us-east-1 \
+  --profile patrickcmd \
+  --query 'Stacks[0].Outputs[?OutputKey==`CloudFrontDistributionId`].OutputValue' \
+  --output text)
+
+# List invalidations
+aws cloudfront list-invalidations \
+  --distribution-id $DIST_ID \
+  --profile patrickcmd
+
+# Check specific invalidation
+aws cloudfront get-invalidation \
+  --distribution-id $DIST_ID \
+  --id INVALIDATION_ID \
+  --profile patrickcmd
+```
+
+**Verify cache is cleared:**
+
+```bash
+# Test your website
+curl -I https://patrickcmd.dev
+
+# Check x-cache header:
+# - "Miss from cloudfront" = cache was invalidated (good!)
+# - "Hit from cloudfront" = serving cached content
+```
+
+#### Troubleshooting
+
+**Invalidation Fails**:
+```bash
+# Check AWS credentials
+aws sts get-caller-identity --profile patrickcmd
+
+# Verify distribution exists
+aws cloudfront list-distributions --profile patrickcmd
+
+# Run with verbose mode
+./bin/cloudfront-invalidate --html -vvv
+```
+
+**Cache Still Showing Old Content**:
+```bash
+# Wait 1-5 minutes for invalidation to complete
+sleep 300
+
+# Check invalidation status (should be "Completed")
+aws cloudfront list-invalidations --distribution-id $DIST_ID --profile patrickcmd
+
+# Clear local browser cache
+# Chrome: Cmd+Shift+R (Mac) or Ctrl+F5 (Windows)
+```
+
+**Cost Concerns**:
+```bash
+# Always use --html for SPA updates
+./bin/cloudfront-invalidate --html  # Only 2 paths
+
+# Instead of --all which invalidates everything
+./bin/cloudfront-invalidate --all   # 1 path, but clears ALL cached content
+```
+
+---
+
 ## Directory Structure
 
 ```
 bin/
-├── README.md              # This file
-├── stack-manager          # CloudFormation stack management tool
-├── frontend-deploy        # Frontend deployment script
-├── s3-upload              # Build and upload frontend to S3
-└── [future scripts]       # Backend, CDN, etc.
+├── README.md                # This file
+├── stack-manager            # CloudFormation stack management tool
+├── frontend-deploy          # Frontend deployment script (S3 + CloudFront)
+├── s3-upload                # Build and upload frontend to S3
+├── route53-setup            # Configure Route 53 DNS for CloudFront
+├── test-website             # Comprehensive website testing tool
+├── cloudfront-invalidate    # CloudFront cache invalidation
+└── [future scripts]         # Backend, API, etc.
 ```
 
 ## Quick Reference
@@ -794,18 +1400,24 @@ bin/
 ./bin/stack-manager delete
 ```
 
-**Full Deployment Cycle**:
+**Full Deployment Cycle (S3 + CloudFront + DNS)**:
 ```bash
-# 1. Deploy infrastructure (S3 bucket)
+# 1. Deploy infrastructure (S3 + CloudFront)
 ./bin/frontend-deploy
 
 # 2. Build and upload frontend
 ./bin/s3-upload
 
-# 3. Check status
+# 3. Configure DNS (Route 53)
+STACK_NAME=cloud-resume-challenge-portfolio-frontend-stack ./bin/route53-setup
+
+# 4. Test website (monitor DNS propagation)
+./bin/test-website
+
+# 5. Check status
 ./bin/stack-manager status
 
-# 4. View outputs (website URL)
+# 6. View outputs (URLs)
 ./bin/stack-manager outputs
 ```
 
@@ -813,6 +1425,36 @@ bin/
 ```bash
 # After making code changes, rebuild and upload
 ./bin/s3-upload --verbose
+
+# Invalidate CloudFront cache (optional, for immediate updates)
+DISTRIBUTION_ID=$(aws cloudformation describe-stacks \
+  --stack-name cloud-resume-challenge-portfolio-frontend-stack \
+  --region us-east-1 \
+  --profile patrickcmd \
+  --query 'Stacks[0].Outputs[?OutputKey==`CloudFrontDistributionId`].OutputValue' \
+  --output text)
+aws cloudfront create-invalidation \
+  --distribution-id $DISTRIBUTION_ID \
+  --paths "/*" \
+  --profile patrickcmd
+```
+
+**Configure DNS for CloudFront**:
+```bash
+# Setup Route 53 A records
+STACK_NAME=cloud-resume-challenge-portfolio-frontend-stack ./bin/route53-setup
+
+# Monitor DNS propagation
+./bin/test-website
+```
+
+**Test Website (All Components)**:
+```bash
+# Run comprehensive tests
+./bin/test-website
+
+# Monitor continuously until DNS propagates
+watch -n 60 ./bin/test-website
 ```
 
 ## Related Documentation

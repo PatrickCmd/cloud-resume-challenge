@@ -1,16 +1,30 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Description: >
-  CloudFormation template for deploying a static website to S3 with website hosting enabled.
-  This template creates an S3 bucket configured for static website hosting with public read access.
+  CloudFormation template for deploying a static website to S3 with CloudFront CDN.
+  This template creates a private S3 bucket, CloudFront distribution with Origin Access Control,
+  CloudFront Function for www redirect, and all necessary security configurations.
   Part of the Cloud Resume Challenge - Frontend Infrastructure.
 
 Parameters:
   BucketName:
     Type: String
-    Description: Name of the S3 bucket for static website hosting (must be globally unique)
-    Default: patrick-portfolio-website
+    Description: Name of the S3 bucket for static website hosting (must be globally unique and match domain)
+    Default: patrickcmd.dev
     AllowedPattern: ^[a-z0-9][a-z0-9.-]*[a-z0-9]$
     ConstraintDescription: Bucket name must be lowercase, can contain hyphens and periods, and must start/end with alphanumeric characters
+
+  DomainName:
+    Type: String
+    Description: Primary domain name for the website (e.g., patrickcmd.dev)
+    Default: patrickcmd.dev
+    AllowedPattern: ^[a-z0-9][a-z0-9.-]*[a-z0-9]$
+    ConstraintDescription: Must be a valid domain name
+
+  ACMCertificateArn:
+    Type: String
+    Description: ARN of the ACM certificate for HTTPS (must be in us-east-1 for CloudFront)
+    AllowedPattern: ^arn:aws:acm:us-east-1:[0-9]{12}:certificate/[a-f0-9-]+$
+    ConstraintDescription: Must be a valid ACM certificate ARN in us-east-1 region
 
   IndexDocument:
     Type: String
@@ -19,7 +33,7 @@ Parameters:
 
   ErrorDocument:
     Type: String
-    Description: The name of the error document for the website
+    Description: The name of the error document for the website (for SPA, typically same as index)
     Default: index.html
 
   Environment:
@@ -32,23 +46,27 @@ Parameters:
       - prod
 
 Resources:
-  # S3 Bucket for Static Website Hosting
+  # ============================================
+  # S3 BUCKET - PRIVATE (CloudFront OAC Access Only)
+  # ============================================
+
+  # S3 Bucket for Static Website Content (Private)
   # Reference: https://docs.aws.amazon.com/AWSCloudFormation/latest/TemplateReference/aws-resource-s3-bucket.html
+  # This bucket is PRIVATE and only accessible via CloudFront with Origin Access Control
   WebsiteBucket:
     Type: AWS::S3::Bucket
     Properties:
       BucketName: !Ref BucketName
-      WebsiteConfiguration:
-        IndexDocument: !Ref IndexDocument
-        ErrorDocument: !Ref ErrorDocument
+      # NO WebsiteConfiguration - CloudFront serves directly from S3 REST API
+      # Keep public access BLOCKED for security - CloudFront uses OAC
       PublicAccessBlockConfiguration:
-        BlockPublicAcls: false
-        BlockPublicPolicy: false
-        IgnorePublicAcls: false
-        RestrictPublicBuckets: false
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
       OwnershipControls:
         Rules:
-          - ObjectOwnership: ObjectWriter
+          - ObjectOwnership: BucketOwnerEnforced
       # Enable versioning for better content management and rollback capability
       VersioningConfiguration:
         Status: Enabled
@@ -57,6 +75,7 @@ Resources:
         ServerSideEncryptionConfiguration:
           - ServerSideEncryptionByDefault:
               SSEAlgorithm: AES256
+            BucketKeyEnabled: true
       Tags:
         - Key: Name
           Value: !Sub ${BucketName}-${Environment}
@@ -67,7 +86,7 @@ Resources:
         - Key: ManagedBy
           Value: CloudFormation
 
-  # Bucket Policy to allow public read access to website content
+  # Bucket Policy to allow CloudFront OAC access
   # Reference: https://docs.aws.amazon.com/AWSCloudFormation/latest/TemplateReference/aws-resource-s3-bucketpolicy.html
   WebsiteBucketPolicy:
     Type: AWS::S3::BucketPolicy
@@ -76,12 +95,16 @@ Resources:
       PolicyDocument:
         Version: '2012-10-17'
         Statement:
-          # Allow public read access for website content
-          - Sid: PublicReadGetObject
+          # Allow CloudFront OAC to read objects
+          - Sid: AllowCloudFrontServicePrincipal
             Effect: Allow
-            Principal: '*'
+            Principal:
+              Service: cloudfront.amazonaws.com
             Action: s3:GetObject
             Resource: !Sub ${WebsiteBucket.Arn}/*
+            Condition:
+              StringEquals:
+                AWS:SourceArn: !Sub arn:aws:cloudfront::${AWS::AccountId}:distribution/${CloudFrontDistribution}
           # Enforce SSL/TLS for all requests
           - Sid: DenyInsecureTransport
             Effect: Deny
@@ -94,7 +117,143 @@ Resources:
               Bool:
                 aws:SecureTransport: false
 
+  # ============================================
+  # CLOUDFRONT - ORIGIN ACCESS CONTROL (OAC)
+  # ============================================
+
+  # CloudFront Origin Access Control for S3
+  # Reference: https://docs.aws.amazon.com/AWSCloudFormation/latest/TemplateReference/aws-resource-cloudfront-originaccesscontrol.html
+  # OAC is the modern replacement for Origin Access Identity (OAI)
+  CloudFrontOriginAccessControl:
+    Type: AWS::CloudFront::OriginAccessControl
+    Properties:
+      OriginAccessControlConfig:
+        Name: !Sub ${BucketName}-OAC
+        Description: Origin Access Control for S3 bucket
+        OriginAccessControlOriginType: s3
+        SigningBehavior: always
+        SigningProtocol: sigv4
+
+  # ============================================
+  # CLOUDFRONT FUNCTION - WWW REDIRECT
+  # ============================================
+
+  # CloudFront Function to redirect www to apex domain
+  # Reference: https://docs.aws.amazon.com/AWSCloudFormation/latest/TemplateReference/aws-resource-cloudfront-function.html
+  # This function runs on viewer requests to redirect www.patrickcmd.dev → patrickcmd.dev
+  WwwRedirectFunction:
+    Type: AWS::CloudFront::Function
+    Properties:
+      Name: !Sub ${AWS::StackName}-www-redirect
+      FunctionConfig:
+        Comment: Redirect www subdomain to apex domain
+        Runtime: cloudfront-js-2.0
+      FunctionCode: |
+        function handler(event) {
+            var request = event.request;
+            var host = request.headers.host.value;
+
+            // If request is for www subdomain, redirect to apex domain
+            if (host.startsWith('www.')) {
+                var newHost = host.replace('www.', '');
+                return {
+                    statusCode: 301,
+                    statusDescription: 'Moved Permanently',
+                    headers: {
+                        location: { value: 'https://' + newHost + request.uri }
+                    }
+                };
+            }
+
+            // Otherwise, return request unchanged
+            return request;
+        }
+      AutoPublish: true
+
+  # ============================================
+  # CLOUDFRONT DISTRIBUTION - MAIN
+  # ============================================
+
+  # Main CloudFront Distribution
+  # Reference: https://docs.aws.amazon.com/AWSCloudFormation/latest/TemplateReference/aws-resource-cloudfront-distribution.html
+  CloudFrontDistribution:
+    Type: AWS::CloudFront::Distribution
+    Properties:
+      DistributionConfig:
+        # Domain aliases (CNAME records)
+        Aliases:
+          - !Ref DomainName
+          - !Sub www.${DomainName}
+        # Default root object
+        DefaultRootObject: !Ref IndexDocument
+        # Enable distribution
+        Enabled: true
+        # HTTP version
+        HttpVersion: http2and3
+        # Price class (use all edge locations for best performance)
+        PriceClass: PriceClass_All
+        # IPv6 support
+        IPV6Enabled: true
+        # Comment
+        Comment: !Sub CloudFront distribution for ${DomainName}
+
+        # Origins configuration
+        Origins:
+          - Id: S3Origin
+            DomainName: !GetAtt WebsiteBucket.RegionalDomainName
+            OriginAccessControlId: !Ref CloudFrontOriginAccessControl
+            S3OriginConfig: {}  # Required but empty when using OAC
+
+        # Default cache behavior
+        DefaultCacheBehavior:
+          TargetOriginId: S3Origin
+          ViewerProtocolPolicy: redirect-to-https
+          AllowedMethods:
+            - GET
+            - HEAD
+            - OPTIONS
+          CachedMethods:
+            - GET
+            - HEAD
+          Compress: true
+          # Use AWS managed cache policy for optimized caching
+          CachePolicyId: 658327ea-f89d-4fab-a63d-7e88639e58f6  # CachingOptimized
+          # Use AWS managed origin request policy
+          OriginRequestPolicyId: 88a5eaf4-2fd4-4709-b370-b4c650ea3fcf  # CORS-S3Origin
+          # Attach CloudFront Function for www redirect
+          FunctionAssociations:
+            - EventType: viewer-request
+              FunctionARN: !GetAtt WwwRedirectFunction.FunctionARN
+
+        # Custom error responses for SPA (redirect 403/404 to index.html)
+        CustomErrorResponses:
+          - ErrorCode: 403
+            ResponseCode: 200
+            ResponsePagePath: !Sub /${IndexDocument}
+            ErrorCachingMinTTL: 300
+          - ErrorCode: 404
+            ResponseCode: 200
+            ResponsePagePath: !Sub /${IndexDocument}
+            ErrorCachingMinTTL: 300
+
+        # SSL/TLS certificate configuration
+        ViewerCertificate:
+          AcmCertificateArn: !Ref ACMCertificateArn
+          SslSupportMethod: sni-only
+          MinimumProtocolVersion: TLSv1.2_2021
+
+      Tags:
+        - Key: Name
+          Value: !Sub ${DomainName}-distribution
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Project
+          Value: cloud-resume-challenge
+        - Key: ManagedBy
+          Value: CloudFormation
+
 Outputs:
+  # S3 Bucket Outputs
   BucketName:
     Description: Name of the S3 bucket
     Value: !Ref WebsiteBucket
@@ -107,14 +266,47 @@ Outputs:
     Export:
       Name: !Sub ${AWS::StackName}-BucketArn
 
+  BucketDomainName:
+    Description: Regional domain name of the S3 bucket
+    Value: !GetAtt WebsiteBucket.RegionalDomainName
+    Export:
+      Name: !Sub ${AWS::StackName}-BucketDomainName
+
+  # CloudFront Outputs
+  CloudFrontDistributionId:
+    Description: CloudFront Distribution ID
+    Value: !Ref CloudFrontDistribution
+    Export:
+      Name: !Sub ${AWS::StackName}-CloudFrontDistributionId
+
+  CloudFrontDistributionDomainName:
+    Description: CloudFront Distribution Domain Name (xxxxx.cloudfront.net)
+    Value: !GetAtt CloudFrontDistribution.DomainName
+    Export:
+      Name: !Sub ${AWS::StackName}-CloudFrontDistributionDomainName
+
+  CloudFrontDistributionURL:
+    Description: CloudFront Distribution HTTPS URL
+    Value: !Sub https://${CloudFrontDistribution.DomainName}
+    Export:
+      Name: !Sub ${AWS::StackName}-CloudFrontDistributionURL
+
+  # Website URLs
   WebsiteURL:
-    Description: URL for website hosted on S3
-    Value: !GetAtt WebsiteBucket.WebsiteURL
+    Description: Primary website URL (custom domain)
+    Value: !Sub https://${DomainName}
     Export:
       Name: !Sub ${AWS::StackName}-WebsiteURL
 
-  BucketDomainName:
-    Description: Domain name of the S3 bucket
-    Value: !GetAtt WebsiteBucket.DomainName
+  WwwWebsiteURL:
+    Description: WWW website URL (redirects to primary domain)
+    Value: !Sub https://www.${DomainName}
     Export:
-      Name: !Sub ${AWS::StackName}-BucketDomainName
+      Name: !Sub ${AWS::StackName}-WwwWebsiteURL
+
+  # CloudFront Function
+  WwwRedirectFunctionArn:
+    Description: ARN of the CloudFront Function for www redirect
+    Value: !GetAtt WwwRedirectFunction.FunctionARN
+    Export:
+      Name: !Sub ${AWS::StackName}-WwwRedirectFunctionArn

@@ -90,23 +90,41 @@ For the infrastructure deployment, I chose to use **AWS CloudFormation** for inf
 
 #### 1. CloudFormation Template ([aws/frontend.yaml](aws/frontend.yaml))
 
-S3 bucket configuration for static website hosting with:
-- **Static Website Hosting**: Configured for SPA routing
-- **Public Access**: Bucket policy for website content
-- **Security**: AES256 encryption, versioning enabled, SSL/TLS enforcement
-- **CloudFormation Capabilities**: CAPABILITY_NAMED_IAM, CAPABILITY_AUTO_EXPAND
-- **Failure Handling**: Automatic rollback on creation failure
+Complete infrastructure with S3 + CloudFront CDN configuration:
+
+**S3 Bucket (Private)**:
+- **Origin Access Control (OAC)**: Modern secure access from CloudFront only
+- **Private Bucket**: No public access, completely locked down
+- **Security**: AES256 encryption with bucket key, versioning enabled
+- **SSL/TLS Enforcement**: HTTPS-only access via bucket policy
+
+**CloudFront Distribution**:
+- **Custom Domain**: Supports both apex (patrickcmd.dev) and www subdomain
+- **SSL/TLS**: ACM certificate for HTTPS (certificate must be in us-east-1)
+- **WWW Redirect**: CloudFront Function for 301 redirect (www → apex domain)
+- **Global CDN**: HTTP/2, HTTP/3, Gzip and Brotli compression enabled
+- **SPA Support**: Custom error responses (403/404 → index.html)
+- **Caching**: AWS managed cache policy (CachingOptimized)
+
+**CloudFront Function**:
+- **Lightweight**: Runs at edge locations for ultra-low latency
+- **Cost-Effective**: First 2M invocations/month FREE
+- **SEO-Friendly**: 301 permanent redirect for www to apex domain
 
 ```yaml
-# Key Features:
-- WebsiteConfiguration with index.html and error.html
-- BucketEncryption with AES256
-- VersioningConfiguration enabled
-- PublicAccessBlockConfiguration for website hosting
-- Bucket policy with SSL/TLS enforcement
+# Key Resources:
+- S3 Bucket (Private, OAC-only access)
+- CloudFront Origin Access Control (OAC)
+- CloudFront Distribution (Custom domain, HTTPS)
+- CloudFront Function (WWW redirect)
+- S3 Bucket Policy (CloudFront service principal)
 ```
 
-**Reference**: [AWS S3 Bucket CloudFormation Documentation](https://docs.aws.amazon.com/AWSCloudFormation/latest/TemplateReference/aws-resource-s3-bucket.html)
+**References**:
+- [CloudFormation S3 Bucket](https://docs.aws.amazon.com/AWSCloudFormation/latest/TemplateReference/aws-resource-s3-bucket.html)
+- [CloudFormation CloudFront Distribution](https://docs.aws.amazon.com/AWSCloudFormation/latest/TemplateReference/aws-resource-cloudfront-distribution.html)
+- [CloudFormation CloudFront Function](https://docs.aws.amazon.com/AWSCloudFormation/latest/TemplateReference/aws-resource-cloudfront-function.html)
+- [CloudFront Setup Guide](aws/CLOUDFRONT-SETUP.md) - Comprehensive deployment guide
 
 #### 2. Ansible Playbook ([aws/playbooks/frontend-deploy.yml](aws/playbooks/frontend-deploy.yml))
 
@@ -144,7 +162,22 @@ Automated frontend build and upload:
 6. Display sync results
 ```
 
-#### 4. Deployment Scripts
+#### 4. CloudFront Invalidation Playbook ([aws/playbooks/cloudfront-invalidate.yml](aws/playbooks/cloudfront-invalidate.yml))
+
+Automated cache invalidation for CloudFront:
+- **Distribution ID Retrieval**: Gets distribution ID from CloudFormation stack
+- **Multiple Strategies**: All files, HTML only, or custom paths
+- **Cost-Aware**: First 1,000 paths/month FREE, then $0.005/path
+- **Progress Tracking**: Real-time invalidation status monitoring
+
+```yaml
+# Invalidation Strategies:
+1. All Files (/*): Complete cache clear
+2. HTML Only: Cost-effective for SPA updates (2 paths)
+3. Custom Paths: Surgical invalidation of specific files
+```
+
+#### 5. Deployment Scripts
 
 **Frontend Deployment** ([aws/bin/frontend-deploy](aws/bin/frontend-deploy)):
 ```bash
@@ -172,6 +205,20 @@ Automated frontend build and upload:
 - MIME type detection
 ```
 
+**CloudFront Invalidation** ([aws/bin/cloudfront-invalidate](aws/bin/cloudfront-invalidate)):
+```bash
+# Invalidate CloudFront cache after updates
+./aws/bin/cloudfront-invalidate --html     # HTML files only (recommended)
+./aws/bin/cloudfront-invalidate --all      # All files (costs after 1,000 paths/month)
+./aws/bin/cloudfront-invalidate --paths /index.html,/about.html  # Specific files
+
+# Features:
+- Cost-optimized strategies
+- Real-time invalidation tracking
+- Automatic distribution ID retrieval
+- Verbose mode for debugging
+```
+
 **Stack Management** ([aws/bin/stack-manager](aws/bin/stack-manager)):
 ```bash
 # CloudFormation stack troubleshooting tool
@@ -183,7 +230,33 @@ Automated frontend build and upload:
 # Perfect for debugging failed deployments
 ```
 
-#### 5. Reproducibility & Setup
+**Route 53 DNS Setup** ([aws/bin/route53-setup](aws/bin/route53-setup)):
+```bash
+# Configure DNS to point to CloudFront distribution
+STACK_NAME=your-stack-name ./aws/bin/route53-setup
+
+# Features:
+- Automatic CloudFront distribution discovery
+- Creates A records for apex and www domains
+- Waits for DNS propagation
+- Verification of DNS records
+- Color-coded status output
+```
+
+**Website Testing** ([aws/bin/test-website](aws/bin/test-website)):
+```bash
+# Comprehensive testing suite
+./aws/bin/test-website
+
+# 5 Tests Performed:
+1. CloudFront distribution direct access
+2. DNS resolution (apex and www)
+3. HTTPS access to custom domain
+4. WWW to apex redirect (301)
+5. SSL/TLS certificate validation
+```
+
+#### 6. Reproducibility & Setup
 
 **Automated Setup** ([aws/playbooks/setup.sh](aws/playbooks/setup.sh)):
 ```bash
@@ -217,7 +290,18 @@ Benefits:
    ./setup.sh
    ```
 
-2. **Configure Ansible Vault**:
+2. **Get ACM Certificate ARN**:
+   ```bash
+   # Certificate must be in us-east-1 for CloudFront
+   aws acm list-certificates --region us-east-1
+
+   # Get specific certificate ARN for your domain
+   aws acm list-certificates --region us-east-1 \
+     --query 'CertificateSummaryList[?DomainName==`patrickcmd.dev`].CertificateArn' \
+     --output text
+   ```
+
+3. **Configure Ansible Vault**:
    ```bash
    # Create vault password file
    echo "your-strong-password" > ~/.vault_pass.txt
@@ -227,16 +311,22 @@ Benefits:
    cp vaults/config.example.yml vaults/config.yml
    nano vaults/config.yml  # Update with your values
 
+   # Important: Add these values to the vault:
+   # - domain_config.domain_name: patrickcmd.dev
+   # - domain_config.acm_certificate_arn: arn:aws:acm:us-east-1:...
+
    # Encrypt the vault
    ansible-vault encrypt vaults/config.yml --vault-password-file ~/.vault_pass.txt
    ```
 
 #### Deploying Infrastructure
 
-3. **Deploy S3 Bucket**:
+4. **Deploy S3 + CloudFront**:
    ```bash
-   # Deploy infrastructure (creates S3 bucket)
+   # Deploy infrastructure (S3 bucket + CloudFront distribution)
    ./aws/bin/frontend-deploy --verbose
+
+   # Note: CloudFront deployment takes 15-30 minutes
 
    # Verify deployment
    ./aws/bin/stack-manager status
@@ -245,7 +335,7 @@ Benefits:
 
 #### Deploying Frontend
 
-4. **Build and Upload Frontend**:
+5. **Build and Upload Frontend**:
    ```bash
    # Build React app and upload to S3
    ./aws/bin/s3-upload --verbose
@@ -255,21 +345,78 @@ Benefits:
    ./aws/bin/s3-upload --upload   # Upload only
    ```
 
+#### Configure DNS (Route 53)
+
+6. **Point DNS to CloudFront**:
+   ```bash
+   # Automated DNS setup (recommended)
+   STACK_NAME=cloud-resume-challenge-portfolio-frontend-stack ./aws/bin/route53-setup
+
+   # This script:
+   # - Retrieves CloudFront distribution domain from stack
+   # - Creates Route 53 A records (alias) for apex and www
+   # - Waits for DNS propagation (1-5 minutes)
+   # - Verifies DNS records
+
+   # Manual DNS setup (alternative)
+   # Get CloudFront distribution domain from stack outputs
+   aws cloudformation describe-stacks \
+     --stack-name portfolio-frontend-stack \
+     --region us-east-1 \
+     --query 'Stacks[0].Outputs[?OutputKey==`CloudFrontDistributionDomainName`].OutputValue' \
+     --output text
+
+   # Create Route 53 A records (alias) for both apex and www
+   # Point both patrickcmd.dev and www.patrickcmd.dev to CloudFront distribution
+   # See: aws/CLOUDFRONT-SETUP.md for detailed DNS setup instructions
+   ```
+
+#### Testing
+
+7. **Test Your Website**:
+   ```bash
+   # Comprehensive test suite (recommended)
+   ./aws/bin/test-website
+
+   # This runs 5 tests:
+   # 1. CloudFront distribution direct access
+   # 2. DNS resolution (apex and www)
+   # 3. HTTPS access to custom domain
+   # 4. WWW to apex redirect (301)
+   # 5. SSL/TLS certificate validation
+
+   # Manual testing (alternative)
+   # Test CloudFront distribution directly
+   curl -I https://d1234567890abc.cloudfront.net
+
+   # Test custom domain (after DNS propagation)
+   curl -I https://patrickcmd.dev
+
+   # Test www redirect
+   curl -I https://www.patrickcmd.dev
+   # Should return: HTTP/2 301 with Location: https://patrickcmd.dev/
+   ```
+
 #### Monitoring and Troubleshooting
 
-5. **Monitor Deployment**:
+8. **Monitor Deployment**:
    ```bash
    # Check CloudFormation stack status
    ./aws/bin/stack-manager status
 
-   # View stack outputs (S3 website URL)
+   # View stack outputs (CloudFront distribution, S3 bucket, URLs)
    ./aws/bin/stack-manager outputs
 
    # Verify files uploaded to S3
    aws s3 ls s3://patrickcmd.dev/ --profile patrickcmd
+
+   # Check CloudFront distribution status
+   aws cloudfront list-distributions \
+     --query 'DistributionList.Items[?Comment==`CloudFront distribution for patrickcmd.dev`].[Id,Status,DomainName]' \
+     --output table
    ```
 
-6. **Troubleshoot if needed**:
+9. **Troubleshoot if needed**:
    ```bash
    # Show only failures
    ./aws/bin/stack-manager failures
@@ -279,6 +426,9 @@ Benefits:
 
    # Very verbose deployment for debugging
    ./aws/bin/frontend-deploy -vvv
+
+   # CloudFront troubleshooting
+   # See: aws/CLOUDFRONT-SETUP.md for detailed troubleshooting guide
    ./aws/bin/s3-upload -vvv
    ```
 
@@ -286,21 +436,51 @@ Benefits:
 
 After making frontend code changes:
 ```bash
-# Rebuild and redeploy
+# 1. Rebuild and upload to S3
 ./aws/bin/s3-upload --verbose
 
-# Test at S3 website URL
-# (Get URL from: ./aws/bin/stack-manager outputs)
+# 2. Invalidate CloudFront cache (for immediate updates)
+#    Recommended: --html flag (only 2 paths, cost-effective for SPAs)
+./aws/bin/cloudfront-invalidate --html
+
+# 3. Test at custom domain
+curl -I https://patrickcmd.dev
+
+# Alternative: Invalidate all files (costs after 1,000 paths/month)
+./aws/bin/cloudfront-invalidate --all
+
+# Alternative: Invalidate specific files only
+./aws/bin/cloudfront-invalidate --paths /index.html,/assets/index-abc123.js
+
+# Manual invalidation (if not using the script)
+DISTRIBUTION_ID=$(aws cloudformation describe-stacks \
+  --stack-name portfolio-frontend-stack --region us-east-1 \
+  --query 'Stacks[0].Outputs[?OutputKey==`CloudFrontDistributionId`].OutputValue' \
+  --output text)
+
+aws cloudfront create-invalidation \
+  --distribution-id $DISTRIBUTION_ID \
+  --paths "/*"
 ```
+
+**Cache Invalidation Notes**:
+- **First 1,000 paths/month**: FREE
+- **Additional paths**: $0.005 per path
+- **HTML strategy**: Only 2 paths (`/index.html`, `/*.html`) - recommended for SPAs
+- **Vite assets**: Auto-versioned filenames (no invalidation needed)
+- **Wait time**: 2-5 minutes for global propagation
 
 ### Security Best Practices
 
-- ✅ **Ansible Vault**: All sensitive configuration encrypted
-- ✅ **SSL/TLS Enforcement**: Denies non-HTTPS requests
-- ✅ **Server-Side Encryption**: AES256 for data at rest
+- ✅ **Ansible Vault**: All sensitive configuration encrypted with AES256
+- ✅ **SSL/TLS Enforcement**: CloudFront and S3 both deny non-HTTPS requests
+- ✅ **Server-Side Encryption**: AES256 with S3 bucket key for data at rest
+- ✅ **Origin Access Control (OAC)**: Modern SigV4 signing, S3 bucket fully private
 - ✅ **Versioning**: Enabled for rollback capability
-- ✅ **Least Privilege**: Public policy only allows read access
+- ✅ **Principle of Least Privilege**: CloudFront service principal only
 - ✅ **Infrastructure as Code**: All changes tracked in version control
+- ✅ **ACM Certificate**: Free managed SSL/TLS certificates from AWS
+- ✅ **DDoS Protection**: CloudFront provides automatic DDoS protection
 
 ### Documentation
 
@@ -308,6 +488,15 @@ Comprehensive documentation is available for all components:
 
 **Infrastructure & Deployment**:
 - **[AWS Infrastructure](aws/README.md)** - CloudFormation templates and deployment overview
+- **[CloudFront Setup Guide](aws/CLOUDFRONT-SETUP.md)** - Complete CloudFront deployment guide (500+ lines)
+  - Architecture diagrams
+  - Prerequisites (ACM certificate, Route 53)
+  - Configuration steps
+  - DNS setup instructions
+  - Testing procedures
+  - Troubleshooting (7 common issues including DNS propagation)
+  - Cache invalidation strategies
+  - Cost estimates and optimization
 - **[Ansible Playbooks](aws/playbooks/README.md)** - Complete Ansible guide (1200+ lines)
 - **[Quick Start](aws/playbooks/QUICKSTART.md)** - 5-minute setup guide
 - **[Setup Script](aws/playbooks/setup.sh)** - Automated dependency installation
@@ -317,9 +506,12 @@ Comprehensive documentation is available for all components:
 - **[CloudFormation Config](aws/playbooks/CLOUDFORMATION_CONFIG.md)** - Capabilities & failure handling (400+ lines)
 
 **Scripts & Tools**:
-- **[Deployment Scripts](aws/bin/README.md)** - Script usage and examples
-  - frontend-deploy - Infrastructure deployment
+- **[Deployment Scripts](aws/bin/README.md)** - Script usage and examples (1600+ lines)
+  - frontend-deploy - Infrastructure deployment (S3 + CloudFront)
   - s3-upload - Build and upload frontend
+  - cloudfront-invalidate - Cache invalidation with cost optimization
+  - route53-setup - Automated DNS configuration
+  - test-website - Comprehensive testing suite (5 tests)
   - stack-manager - Stack troubleshooting
 
 **Troubleshooting**:
@@ -329,6 +521,14 @@ Comprehensive documentation is available for all components:
   - S3 sync problems
   - HTTP vs HTTPS access
   - Complete debugging workflow
+- **[CloudFront Troubleshooting](aws/CLOUDFRONT-SETUP.md#troubleshooting)** - 7 CloudFront-specific issues
+  - Certificate validation errors
+  - 403 Forbidden errors
+  - DNS resolution problems (comprehensive guide)
+  - DNS propagation delays ("This site can't be reached")
+  - WWW redirect issues
+  - CloudFormation deployment timeouts
+  - Cache invalidation
 
 ## Project Structure
 
@@ -343,11 +543,13 @@ cloud-resume-challenge/
 │   └── README.md                      # Frontend documentation
 │
 ├── aws/                               # AWS Infrastructure
-│   ├── frontend.yaml                  # CloudFormation S3 template
+│   ├── frontend.yaml                  # CloudFormation template (S3 + CloudFront)
+│   ├── CLOUDFRONT-SETUP.md            # CloudFront deployment guide (500+ lines)
 │   │
 │   ├── playbooks/                     # Ansible automation
 │   │   ├── frontend-deploy.yml        # Infrastructure deployment
 │   │   ├── s3-upload.yml              # Build & upload frontend
+│   │   ├── cloudfront-invalidate.yml  # Cache invalidation
 │   │   ├── requirements.txt           # Python dependencies
 │   │   ├── requirements.yml           # Ansible collections
 │   │   ├── setup.sh                   # Automated setup script
@@ -361,10 +563,13 @@ cloud-resume-challenge/
 │   │       └── README.md              # Vault guide (500+ lines)
 │   │
 │   ├── bin/                           # Deployment scripts
-│   │   ├── frontend-deploy            # Deploy S3 infrastructure
+│   │   ├── frontend-deploy            # Deploy S3 + CloudFront infrastructure
 │   │   ├── s3-upload                  # Build & upload frontend
+│   │   ├── cloudfront-invalidate      # CloudFront cache invalidation
+│   │   ├── route53-setup              # DNS configuration automation
+│   │   ├── test-website               # Comprehensive testing suite
 │   │   ├── stack-manager              # Stack troubleshooting
-│   │   └── README.md                  # Scripts documentation
+│   │   └── README.md                  # Scripts documentation (1600+ lines)
 │   │
 │   ├── outputs/                       # CloudFormation outputs
 │   │   └── frontend-stack-outputs.env # Stack outputs (generated)
@@ -388,31 +593,48 @@ cloud-resume-challenge/
 - [x] Professional sections (Overview, Certifications, Projects, CV)
 
 **Infrastructure as Code**:
-- [x] CloudFormation template for S3 static website hosting
-- [x] S3 bucket with encryption, versioning, SSL/TLS enforcement
+- [x] CloudFormation template for S3 + CloudFront infrastructure
+- [x] S3 bucket (private, OAC-only access) with encryption, versioning, SSL/TLS enforcement
+- [x] CloudFront distribution with custom domain support
+- [x] CloudFront Origin Access Control (OAC) for secure S3 access
+- [x] CloudFront Function for www to apex redirect
 - [x] Ansible playbook for infrastructure deployment
 - [x] Ansible playbook for frontend build & upload
-- [x] Ansible Vault for secure configuration management
+- [x] Ansible Vault for secure configuration management (including ACM certificate ARN)
 
 **Automation & Tooling**:
 - [x] Deployment automation scripts (frontend-deploy, s3-upload, stack-manager)
 - [x] Stack management and troubleshooting tools
 - [x] Automated setup script with dependency management
 - [x] Requirements files for reproducibility (requirements.txt, requirements.yml)
-- [x] Comprehensive documentation (2000+ lines across 7 files)
+- [x] Comprehensive documentation (2500+ lines across 8 files)
+
+**CDN & Domain**:
+- [x] CloudFront distribution with HTTPS
+- [x] Custom domain support (patrickcmd.dev, www.patrickcmd.dev)
+- [x] ACM certificate integration (parameter-based)
+- [x] WWW to apex domain redirect (CloudFront Function)
+- [x] SPA routing support (403/404 → index.html)
+- [x] HTTP/2 and HTTP/3 support
+- [x] Gzip and Brotli compression
 
 **Deployment**:
 - [x] Upload frontend build to S3
 - [x] Proper cache control headers (1 year for assets, no-cache for HTML)
 - [x] MIME type configuration
 - [x] Clean sync functionality
+- [x] CloudFront cache invalidation (Ansible playbook + bash script)
+- [x] Multiple invalidation strategies (all, html, custom paths)
+- [x] Cost-optimized cache invalidation
+
+**DNS & Testing**:
+- [x] Route 53 automated setup script (route53-setup)
+- [x] Route 53 A records pointing to CloudFront distribution
+- [x] DNS propagation monitoring and verification
+- [x] Comprehensive website testing suite (5 tests)
+- [x] CloudFront, DNS, HTTPS, redirect, and SSL certificate testing
 
 ### 🚧 In Progress / Planned
-
-**CDN & Domain**:
-- [ ] CloudFront distribution setup
-- [ ] Custom domain with Route 53 (patrickcmd.dev)
-- [ ] SSL/TLS certificate with ACM
 
 **Backend & Database**:
 - [ ] DynamoDB visitor counter table
@@ -450,18 +672,20 @@ cloud-resume-challenge/
 - **Bash** - Deployment scripts
 
 ### AWS Services (Current)
-- **S3** - Static website hosting with encryption and versioning
-- **CloudFormation** - Stack management
-- **IAM** - Access control
+- **S3** - Private bucket for static content storage with encryption and versioning
+- **CloudFront** - Global CDN with HTTPS, HTTP/2, HTTP/3, compression
+- **CloudFront Functions** - Lightweight edge functions for www redirect
+- **ACM (Certificate Manager)** - Free SSL/TLS certificates
+- **CloudFormation** - Infrastructure as Code stack management
+- **IAM** - Access control and service principals
+- **Origin Access Control (OAC)** - Secure S3-CloudFront integration
 
 ### AWS Services (Planned)
-- **CloudFront** - CDN and HTTPS
-- **Route 53** - DNS and domain management
-- **ACM** - SSL/TLS certificates
-- **Lambda** - Serverless functions
-- **API Gateway** - API management
-- **DynamoDB** - NoSQL database
-- **CloudWatch** - Monitoring and logging
+- **Route 53** - DNS and domain management (A records to CloudFront)
+- **Lambda** - Serverless functions for visitor counter
+- **API Gateway** - RESTful API management
+- **DynamoDB** - NoSQL database for visitor count
+- **CloudWatch** - Monitoring, logging, and metrics
 
 ### DevOps & Automation
 - **Ansible** 9.13.0 - Configuration management

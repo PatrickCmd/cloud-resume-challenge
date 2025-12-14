@@ -1,0 +1,241 @@
+---
+# Ansible Playbook for CloudFront Cache Invalidation
+# This playbook creates an invalidation for a CloudFront distribution
+# Part of the Cloud Resume Challenge - Frontend Cache Management
+#
+# Usage with Ansible Vault:
+#   ansible-playbook cloudfront-invalidate.yml --ask-vault-pass
+#   ansible-playbook cloudfront-invalidate.yml --vault-password-file ~/.vault_pass.txt
+#
+# Tags:
+#   - all: Invalidate all paths (/*)
+#   - html: Invalidate only HTML files
+#   - custom: Invalidate custom paths (provide via --extra-vars)
+#
+# Examples:
+#   # Invalidate everything
+#   ansible-playbook cloudfront-invalidate.yml
+#
+#   # Invalidate only HTML files
+#   ansible-playbook cloudfront-invalidate.yml --tags html
+#
+#   # Invalidate specific paths
+#   ansible-playbook cloudfront-invalidate.yml --extra-vars "paths=/index.html,/assets/*"
+
+- name: Invalidate CloudFront Distribution Cache
+  hosts: localhost
+  gather_facts: true
+
+  vars_files:
+    - vaults/config.yml
+
+  vars:
+    # AWS Configuration (loaded from vault)
+    aws_region: "{{ aws_config.region }}"
+    aws_profile: "{{ aws_config.profile }}"
+
+    # CloudFormation Stack Configuration (loaded from vault)
+    stack_name: "{{ cloudformation.stack_name }}"
+
+    # Default invalidation paths
+    invalidation_paths:
+      - "/*"
+
+    # Custom paths (can be overridden with --extra-vars)
+    custom_paths: "{{ paths | default('') }}"
+
+  tasks:
+    - name: Display invalidation information
+      ansible.builtin.debug:
+        msg:
+          - "============================================"
+          - "CloudFront Cache Invalidation"
+          - "============================================"
+          - "Stack Name: {{ stack_name }}"
+          - "AWS Region: {{ aws_region }}"
+          - "AWS Profile: {{ aws_profile }}"
+          - "============================================"
+      tags:
+        - always
+
+    # ========================================
+    # GET CLOUDFRONT DISTRIBUTION ID
+    # ========================================
+
+    - name: Get CloudFront distribution ID from CloudFormation stack
+      amazon.aws.cloudformation_info:
+        stack_name: "{{ stack_name }}"
+        region: "{{ aws_region }}"
+        profile: "{{ aws_profile }}"
+      register: stack_info
+      tags:
+        - always
+
+    - name: Extract CloudFront distribution ID
+      ansible.builtin.set_fact:
+        distribution_id: "{{ stack_info.cloudformation[stack_name].stack_outputs.CloudFrontDistributionId }}"
+      tags:
+        - always
+
+    - name: Display CloudFront distribution ID
+      ansible.builtin.debug:
+        msg: "CloudFront Distribution ID: {{ distribution_id }}"
+      tags:
+        - always
+
+    # ========================================
+    # INVALIDATE ALL PATHS (DEFAULT)
+    # ========================================
+
+    - name: Create invalidation for all paths
+      community.aws.cloudfront_invalidation:
+        distribution_id: "{{ distribution_id }}"
+        target_paths: "{{ invalidation_paths }}"
+        caller_reference: "ansible-{{ ansible_date_time.epoch }}"
+        profile: "{{ aws_profile }}"
+      register: invalidation_all
+      when: custom_paths == '' and 'html' not in ansible_run_tags
+      tags:
+        - never
+        - all
+
+    - name: Display invalidation result (all paths)
+      ansible.builtin.debug:
+        msg:
+          - "============================================"
+          - "Invalidation Created Successfully!"
+          - "============================================"
+          - "Invalidation ID: {{ invalidation_all.invalidation.id }}"
+          - "Status: {{ invalidation_all.invalidation.status }}"
+          - "Paths invalidated: {{ invalidation_paths | join(', ') }}"
+          - "Create Time: {{ invalidation_all.invalidation.create_time }}"
+          - ""
+          - "Note: Invalidation typically completes in 1-5 minutes"
+          - "First 1,000 invalidation paths per month are FREE"
+          - "============================================"
+      when: invalidation_all is defined and invalidation_all.changed
+      tags:
+        - never
+        - all
+
+    # ========================================
+    # INVALIDATE HTML FILES ONLY
+    # ========================================
+
+    - name: Create invalidation for HTML files only
+      community.aws.cloudfront_invalidation:
+        distribution_id: "{{ distribution_id }}"
+        target_paths:
+          - "/index.html"
+          - "/*.html"
+        caller_reference: "ansible-html-{{ ansible_date_time.epoch }}"
+        profile: "{{ aws_profile }}"
+      register: invalidation_html
+      tags:
+        - never
+        - html
+
+    - name: Display invalidation result (HTML only)
+      ansible.builtin.debug:
+        msg:
+          - "============================================"
+          - "HTML Invalidation Created Successfully!"
+          - "============================================"
+          - "Invalidation ID: {{ invalidation_html.invalidation.id }}"
+          - "Status: {{ invalidation_html.invalidation.status }}"
+          - "Paths invalidated: /index.html, /*.html"
+          - "Create Time: {{ invalidation_html.invalidation.create_time }}"
+          - ""
+          - "Note: This only invalidates HTML files"
+          - "Assets (JS, CSS, images) remain cached"
+          - "============================================"
+      when: invalidation_html is defined and invalidation_html.changed
+      tags:
+        - never
+        - html
+
+    # ========================================
+    # INVALIDATE CUSTOM PATHS
+    # ========================================
+
+    - name: Parse custom paths
+      ansible.builtin.set_fact:
+        parsed_paths: "{{ custom_paths.split(',') }}"
+      when: custom_paths != ''
+      tags:
+        - never
+        - custom
+
+    - name: Create invalidation for custom paths
+      community.aws.cloudfront_invalidation:
+        distribution_id: "{{ distribution_id }}"
+        target_paths: "{{ parsed_paths }}"
+        caller_reference: "ansible-custom-{{ ansible_date_time.epoch }}"
+        profile: "{{ aws_profile }}"
+      register: invalidation_custom
+      when: custom_paths != ''
+      tags:
+        - never
+        - custom
+
+    - name: Display invalidation result (custom paths)
+      ansible.builtin.debug:
+        msg:
+          - "============================================"
+          - "Custom Invalidation Created Successfully!"
+          - "============================================"
+          - "Invalidation ID: {{ invalidation_custom.invalidation.id }}"
+          - "Status: {{ invalidation_custom.invalidation.status }}"
+          - "Paths invalidated: {{ parsed_paths | join(', ') }}"
+          - "Create Time: {{ invalidation_custom.invalidation.create_time }}"
+          - "============================================"
+      when: invalidation_custom is defined and invalidation_custom.changed
+      tags:
+        - never
+        - custom
+
+    # ========================================
+    # DEFAULT BEHAVIOR (NO TAGS)
+    # ========================================
+
+    - name: Create default invalidation (all paths)
+      community.aws.cloudfront_invalidation:
+        distribution_id: "{{ distribution_id }}"
+        target_paths: "{{ invalidation_paths }}"
+        caller_reference: "ansible-default-{{ ansible_date_time.epoch }}"
+        profile: "{{ aws_profile }}"
+      register: invalidation_default
+      when: "'html' not in ansible_run_tags and 'custom' not in ansible_run_tags and 'all' not in ansible_run_tags and custom_paths == ''"
+      tags:
+        - always
+
+    - name: Display default invalidation result
+      ansible.builtin.debug:
+        msg:
+          - "============================================"
+          - "Invalidation Created Successfully!"
+          - "============================================"
+          - "Invalidation ID: {{ invalidation_default.invalidation.id }}"
+          - "Status: {{ invalidation_default.invalidation.status }}"
+          - "Paths invalidated: {{ invalidation_paths | join(', ') }}"
+          - "Create Time: {{ invalidation_default.invalidation.create_time }}"
+          - ""
+          - "📊 Invalidation Progress:"
+          - "  ⏱ Typically completes in 1-5 minutes"
+          - "  ✅ You can continue working while it processes"
+          - "  💰 First 1,000 paths/month are FREE"
+          - "  💵 After that: $0.005 per path"
+          - ""
+          - "🔍 Check invalidation status:"
+          - "  aws cloudfront get-invalidation \\"
+          - "    --distribution-id {{ distribution_id }} \\"
+          - "    --id {{ invalidation_default.invalidation.id }} \\"
+          - "    --profile {{ aws_profile }}"
+          - ""
+          - "✅ Verify cache is cleared:"
+          - "  curl -I https://{{ domain_config.domain_name }}"
+          - "  # Check x-cache header should show 'Miss from cloudfront'"
+          - "============================================"
+      when: invalidation_default is defined and invalidation_default.changed
+      tags:
+        - always
