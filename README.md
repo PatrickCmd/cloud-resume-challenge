@@ -879,7 +879,7 @@ This project is open source and available under the MIT License.
 
 Patrick Walukagga
 - GitHub: [@PatrickCmd](https://github.com/PatrickCmd)
-- Portfolio: https://patrick-persona-page.lovable.app/
+- Portfolio: https://patrickcmd.dev
 - LinkedIn: [Patrick Walukagga](https://www.linkedin.com/in/patrick-walukagga/)
 
 ## Acknowledgments
