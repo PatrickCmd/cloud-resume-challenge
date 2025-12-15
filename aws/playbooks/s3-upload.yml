@@ -185,21 +185,19 @@
         - upload
 
     - name: Set cache control for HTML files (no caching)
-      amazon.aws.s3_object:
-        bucket: "{{ bucket_name }}"
-        object: "{{ item }}"
-        region: "{{ aws_region }}"
-        profile: "{{ aws_profile }}"
-        mode: copy
-        copy_src:
-          bucket: "{{ bucket_name }}"
-          object: "{{ item }}"
-        cache_control: "no-cache, no-store, must-revalidate"
-        metadata_directive: "REPLACE"
-        content_type: "text/html"
+      ansible.builtin.command:
+        cmd: >
+          aws s3 cp
+          s3://{{ bucket_name }}/{{ item }}
+          s3://{{ bucket_name }}/{{ item }}
+          --cache-control "no-cache, no-store, must-revalidate"
+          --content-type "text/html"
+          --metadata-directive REPLACE
+          --region {{ aws_region }}
+          --profile {{ aws_profile }}
       loop:
         - "index.html"
-      ignore_errors: true
+      changed_when: true
       tags:
         - upload
 
