@@ -10,6 +10,7 @@ import { DashboardTab } from "@/components/DashboardTab";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { LoginDialog } from "@/components/LoginDialog";
 import { UserMenu } from "@/components/UserMenu";
+import { VisitorCounter } from "@/components/VisitorCounter";
 import { useAuth } from "@/contexts/AuthContext";
 import { Github } from "lucide-react";
 
@@ -82,7 +83,10 @@ const Index = () => {
       {/* Footer */}
       <footer className="border-t border-border py-8 mt-16">
         <div className="max-w-6xl mx-auto px-4 text-center text-sm text-muted-foreground">
-          <p>© 2024 Patrick Walukagga. Built with ❤️</p>
+          <div className="flex items-center justify-center gap-4 mb-2">
+            <VisitorCounter />
+          </div>
+          <p>© {new Date().getFullYear()} Patrick Walukagga. Built with ❤️</p>
         </div>
       </footer>
     </div>

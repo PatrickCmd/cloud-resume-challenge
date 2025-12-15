@@ -1,4 +1,4 @@
-import { ArrowLeft, Edit, Send, Trash2, ExternalLink, Github, Building2 } from "lucide-react";
+import { ArrowLeft, Edit, Send, Trash2, ExternalLink, Github, Building2, BarChart3 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Project } from "@/services/mockProjectsDatabase";
@@ -6,6 +6,7 @@ import { MarkdownRenderer } from "./MarkdownRenderer";
 
 interface ProjectDetailProps {
   project: Project;
+  viewCount?: number;
   onBack: () => void;
   onEdit?: () => void;
   onPublish?: () => void;
@@ -27,6 +28,7 @@ const techColors: Record<string, string> = {
 
 export function ProjectDetail({
   project,
+  viewCount,
   onBack,
   onEdit,
   onPublish,
@@ -92,9 +94,17 @@ export function ProjectDetail({
             )}
           </div>
           
-          <div className="flex items-center gap-2 text-muted-foreground mb-4">
-            <Building2 className="w-4 h-4" />
-            <span>{project.company}</span>
+          <div className="flex items-center gap-4 text-muted-foreground mb-4">
+            <span className="flex items-center gap-2">
+              <Building2 className="w-4 h-4" />
+              {project.company}
+            </span>
+            {viewCount !== undefined && (
+              <span className="flex items-center gap-2">
+                <BarChart3 className="w-4 h-4" />
+                {viewCount} views
+              </span>
+            )}
           </div>
 
           <p className="text-lg text-foreground mb-6">{project.description}</p>

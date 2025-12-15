@@ -1,10 +1,11 @@
-import { ArrowLeft, Edit, Send, Trash2, ExternalLink, Calendar, Award, BookOpen } from "lucide-react";
+import { ArrowLeft, Edit, Send, Trash2, ExternalLink, Calendar, Award, BookOpen, BarChart3 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Certification } from "@/services/mockCertificationsDatabase";
 
 interface CertificationDetailProps {
   certification: Certification;
+  viewCount?: number;
   onBack: () => void;
   onEdit?: () => void;
   onPublish?: () => void;
@@ -14,6 +15,7 @@ interface CertificationDetailProps {
 
 export function CertificationDetail({
   certification,
+  viewCount,
   onBack,
   onEdit,
   onPublish,
@@ -88,6 +90,12 @@ export function CertificationDetail({
                 <Calendar className="w-4 h-4" />
                 <span>{new Date(certification.dateEarned).toLocaleDateString()}</span>
               </div>
+              {viewCount !== undefined && (
+                <div className="flex items-center gap-2">
+                  <BarChart3 className="w-4 h-4" />
+                  <span>{viewCount} views</span>
+                </div>
+              )}
             </div>
 
             <div className="prose prose-sm max-w-none">

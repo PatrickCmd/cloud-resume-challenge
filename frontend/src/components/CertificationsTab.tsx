@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Award, Plus, ExternalLink } from "lucide-react";
+import { Award, Plus, ExternalLink, BarChart3 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -8,6 +8,7 @@ import { mockCertificationsDB, Certification } from "@/services/mockCertificatio
 import { CertificationEditor } from "./CertificationEditor";
 import { CertificationDetail } from "./CertificationDetail";
 import { useAuth } from "@/contexts/AuthContext";
+import { mockAnalyticsService } from "@/services/mockAnalyticsService";
 
 type ViewMode = "list" | "view" | "create" | "edit";
 
@@ -22,6 +23,8 @@ export function CertificationsTab({ triggerCreate, onCreateHandled }: Certificat
   const [selectedCert, setSelectedCert] = useState<Certification | null>(null);
   const [filter, setFilter] = useState<"published" | "drafts">("published");
   const [isLoading, setIsLoading] = useState(false);
+  const [viewCounts, setViewCounts] = useState<Map<string, number>>(new Map());
+  const [currentViewCount, setCurrentViewCount] = useState(0);
   const { toast } = useToast();
   const { isOwner } = useAuth();
 
@@ -37,10 +40,14 @@ export function CertificationsTab({ triggerCreate, onCreateHandled }: Certificat
   }, [filter]);
 
   const loadCertifications = async () => {
-    const data = filter === "published" 
-      ? await mockCertificationsDB.getPublished()
-      : await mockCertificationsDB.getDrafts();
+    const [data, views] = await Promise.all([
+      filter === "published" 
+        ? mockCertificationsDB.getPublished()
+        : mockCertificationsDB.getDrafts(),
+      mockAnalyticsService.getAllViewStats('certification')
+    ]);
     setCertifications(data);
+    setViewCounts(views);
   };
 
   const handleCreate = async (data: Omit<Certification, "id" | "createdAt" | "updatedAt" | "status">) => {
@@ -130,6 +137,9 @@ export function CertificationsTab({ triggerCreate, onCreateHandled }: Certificat
     if (cert) {
       setSelectedCert(cert);
       setMode("view");
+      const views = await mockAnalyticsService.trackView(id, 'certification');
+      setCurrentViewCount(views);
+      setViewCounts(prev => new Map(prev).set(id, views));
     }
   };
 
@@ -160,6 +170,7 @@ export function CertificationsTab({ triggerCreate, onCreateHandled }: Certificat
     return (
       <CertificationDetail
         certification={selectedCert}
+        viewCount={currentViewCount}
         onBack={() => { setMode("list"); setSelectedCert(null); }}
         onEdit={isOwner ? () => setMode("edit") : undefined}
         onPublish={isOwner ? handlePublish : undefined}
@@ -219,11 +230,19 @@ export function CertificationsTab({ triggerCreate, onCreateHandled }: Certificat
                       {cert.status === "draft" && <Badge variant="secondary">Draft</Badge>}
                     </div>
                     <p className="text-sm text-muted-foreground">{cert.issuer}</p>
-                    {cert.featured && (
-                      <span className="inline-flex items-center gap-1 mt-2 px-2 py-1 bg-primary/10 text-primary text-xs font-medium rounded">
-                        ✓ Featured
-                      </span>
-                    )}
+                    <div className="flex items-center gap-2 mt-2">
+                      {cert.featured && (
+                        <span className="inline-flex items-center gap-1 px-2 py-1 bg-primary/10 text-primary text-xs font-medium rounded">
+                          ✓ Featured
+                        </span>
+                      )}
+                      {viewCounts.get(cert.id) !== undefined && (
+                        <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+                          <BarChart3 className="w-3 h-3" />
+                          {viewCounts.get(cert.id)} views
+                        </span>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>

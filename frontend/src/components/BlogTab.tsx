@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Calendar, Clock, Tag, ArrowLeft, BookOpen, Search, Plus, Edit2, Trash2, Eye } from "lucide-react";
+import { Calendar, Clock, Tag, ArrowLeft, BookOpen, Search, Plus, Edit2, Trash2, Eye, BarChart3 } from "lucide-react";
 import { Input } from "./ui/input";
 import { Button } from "./ui/button";
 import { mockBlogDB, BlogPostDraft } from "@/services/mockBlogDatabase";
@@ -7,6 +7,7 @@ import { BlogEditor } from "./BlogEditor";
 import { MarkdownRenderer } from "./MarkdownRenderer";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
+import { mockAnalyticsService } from "@/services/mockAnalyticsService";
 
 type ViewMode = "list" | "view" | "create" | "edit";
 
@@ -23,6 +24,8 @@ export function BlogTab({ triggerCreate, onCreateHandled }: BlogTabProps) {
   const [viewMode, setViewMode] = useState<ViewMode>("list");
   const [showDrafts, setShowDrafts] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [viewCounts, setViewCounts] = useState<Map<string, number>>(new Map());
+  const [currentViewCount, setCurrentViewCount] = useState(0);
   const { toast } = useToast();
   const { isOwner } = useAuth();
 
@@ -36,8 +39,12 @@ export function BlogTab({ triggerCreate, onCreateHandled }: BlogTabProps) {
   const loadPosts = async () => {
     setIsLoading(true);
     try {
-      const allPosts = await mockBlogDB.getAllPosts();
+      const [allPosts, views] = await Promise.all([
+        mockBlogDB.getAllPosts(),
+        mockAnalyticsService.getAllViewStats('blog')
+      ]);
       setPosts(allPosts);
+      setViewCounts(views);
     } finally {
       setIsLoading(false);
     }
@@ -46,6 +53,15 @@ export function BlogTab({ triggerCreate, onCreateHandled }: BlogTabProps) {
   useEffect(() => {
     loadPosts();
   }, []);
+
+  const trackAndViewPost = async (post: BlogPostDraft) => {
+    setSelectedPost(post);
+    setViewMode("view");
+    const views = await mockAnalyticsService.trackView(post.id, 'blog');
+    setCurrentViewCount(views);
+    // Update the view counts map
+    setViewCounts(prev => new Map(prev).set(post.id, views));
+  };
 
   const categories = [...new Set(posts.map((p) => p.category))];
 
@@ -153,6 +169,10 @@ export function BlogTab({ triggerCreate, onCreateHandled }: BlogTabProps) {
             <span className="flex items-center gap-1">
               <Clock className="w-4 h-4" />
               {selectedPost.readTime}
+            </span>
+            <span className="flex items-center gap-1">
+              <BarChart3 className="w-4 h-4" />
+              {currentViewCount} views
             </span>
           </div>
         </header>
@@ -282,10 +302,7 @@ export function BlogTab({ triggerCreate, onCreateHandled }: BlogTabProps) {
               <div className="flex flex-col md:flex-row md:items-start gap-4">
                 <div 
                   className="flex-1 cursor-pointer"
-                  onClick={() => {
-                    setSelectedPost(post);
-                    setViewMode("view");
-                  }}
+                  onClick={() => trackAndViewPost(post)}
                 >
                   <div className="flex items-center gap-2 mb-2">
                     <span className="px-2 py-0.5 bg-primary/10 text-primary text-xs font-medium rounded">
@@ -300,6 +317,12 @@ export function BlogTab({ triggerCreate, onCreateHandled }: BlogTabProps) {
                       <Clock className="w-3 h-3" />
                       {post.readTime}
                     </span>
+                    {viewCounts.get(post.id) !== undefined && (
+                      <span className="text-xs text-muted-foreground flex items-center gap-1">
+                        <BarChart3 className="w-3 h-3" />
+                        {viewCounts.get(post.id)}
+                      </span>
+                    )}
                   </div>
                   <h3 className="text-lg font-semibold text-foreground group-hover:text-primary transition-colors mb-2">
                     {post.title}
@@ -330,8 +353,7 @@ export function BlogTab({ triggerCreate, onCreateHandled }: BlogTabProps) {
                       className="h-8 w-8"
                       onClick={(e) => {
                         e.stopPropagation();
-                        setSelectedPost(post);
-                        setViewMode("view");
+                        trackAndViewPost(post);
                       }}
                     >
                       <Eye className="w-4 h-4" />
