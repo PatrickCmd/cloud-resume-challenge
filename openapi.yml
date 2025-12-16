@@ -1,0 +1,1736 @@
+openapi: 3.0.3
+info:
+  title: Cloud Resume Challenge Portfolio API
+  description: |
+    RESTful API for the Cloud Resume Challenge portfolio website.
+
+    This API provides endpoints for:
+    - User authentication and authorization
+    - Blog post management (CRUD operations)
+    - Project portfolio management
+    - Certification and course tracking
+    - Visitor analytics and metrics
+    - Content view tracking
+
+    **Authentication**: Uses JWT bearer tokens for protected endpoints.
+
+    **Authorization**:
+    - Public endpoints: Available to all users
+    - Owner endpoints: Require authenticated owner role
+
+    **Content Types**: All requests and responses use `application/json`
+
+  version: 1.0.0
+  contact:
+    name: Patrick Walukagga
+    email: p.walukagga@gmail.com
+    url: https://patrickcmd.dev
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: https://api.patrickcmd.dev/v1
+    description: Production server
+  - url: https://staging-api.patrickcmd.dev/v1
+    description: Staging server
+  - url: http://localhost:8000/v1
+    description: Local development server
+
+tags:
+  - name: Authentication
+    description: User authentication and session management
+  - name: Blog Posts
+    description: Blog post CRUD operations and listing
+  - name: Projects
+    description: Project portfolio management
+  - name: Certifications
+    description: Certification and course management
+  - name: Analytics
+    description: Visitor and content analytics
+  - name: Visitors
+    description: Visitor tracking and metrics
+
+paths:
+  # ==========================================
+  # AUTHENTICATION ENDPOINTS
+  # ==========================================
+
+  /auth/login:
+    post:
+      tags:
+        - Authentication
+      summary: User login
+      description: Authenticate user with email and password, returns JWT token
+      operationId: login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+                - password
+              properties:
+                email:
+                  type: string
+                  format: email
+                  example: p.walukagga@gmail.com
+                password:
+                  type: string
+                  format: password
+                  example: admin123
+      responses:
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  user:
+                    $ref: '#/components/schemas/User'
+                  token:
+                    type: string
+                    description: JWT authentication token
+                    example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+        '401':
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error: Invalid email or password
+                message: The provided credentials are incorrect
+                statusCode: 401
+
+  /auth/logout:
+    post:
+      tags:
+        - Authentication
+      summary: User logout
+      description: Invalidate current user session
+      operationId: logout
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Logout successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Successfully logged out
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /auth/me:
+    get:
+      tags:
+        - Authentication
+      summary: Get current user
+      description: Retrieve authenticated user information
+      operationId: getCurrentUser
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: User information retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  # ==========================================
+  # BLOG POST ENDPOINTS
+  # ==========================================
+
+  /blog/posts:
+    get:
+      tags:
+        - Blog Posts
+      summary: List blog posts
+      description: |
+        Retrieve blog posts with optional filtering by status and category.
+        Public users only see published posts. Owner can see all posts.
+      operationId: listBlogPosts
+      parameters:
+        - name: status
+          in: query
+          description: Filter by post status (owner only)
+          schema:
+            type: string
+            enum: [published, draft, all]
+            default: published
+        - name: category
+          in: query
+          description: Filter by category
+          schema:
+            type: string
+            example: Backend
+        - name: tag
+          in: query
+          description: Filter by tag
+          schema:
+            type: string
+            example: python
+        - name: limit
+          in: query
+          description: Maximum number of posts to return
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: offset
+          in: query
+          description: Number of posts to skip
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+      responses:
+        '200':
+          description: Blog posts retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  posts:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/BlogPost'
+                  total:
+                    type: integer
+                    description: Total number of posts matching filters
+                    example: 42
+                  limit:
+                    type: integer
+                    example: 20
+                  offset:
+                    type: integer
+                    example: 0
+
+    post:
+      tags:
+        - Blog Posts
+      summary: Create blog post
+      description: Create a new blog post (owner only). Post is created as draft.
+      operationId: createBlogPost
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BlogPostCreate'
+      responses:
+        '201':
+          description: Blog post created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BlogPost'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+
+  /blog/posts/{postId}:
+    get:
+      tags:
+        - Blog Posts
+      summary: Get blog post by ID
+      description: Retrieve a specific blog post. Drafts are only visible to owner.
+      operationId: getBlogPost
+      parameters:
+        - $ref: '#/components/parameters/postId'
+      responses:
+        '200':
+          description: Blog post retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BlogPost'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+    put:
+      tags:
+        - Blog Posts
+      summary: Update blog post
+      description: Update an existing blog post (owner only)
+      operationId: updateBlogPost
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/postId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BlogPostUpdate'
+      responses:
+        '200':
+          description: Blog post updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BlogPost'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+    delete:
+      tags:
+        - Blog Posts
+      summary: Delete blog post
+      description: Delete a blog post (owner only)
+      operationId: deleteBlogPost
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/postId'
+      responses:
+        '204':
+          description: Blog post deleted successfully
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /blog/posts/{postId}/publish:
+    post:
+      tags:
+        - Blog Posts
+      summary: Publish blog post
+      description: Change post status from draft to published (owner only)
+      operationId: publishBlogPost
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/postId'
+      responses:
+        '200':
+          description: Blog post published successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BlogPost'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /blog/posts/{postId}/unpublish:
+    post:
+      tags:
+        - Blog Posts
+      summary: Unpublish blog post
+      description: Change post status from published to draft (owner only)
+      operationId: unpublishBlogPost
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/postId'
+      responses:
+        '200':
+          description: Blog post unpublished successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BlogPost'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /blog/categories:
+    get:
+      tags:
+        - Blog Posts
+      summary: List blog categories
+      description: Get all unique blog post categories
+      operationId: listBlogCategories
+      responses:
+        '200':
+          description: Categories retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  categories:
+                    type: array
+                    items:
+                      type: string
+                    example: ["Backend", "Cloud", "DevOps", "Data Engineering"]
+
+  # ==========================================
+  # PROJECT ENDPOINTS
+  # ==========================================
+
+  /projects:
+    get:
+      tags:
+        - Projects
+      summary: List projects
+      description: |
+        Retrieve projects with optional filtering by status.
+        Public users only see published projects. Owner can see all projects.
+      operationId: listProjects
+      parameters:
+        - name: status
+          in: query
+          description: Filter by project status (owner only)
+          schema:
+            type: string
+            enum: [published, draft, all]
+            default: published
+        - name: featured
+          in: query
+          description: Filter by featured status
+          schema:
+            type: boolean
+        - name: limit
+          in: query
+          description: Maximum number of projects to return
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: offset
+          in: query
+          description: Number of projects to skip
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+      responses:
+        '200':
+          description: Projects retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  projects:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Project'
+                  total:
+                    type: integer
+                    example: 15
+                  limit:
+                    type: integer
+                    example: 20
+                  offset:
+                    type: integer
+                    example: 0
+
+    post:
+      tags:
+        - Projects
+      summary: Create project
+      description: Create a new project (owner only). Project is created as draft.
+      operationId: createProject
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProjectCreate'
+      responses:
+        '201':
+          description: Project created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Project'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+
+  /projects/{projectId}:
+    get:
+      tags:
+        - Projects
+      summary: Get project by ID
+      description: Retrieve a specific project. Drafts are only visible to owner.
+      operationId: getProject
+      parameters:
+        - $ref: '#/components/parameters/projectId'
+      responses:
+        '200':
+          description: Project retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Project'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+    put:
+      tags:
+        - Projects
+      summary: Update project
+      description: Update an existing project (owner only)
+      operationId: updateProject
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/projectId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProjectUpdate'
+      responses:
+        '200':
+          description: Project updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Project'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+    delete:
+      tags:
+        - Projects
+      summary: Delete project
+      description: Delete a project (owner only)
+      operationId: deleteProject
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/projectId'
+      responses:
+        '204':
+          description: Project deleted successfully
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /projects/{projectId}/publish:
+    post:
+      tags:
+        - Projects
+      summary: Publish project
+      description: Change project status from draft to published (owner only)
+      operationId: publishProject
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/projectId'
+      responses:
+        '200':
+          description: Project published successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Project'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /projects/{projectId}/unpublish:
+    post:
+      tags:
+        - Projects
+      summary: Unpublish project
+      description: Change project status from published to draft (owner only)
+      operationId: unpublishProject
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/projectId'
+      responses:
+        '200':
+          description: Project unpublished successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Project'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  # ==========================================
+  # CERTIFICATION ENDPOINTS
+  # ==========================================
+
+  /certifications:
+    get:
+      tags:
+        - Certifications
+      summary: List certifications
+      description: |
+        Retrieve certifications and courses with optional filtering.
+        Public users only see published items. Owner can see all items.
+      operationId: listCertifications
+      parameters:
+        - name: status
+          in: query
+          description: Filter by status (owner only)
+          schema:
+            type: string
+            enum: [published, draft, all]
+            default: published
+        - name: type
+          in: query
+          description: Filter by type
+          schema:
+            type: string
+            enum: [certification, course]
+        - name: featured
+          in: query
+          description: Filter by featured status
+          schema:
+            type: boolean
+        - name: limit
+          in: query
+          description: Maximum number of items to return
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: offset
+          in: query
+          description: Number of items to skip
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+      responses:
+        '200':
+          description: Certifications retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  certifications:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Certification'
+                  total:
+                    type: integer
+                    example: 25
+                  limit:
+                    type: integer
+                    example: 20
+                  offset:
+                    type: integer
+                    example: 0
+
+    post:
+      tags:
+        - Certifications
+      summary: Create certification
+      description: Create a new certification or course (owner only). Created as draft.
+      operationId: createCertification
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CertificationCreate'
+      responses:
+        '201':
+          description: Certification created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Certification'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+
+  /certifications/{certificationId}:
+    get:
+      tags:
+        - Certifications
+      summary: Get certification by ID
+      description: Retrieve a specific certification. Drafts are only visible to owner.
+      operationId: getCertification
+      parameters:
+        - $ref: '#/components/parameters/certificationId'
+      responses:
+        '200':
+          description: Certification retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Certification'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+    put:
+      tags:
+        - Certifications
+      summary: Update certification
+      description: Update an existing certification (owner only)
+      operationId: updateCertification
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/certificationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CertificationUpdate'
+      responses:
+        '200':
+          description: Certification updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Certification'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+    delete:
+      tags:
+        - Certifications
+      summary: Delete certification
+      description: Delete a certification (owner only)
+      operationId: deleteCertification
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/certificationId'
+      responses:
+        '204':
+          description: Certification deleted successfully
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /certifications/{certificationId}/publish:
+    post:
+      tags:
+        - Certifications
+      summary: Publish certification
+      description: Change certification status from draft to published (owner only)
+      operationId: publishCertification
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/certificationId'
+      responses:
+        '200':
+          description: Certification published successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Certification'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /certifications/{certificationId}/unpublish:
+    post:
+      tags:
+        - Certifications
+      summary: Unpublish certification
+      description: Change certification status from published to draft (owner only)
+      operationId: unpublishCertification
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/certificationId'
+      responses:
+        '200':
+          description: Certification unpublished successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Certification'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  # ==========================================
+  # VISITOR TRACKING ENDPOINTS
+  # ==========================================
+
+  /visitors/track:
+    post:
+      tags:
+        - Visitors
+      summary: Track visitor
+      description: |
+        Increment visitor counter. Should be called once per unique session.
+        Uses IP-based or session-based deduplication.
+      operationId: trackVisit
+      responses:
+        '200':
+          description: Visit tracked successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  count:
+                    type: integer
+                    description: Updated visitor count
+                    example: 1248
+                  tracked:
+                    type: boolean
+                    description: Whether this visit was counted (false if duplicate)
+                    example: true
+
+  /visitors/count:
+    get:
+      tags:
+        - Visitors
+      summary: Get visitor count
+      description: Retrieve current total visitor count
+      operationId: getVisitorCount
+      responses:
+        '200':
+          description: Visitor count retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  count:
+                    type: integer
+                    example: 1247
+
+  /visitors/trends/daily:
+    get:
+      tags:
+        - Visitors
+      summary: Get daily visitor trends
+      description: Retrieve visitor counts for the last 30 days (owner only)
+      operationId: getDailyVisitorTrends
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: days
+          in: query
+          description: Number of days to retrieve (default 30)
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 90
+            default: 30
+      responses:
+        '200':
+          description: Daily trends retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  trends:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/DailyVisitors'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+
+  /visitors/trends/monthly:
+    get:
+      tags:
+        - Visitors
+      summary: Get monthly visitor trends
+      description: Retrieve visitor counts for the last 6 months (owner only)
+      operationId: getMonthlyVisitorTrends
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: months
+          in: query
+          description: Number of months to retrieve (default 6)
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 12
+            default: 6
+      responses:
+        '200':
+          description: Monthly trends retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  trends:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/MonthlyVisitors'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+
+  # ==========================================
+  # ANALYTICS ENDPOINTS
+  # ==========================================
+
+  /analytics/track:
+    post:
+      tags:
+        - Analytics
+      summary: Track content view
+      description: |
+        Track a view for a specific content item (blog, project, certification).
+        Uses session-based deduplication to prevent multiple counts per session.
+      operationId: trackContentView
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - contentId
+                - contentType
+              properties:
+                contentId:
+                  type: string
+                  description: ID of the content item
+                  example: "1"
+                contentType:
+                  type: string
+                  enum: [blog, project, certification]
+                  example: blog
+      responses:
+        '200':
+          description: View tracked successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  views:
+                    type: integer
+                    description: Updated view count for this content
+                    example: 42
+                  tracked:
+                    type: boolean
+                    description: Whether this view was counted (false if duplicate)
+                    example: true
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+
+  /analytics/views/{contentType}/{contentId}:
+    get:
+      tags:
+        - Analytics
+      summary: Get view count for content
+      description: Retrieve view count for a specific content item
+      operationId: getContentViewCount
+      parameters:
+        - name: contentType
+          in: path
+          required: true
+          schema:
+            type: string
+            enum: [blog, project, certification]
+        - name: contentId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: View count retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  contentId:
+                    type: string
+                    example: "1"
+                  contentType:
+                    type: string
+                    example: blog
+                  views:
+                    type: integer
+                    example: 42
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /analytics/views/{contentType}:
+    get:
+      tags:
+        - Analytics
+      summary: Get all view stats for content type
+      description: Retrieve view counts for all items of a specific content type (owner only)
+      operationId: getAllViewStats
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: contentType
+          in: path
+          required: true
+          schema:
+            type: string
+            enum: [blog, project, certification]
+      responses:
+        '200':
+          description: View stats retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  contentType:
+                    type: string
+                    example: blog
+                  stats:
+                    type: object
+                    additionalProperties:
+                      type: integer
+                    description: Map of content ID to view count
+                    example:
+                      "1": 150
+                      "2": 85
+                      "3": 120
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+
+  /analytics/top-content:
+    get:
+      tags:
+        - Analytics
+      summary: Get top viewed content
+      description: Retrieve top viewed content across all types (owner only)
+      operationId: getTopContent
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: limit
+          in: query
+          description: Number of items per type to return
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 20
+            default: 5
+      responses:
+        '200':
+          description: Top content retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  blogs:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ContentViewStat'
+                  projects:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ContentViewStat'
+                  certifications:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ContentViewStat'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+
+  /analytics/total-views:
+    get:
+      tags:
+        - Analytics
+      summary: Get total views
+      description: Retrieve total view count across all content (owner only)
+      operationId: getTotalViews
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Total views retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  totalViews:
+                    type: integer
+                    example: 5234
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+
+# ==========================================
+# COMPONENTS
+# ==========================================
+
+components:
+  # Security Schemes
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT authentication token obtained from /auth/login
+
+  # Reusable Parameters
+  parameters:
+    postId:
+      name: postId
+      in: path
+      required: true
+      description: Blog post ID
+      schema:
+        type: string
+        example: "1"
+
+    projectId:
+      name: projectId
+      in: path
+      required: true
+      description: Project ID
+      schema:
+        type: string
+        example: proj-1
+
+    certificationId:
+      name: certificationId
+      in: path
+      required: true
+      description: Certification ID
+      schema:
+        type: string
+        example: cert-1
+
+  # Schemas
+  schemas:
+    # User & Authentication
+    User:
+      type: object
+      required:
+        - id
+        - email
+        - name
+        - role
+      properties:
+        id:
+          type: string
+          example: owner-1
+        email:
+          type: string
+          format: email
+          example: p.walukagga@gmail.com
+        name:
+          type: string
+          example: Patrick Walukagga
+        role:
+          type: string
+          enum: [owner, public]
+          example: owner
+
+    # Blog Post Schemas
+    BlogPost:
+      type: object
+      required:
+        - id
+        - slug
+        - title
+        - excerpt
+        - content
+        - category
+        - readTime
+        - publishedAt
+        - tags
+        - status
+        - createdAt
+        - updatedAt
+      properties:
+        id:
+          type: string
+          example: "1"
+        slug:
+          type: string
+          description: URL-friendly slug generated from title
+          example: building-scalable-apis-with-fastapi
+        title:
+          type: string
+          example: Building Scalable APIs with FastAPI
+        excerpt:
+          type: string
+          description: Short summary of the post
+          example: Learn how to build high-performance APIs using FastAPI and Python
+        content:
+          type: string
+          description: Full post content in Markdown format
+          example: |
+            # Introduction
+
+            FastAPI is a modern, fast web framework...
+        category:
+          type: string
+          example: Backend
+        readTime:
+          type: string
+          description: Estimated reading time
+          example: 5 min read
+        publishedAt:
+          type: string
+          format: date
+          description: Publication date (empty string for drafts)
+          example: "2024-03-15"
+        tags:
+          type: array
+          items:
+            type: string
+          example: ["python", "fastapi", "api", "backend"]
+        status:
+          type: string
+          enum: [draft, published]
+          example: published
+        createdAt:
+          type: string
+          format: date-time
+          example: "2024-03-15T10:30:00Z"
+        updatedAt:
+          type: string
+          format: date-time
+          example: "2024-03-15T10:30:00Z"
+
+    BlogPostCreate:
+      type: object
+      required:
+        - title
+        - excerpt
+        - content
+        - category
+        - tags
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 200
+          example: Building Scalable APIs with FastAPI
+        excerpt:
+          type: string
+          minLength: 1
+          maxLength: 500
+          example: Learn how to build high-performance APIs using FastAPI and Python
+        content:
+          type: string
+          minLength: 1
+          example: |
+            # Introduction
+
+            FastAPI is a modern, fast web framework...
+        category:
+          type: string
+          minLength: 1
+          example: Backend
+        tags:
+          type: array
+          items:
+            type: string
+          minItems: 1
+          example: ["python", "fastapi", "api", "backend"]
+
+    BlogPostUpdate:
+      type: object
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 200
+        excerpt:
+          type: string
+          minLength: 1
+          maxLength: 500
+        content:
+          type: string
+          minLength: 1
+        category:
+          type: string
+          minLength: 1
+        tags:
+          type: array
+          items:
+            type: string
+          minItems: 1
+
+    # Project Schemas
+    Project:
+      type: object
+      required:
+        - id
+        - name
+        - description
+        - longDescription
+        - tech
+        - company
+        - featured
+        - status
+        - createdAt
+        - updatedAt
+      properties:
+        id:
+          type: string
+          example: proj-1
+        name:
+          type: string
+          example: MTN Rwanda Agriculture Platform
+        description:
+          type: string
+          description: Short project description
+          example: Django REST API powering cooperative and farmer onboarding workflows
+        longDescription:
+          type: string
+          description: Detailed project description in Markdown
+          example: |
+            A comprehensive agriculture platform built for MTN Rwanda...
+        tech:
+          type: array
+          items:
+            type: string
+          description: Technologies used
+          example: ["Python", "Django", "PostgreSQL", "Docker"]
+        company:
+          type: string
+          example: HAMWE EA
+        featured:
+          type: boolean
+          description: Whether project is featured on homepage
+          example: true
+        githubUrl:
+          type: string
+          format: uri
+          nullable: true
+          example: https://github.com/username/project
+        liveUrl:
+          type: string
+          format: uri
+          nullable: true
+          example: https://project.example.com
+        imageUrl:
+          type: string
+          format: uri
+          nullable: true
+          example: https://images.example.com/project.png
+        status:
+          type: string
+          enum: [draft, published]
+          example: published
+        createdAt:
+          type: string
+          format: date-time
+          example: "2024-01-01T00:00:00Z"
+        updatedAt:
+          type: string
+          format: date-time
+          example: "2024-01-01T00:00:00Z"
+
+    ProjectCreate:
+      type: object
+      required:
+        - name
+        - description
+        - longDescription
+        - tech
+        - company
+        - featured
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 200
+        description:
+          type: string
+          minLength: 1
+          maxLength: 500
+        longDescription:
+          type: string
+          minLength: 1
+        tech:
+          type: array
+          items:
+            type: string
+          minItems: 1
+        company:
+          type: string
+          minLength: 1
+        featured:
+          type: boolean
+          default: false
+        githubUrl:
+          type: string
+          format: uri
+          nullable: true
+        liveUrl:
+          type: string
+          format: uri
+          nullable: true
+        imageUrl:
+          type: string
+          format: uri
+          nullable: true
+
+    ProjectUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 200
+        description:
+          type: string
+          minLength: 1
+          maxLength: 500
+        longDescription:
+          type: string
+          minLength: 1
+        tech:
+          type: array
+          items:
+            type: string
+          minItems: 1
+        company:
+          type: string
+          minLength: 1
+        featured:
+          type: boolean
+        githubUrl:
+          type: string
+          format: uri
+          nullable: true
+        liveUrl:
+          type: string
+          format: uri
+          nullable: true
+        imageUrl:
+          type: string
+          format: uri
+          nullable: true
+
+    # Certification Schemas
+    Certification:
+      type: object
+      required:
+        - id
+        - name
+        - issuer
+        - icon
+        - type
+        - featured
+        - description
+        - dateEarned
+        - status
+        - createdAt
+        - updatedAt
+      properties:
+        id:
+          type: string
+          example: cert-1
+        name:
+          type: string
+          example: AWS Certified Solutions Architect  Associate
+        issuer:
+          type: string
+          example: Amazon Web Services (AWS)
+        icon:
+          type: string
+          description: Emoji or icon identifier
+          example: 
+        type:
+          type: string
+          enum: [certification, course]
+          example: certification
+        featured:
+          type: boolean
+          description: Whether certification is featured
+          example: true
+        description:
+          type: string
+          example: Validates expertise in designing distributed systems on AWS
+        credentialUrl:
+          type: string
+          format: uri
+          nullable: true
+          example: https://aws.amazon.com/verification
+        dateEarned:
+          type: string
+          format: date
+          example: "2023-06-15"
+        status:
+          type: string
+          enum: [draft, published]
+          example: published
+        createdAt:
+          type: string
+          format: date-time
+          example: "2023-06-15T00:00:00Z"
+        updatedAt:
+          type: string
+          format: date-time
+          example: "2023-06-15T00:00:00Z"
+
+    CertificationCreate:
+      type: object
+      required:
+        - name
+        - issuer
+        - icon
+        - type
+        - featured
+        - description
+        - dateEarned
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 200
+        issuer:
+          type: string
+          minLength: 1
+        icon:
+          type: string
+          minLength: 1
+          maxLength: 10
+        type:
+          type: string
+          enum: [certification, course]
+        featured:
+          type: boolean
+          default: false
+        description:
+          type: string
+          minLength: 1
+        credentialUrl:
+          type: string
+          format: uri
+          nullable: true
+        dateEarned:
+          type: string
+          format: date
+
+    CertificationUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 200
+        issuer:
+          type: string
+          minLength: 1
+        icon:
+          type: string
+          minLength: 1
+          maxLength: 10
+        type:
+          type: string
+          enum: [certification, course]
+        featured:
+          type: boolean
+        description:
+          type: string
+          minLength: 1
+        credentialUrl:
+          type: string
+          format: uri
+          nullable: true
+        dateEarned:
+          type: string
+          format: date
+
+    # Analytics Schemas
+    DailyVisitors:
+      type: object
+      required:
+        - date
+        - visitors
+      properties:
+        date:
+          type: string
+          description: Date in format "MMM DD"
+          example: Dec 16
+        visitors:
+          type: integer
+          minimum: 0
+          example: 45
+
+    MonthlyVisitors:
+      type: object
+      required:
+        - month
+        - visitors
+      properties:
+        month:
+          type: string
+          description: Month abbreviation
+          example: Dec
+        visitors:
+          type: integer
+          minimum: 0
+          example: 850
+
+    ContentViewStat:
+      type: object
+      required:
+        - contentId
+        - views
+      properties:
+        contentId:
+          type: string
+          example: "1"
+        views:
+          type: integer
+          minimum: 0
+          example: 150
+
+    # Error Schema
+    Error:
+      type: object
+      required:
+        - error
+        - message
+        - statusCode
+      properties:
+        error:
+          type: string
+          description: Short error identifier
+          example: Unauthorized
+        message:
+          type: string
+          description: Human-readable error message
+          example: Authentication token is missing or invalid
+        statusCode:
+          type: integer
+          description: HTTP status code
+          example: 401
+        details:
+          type: object
+          description: Additional error details (optional)
+          nullable: true
+
+  # Reusable Responses
+  responses:
+    UnauthorizedError:
+      description: Authentication required or token invalid
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error: Unauthorized
+            message: Authentication token is missing or invalid
+            statusCode: 401
+
+    ForbiddenError:
+      description: Insufficient permissions
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error: Forbidden
+            message: You do not have permission to perform this action
+            statusCode: 403
+
+    NotFoundError:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error: Not Found
+            message: The requested resource was not found
+            statusCode: 404
+
+    BadRequestError:
+      description: Invalid request parameters
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error: Bad Request
+            message: Invalid request parameters
+            statusCode: 400
+            details:
+              field: title
+              issue: Title is required

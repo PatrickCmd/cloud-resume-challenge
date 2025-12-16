@@ -505,6 +505,15 @@ Comprehensive documentation is available for all components:
 - **[Ansible Vault](aws/playbooks/vaults/README.md)** - Secure configuration management (500+ lines)
 - **[CloudFormation Config](aws/playbooks/CLOUDFORMATION_CONFIG.md)** - Capabilities & failure handling (400+ lines)
 
+**API & Backend**:
+- **[API Documentation](API.md)** - Complete OpenAPI 3.0.3 specification and developer guide
+  - 34 RESTful endpoints (authentication, blog, projects, certifications, analytics)
+  - Data models and schemas
+  - Code generation guides (TypeScript, Python, Go clients)
+  - Testing and mock server setup
+  - Interactive Swagger UI documentation
+- **[OpenAPI Specification](openapi.yml)** - Machine-readable API spec (OpenAPI 3.0.3)
+
 **Scripts & Tools**:
 - **[Deployment Scripts](aws/bin/README.md)** - Script usage and examples (2200+ lines)
   - frontend-deploy - Infrastructure deployment (S3 + CloudFront)
@@ -582,6 +591,9 @@ cloud-resume-challenge/
 │
 ├── backend/                           # AWS Lambda functions (planned)
 ├── .github/                           # CI/CD workflows (planned)
+│
+├── API.md                             # Complete API documentation (developer guide)
+├── openapi.yml                        # OpenAPI 3.0.3 specification (machine-readable)
 └── README.md                          # This file
 ```
 
@@ -647,6 +659,19 @@ cloud-resume-challenge/
 - [x] IAM billing access configuration documentation
 - [x] AWS Free Tier usage monitoring and alerts (web console guide)
 - [x] CloudWatch billing alarm setup via web console (clickops with screenshots)
+
+**API Specification & Backend Design**:
+- [x] Complete OpenAPI 3.0.3 specification (34 RESTful endpoints)
+- [x] Comprehensive API documentation with code examples
+- [x] Authentication endpoints (JWT-based)
+- [x] Blog post CRUD operations (7 endpoints)
+- [x] Project portfolio CRUD operations (7 endpoints)
+- [x] Certification CRUD operations (7 endpoints)
+- [x] Visitor tracking and analytics (10 endpoints)
+- [x] Data models and validation schemas (14 schemas)
+- [x] Error handling patterns and HTTP status codes
+- [x] Code generation guides (TypeScript, Python, Go clients)
+- [x] Mock server and testing documentation
 
 ### 🚧 In Progress / Planned
 
@@ -870,6 +895,63 @@ Complete deployment documentation is available in:
 ```
 CloudFront (HTTPS) → S3 Bucket → patrickcmd.dev
 ```
+
+## API Documentation Quick Start
+
+The complete API specification is available in OpenAPI 3.0.3 format. Here's how to use it:
+
+### View Interactive Documentation
+
+```bash
+# Install Redoc CLI
+npm install -g @redocly/cli
+
+# Serve interactive API docs
+redocly preview-docs openapi.yml
+
+# Access at: http://localhost:8080
+```
+
+### Generate API Client
+
+```bash
+# Install OpenAPI Generator
+npm install @openapitools/openapi-generator-cli -g
+
+# Generate TypeScript client
+openapi-generator-cli generate \
+  -i openapi.yml \
+  -g typescript-fetch \
+  -o generated/typescript-client
+
+# Generate Python FastAPI server
+openapi-generator-cli generate \
+  -i openapi.yml \
+  -g python-fastapi \
+  -o generated/python-server
+```
+
+### Start Mock API Server
+
+```bash
+# Install Prism
+npm install -g @stoplight/prism-cli
+
+# Start mock server (for frontend development)
+prism mock openapi.yml
+
+# Mock server runs at: http://localhost:4010
+```
+
+### API Overview
+
+- **34 RESTful endpoints** across 6 categories
+- **JWT authentication** for protected routes
+- **CRUD operations** for blog posts, projects, certifications
+- **Analytics & tracking** for visitors and content views
+- **Complete documentation** in [API.md](API.md)
+
+See [API.md](API.md) for complete documentation with examples, error handling, and best practices.
 
 ## License
 
