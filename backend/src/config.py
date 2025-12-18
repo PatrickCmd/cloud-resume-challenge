@@ -33,8 +33,8 @@ class Settings(BaseSettings):
     cors_origins: List[str] = [
         "http://localhost:3000",
         "http://localhost:5173",
-        "https://patrickcmd.com",
-        "https://www.patrickcmd.com",
+        "https://patrickcmd.dev",
+        "https://www.patrickcmd.dev",
     ]
 
     # JWT Configuration
@@ -49,6 +49,7 @@ class Settings(BaseSettings):
         """Pydantic configuration."""
         env_file = ".env"
         case_sensitive = False
+        extra = "ignore"  # Ignore extra fields from .env file
 
 
 # Global settings instance

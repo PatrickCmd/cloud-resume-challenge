@@ -17,11 +17,15 @@ def get_cognito_public_keys() -> Dict:
     """
     Fetch and cache Cognito public keys for JWT validation.
 
+    Fetches JWKS from Cognito's well-known endpoint and caches the result.
+    Following AUTHENTICATION.md lines 222-230 for token validation.
+
     Returns:
         Dictionary of Cognito public keys (JWKs)
+
+    Raises:
+        Exception: If unable to fetch public keys from Cognito
     """
-    # TODO: Implement fetching Cognito JWKS
-    # URL format: https://cognito-idp.{region}.amazonaws.com/{user_pool_id}/.well-known/jwks.json
     jwks_url = f"https://cognito-idp.{settings.cognito_region}.amazonaws.com/{settings.cognito_user_pool_id}/.well-known/jwks.json"
 
     try:
@@ -36,28 +40,29 @@ def decode_token(token: str) -> Optional[Dict]:
     """
     Decode and validate a JWT token from Cognito.
 
+    Performs complete JWT validation following AUTHENTICATION.md lines 221-231:
+    1. Fetches public keys from Cognito JWKS endpoint
+    2. Verifies token signature using the matching public key
+    3. Validates token expiration (exp claim)
+    4. Validates token issuer (iss claim)
+    5. Validates token audience (aud claim)
+    6. Returns decoded claims if all validations pass
+
     Args:
-        token: JWT token string
+        token: JWT token string (IdToken from Cognito)
 
     Returns:
-        Decoded token claims if valid, None otherwise
+        Decoded token claims if valid, None if invalid or expired
     """
-    # TODO: Implement JWT token validation
-    # 1. Fetch public keys from Cognito
-    # 2. Verify token signature
-    # 3. Verify token expiration
-    # 4. Verify token issuer
-    # 5. Return decoded claims
-
     try:
-        # Get public keys
+        # Fetch public keys from Cognito
         jwks = get_cognito_public_keys()
 
-        # Decode token header to get kid (key ID)
+        # Extract key ID from token header
         unverified_header = jwt.get_unverified_header(token)
         kid = unverified_header.get("kid")
 
-        # Find matching key
+        # Find matching public key
         key = None
         for jwk in jwks.get("keys", []):
             if jwk.get("kid") == kid:
@@ -67,7 +72,7 @@ def decode_token(token: str) -> Optional[Dict]:
         if not key:
             raise JWTError("Public key not found")
 
-        # Verify and decode token
+        # Verify and decode token with full validation
         claims = jwt.decode(
             token,
             key,
@@ -79,7 +84,9 @@ def decode_token(token: str) -> Optional[Dict]:
         return claims
 
     except JWTError as e:
-        # Log error in production
+        # Token validation failed - invalid signature, expired, or wrong issuer/audience
+        # In production, log this for security monitoring
+        print(f"JWT validation failed: {str(e)}")
         return None
 
 
@@ -87,11 +94,21 @@ def extract_user_from_token(token: str) -> Optional[Dict]:
     """
     Extract user information from JWT token.
 
+    Decodes and validates the JWT token, then extracts relevant user claims.
+    Following AUTHENTICATION.md lines 149-168 for ID token structure.
+
     Args:
-        token: JWT token string
+        token: JWT token string (IdToken from Cognito)
 
     Returns:
-        Dictionary with user information (sub, email, role, etc.)
+        Dictionary with user information:
+        - user_id: Cognito user ID (sub claim)
+        - email: User email address
+        - name: User display name
+        - role: User role from custom:role attribute
+        - email_verified: Whether email is verified
+
+        Returns None if token is invalid or expired
     """
     claims = decode_token(token)
 
