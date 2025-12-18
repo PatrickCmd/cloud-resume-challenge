@@ -47,7 +47,7 @@ This is a serverless REST API backend for the Cloud Resume Challenge portfolio w
 flowchart TD
 
     CF[CloudFront - frontend]
-    R53[Route 53 DNS\napi.patrickcmd.dev → API Gateway]
+    R53[Route 53 DNS api.patrickcmd.dev → API Gateway]
 
     APIGW[
         API Gateway - REST API
