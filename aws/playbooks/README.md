@@ -317,6 +317,8 @@ See: **[vaults/README.md](vaults/README.md)**
 
 - **frontend-deploy.yml** - Deploy S3 static website infrastructure using CloudFormation
 - **s3-upload.yml** - Build and upload React + Vite frontend to S3 bucket
+- **cloudfront-invalidate.yml** - Invalidate CloudFront cache after content updates
+- **setup-cognito.yml** - Create and configure Amazon Cognito User Pool for backend API authentication
 
 ### Running the Frontend Deployment Playbook
 
@@ -534,7 +536,216 @@ Instead of running the playbook directly, use the wrapper script for better UX:
 
 See [aws/bin/README.md](../bin/README.md#s3-upload) for full script documentation.
 
+---
+
+### Running the Cognito Setup Playbook
+
+The `setup-cognito.yml` playbook creates and configures Amazon Cognito User Pool for backend API authentication.
+
+#### Basic Usage
+
+```bash
+# Navigate to playbooks directory
+cd aws/playbooks
+
+# Setup Cognito User Pool
+ansible-playbook setup-cognito.yml --ask-vault-pass
+
+# Or with password file
+ansible-playbook setup-cognito.yml --vault-password-file ~/.vault_pass.txt
+```
+
 #### What the Playbook Does
+
+1. **Creates Cognito User Pool**:
+   - Configures password policy (12+ chars, mixed case, numbers, symbols)
+   - Sets up custom user attributes (role attribute for authorization)
+   - Configures email auto-verification
+   - Sets up account recovery via email
+   - Optional MFA configuration
+
+2. **Creates User Pool App Client**:
+   - Configures authentication flows (USER_PASSWORD_AUTH, REFRESH_TOKEN_AUTH, USER_SRP_AUTH)
+   - Sets token validity periods (ID: 1 hour, Access: 1 hour, Refresh: 30 days)
+   - Enables token revocation
+   - Prevents user existence errors
+
+3. **Creates Owner Account**:
+   - Creates pre-verified owner account
+   - Generates secure temporary password
+   - Sets custom role attribute (role=owner)
+   - Suppresses welcome email (password shown in output)
+
+4. **Configures Email** (Optional):
+   - Uses Cognito default email service by default
+   - Optionally configures SES for production email delivery
+
+5. **Creates User Pool Domain**:
+   - Creates unique Cognito hosted UI domain
+   - Enables hosted UI for authentication (optional)
+
+6. **Saves Configuration**:
+   - Exports to `aws/outputs/cognito-config.env` (environment variables format)
+   - Exports to `aws/outputs/cognito-config.json` (JSON format)
+   - Includes JWT authorizer configuration for SAM template
+
+#### Required Vault Configuration
+
+Before running the playbook, ensure your vault (`vaults/config.yml`) contains:
+
+```yaml
+cognito_config:
+  user_pool_name: portfolio-api-user-pool
+  user_pool_client_name: portfolio-frontend-client
+  owner_email: your-email@example.com
+  owner_name: Your Full Name
+  owner_role: owner
+  use_ses_email: false  # Set to true if you have SES configured
+  ses_from_email: noreply@your-domain.com
+  ses_from_name: Your App Name
+  id_token_validity: 3600       # 1 hour
+  access_token_validity: 3600   # 1 hour
+  refresh_token_validity: 2592000  # 30 days
+  mfa_configuration: OPTIONAL   # OFF, OPTIONAL, or ON
+  password_minimum_length: 12
+  password_require_uppercase: true
+  password_require_lowercase: true
+  password_require_numbers: true
+  password_require_symbols: true
+  password_temporary_validity_days: 7
+```
+
+Edit your vault configuration:
+
+```bash
+# Edit encrypted vault
+ansible-vault edit vaults/config.yml --vault-password-file ~/.vault_pass.txt
+
+# Update the cognito_config section with your values
+```
+
+#### Output Files
+
+The playbook generates two configuration files in `aws/outputs/`:
+
+1. **cognito-config.env** - Environment variables format:
+   ```env
+   AWS_REGION=us-east-1
+   COGNITO_USER_POOL_ID=us-east-1_xxxxxxxxx
+   COGNITO_CLIENT_ID=xxxxxxxxxxxxxxxxxxxxxxxxxx
+   OWNER_EMAIL=your-email@example.com
+   TEMPORARY_PASSWORD=YourSecurePassword123!
+   ```
+
+2. **cognito-config.json** - JSON format with JWT authorizer config:
+   ```json
+   {
+     "userPool": {
+       "id": "us-east-1_xxxxxxxxx",
+       "arn": "arn:aws:cognito-idp:...",
+       "name": "portfolio-api-user-pool"
+     },
+     "jwtAuthorizer": {
+       "issuer": "https://cognito-idp.us-east-1.amazonaws.com/...",
+       "audience": ["xxxxxxxxxxxxxxxxxxxxxxxxxx"]
+     }
+   }
+   ```
+
+#### Security Warning
+
+**IMPORTANT**: The output files contain sensitive credentials including:
+- User Pool IDs
+- Client IDs
+- **Temporary password for owner account**
+
+**Best Practices**:
+
+1. **Immediately** copy the temporary password to a secure location (password manager)
+2. **Delete** or secure these files after extracting the needed information:
+   ```bash
+   # After copying credentials
+   rm aws/outputs/cognito-config.env
+   rm aws/outputs/cognito-config.json
+   ```
+3. **Never** commit these files to version control
+4. Use environment variables or AWS Parameter Store for production deployments
+
+#### Using the Configuration
+
+**For Backend .env file**:
+
+```bash
+# Copy values to backend .env
+cp aws/outputs/cognito-config.env backend/.env
+
+# Or manually copy the values you need
+cat aws/outputs/cognito-config.env >> backend/.env
+```
+
+**For SAM Template**:
+
+Add the JWT Authorizer configuration to your `template.yaml`:
+
+```yaml
+PortfolioApi:
+  Type: AWS::Serverless::Api
+  Properties:
+    Auth:
+      Authorizers:
+        CognitoAuthorizer:
+          UserPoolArn: !Sub 'arn:aws:cognito-idp:${AWS::Region}:${AWS::AccountId}:userpool/${CognitoUserPoolId}'
+          Identity:
+            Header: Authorization
+```
+
+#### First Login
+
+After setup, the owner must:
+
+1. Use the temporary password to login via the API or Cognito Hosted UI
+2. Change the password to a permanent one on first login
+3. (Optional) Set up MFA for enhanced security
+
+#### Troubleshooting
+
+**Email Configuration Issues**:
+
+If you want to use SES for email delivery:
+
+1. Verify your domain or email address in SES:
+   ```bash
+   aws ses verify-email-identity --email-address noreply@your-domain.com
+   ```
+
+2. Update vault configuration:
+   ```yaml
+   cognito_config:
+     use_ses_email: true
+     ses_from_email: noreply@your-domain.com
+     ses_from_name: Your App Name
+   ```
+
+3. Re-run the playbook
+
+**User Pool Already Exists**:
+
+If you need to recreate the User Pool:
+
+```bash
+# List existing user pools
+aws cognito-idp list-user-pools --max-results 10
+
+# Delete existing user pool
+aws cognito-idp delete-user-pool --user-pool-id us-east-1_xxxxxxxxx
+
+# Re-run the playbook
+ansible-playbook setup-cognito.yml --vault-password-file ~/.vault_pass.txt
+```
+
+---
+
+#### What the S3 Upload Playbook Does
 
 1. **Validation**:
    - Checks frontend directory exists
@@ -1235,8 +1446,10 @@ Here's the complete debugging workflow we used:
 
 | File | Purpose | Usage |
 |------|---------|-------|
-| `frontend-deploy.yml` | Deploy S3 bucket with CloudFormation | `ansible-playbook frontend-deploy.yml` |
-| `s3-upload.yml` | Build and upload React frontend to S3 | `ansible-playbook s3-upload.yml` |
+| `frontend-deploy.yml` | Deploy S3 bucket with CloudFormation | `ansible-playbook frontend-deploy.yml --vault-password-file ~/.vault_pass.txt` |
+| `s3-upload.yml` | Build and upload React frontend to S3 | `ansible-playbook s3-upload.yml --vault-password-file ~/.vault_pass.txt` |
+| `cloudfront-invalidate.yml` | Invalidate CloudFront cache | `ansible-playbook cloudfront-invalidate.yml --vault-password-file ~/.vault_pass.txt` |
+| `setup-cognito.yml` | Setup Cognito User Pool for backend auth | `ansible-playbook setup-cognito.yml --vault-password-file ~/.vault_pass.txt` |
 
 ### Documentation
 

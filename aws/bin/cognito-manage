@@ -1,0 +1,465 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# ============================================
+# Cognito Management Script
+# ============================================
+# This script provides commands to manage the Cognito User Pool
+# including viewing, updating, and deleting resources
+
+# Colors for output
+BLUE='\033[0;34m'
+GREEN='\033[0;32m'
+RED='\033[0;31m'
+YELLOW='\033[1;33m'
+CYAN='\033[0;36m'
+NC='\033[0m' # No Color
+
+# Script directory
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
+OUTPUTS_DIR="${PROJECT_ROOT}/outputs"
+
+# Function to print colored messages
+print_info() {
+    echo -e "${BLUE}ℹ ${1}${NC}"
+}
+
+print_success() {
+    echo -e "${GREEN}✓ ${1}${NC}"
+}
+
+print_error() {
+    echo -e "${RED}✗ ${1}${NC}"
+}
+
+print_warning() {
+    echo -e "${YELLOW}⚠ ${1}${NC}"
+}
+
+print_header() {
+    echo -e "${CYAN}${1}${NC}"
+}
+
+# Function to show usage
+usage() {
+    cat << EOF
+Usage: $(basename "$0") COMMAND [OPTIONS]
+
+Manage Cognito User Pool and users.
+
+COMMANDS:
+    show            Show User Pool details
+    list-users      List all users in the pool
+    user-info       Get detailed user information
+    reset-password  Reset user password (admin)
+    delete-user     Delete a user from the pool
+    delete-pool     Delete the entire User Pool
+    update-attrs    Update user attributes
+    enable-user     Enable a disabled user
+    disable-user    Disable a user account
+
+OPTIONS:
+    -h, --help              Show this help message
+    -u, --username EMAIL    Username (email) for user operations
+    --pool-id ID            User Pool ID (optional, reads from config)
+    --region REGION         AWS region (optional, reads from config)
+
+EXAMPLES:
+    # Show User Pool details
+    $(basename "$0") show
+
+    # List all users
+    $(basename "$0") list-users
+
+    # Get user info
+    $(basename "$0") user-info --username user@example.com
+
+    # Reset user password
+    $(basename "$0") reset-password --username user@example.com
+
+    # Delete user
+    $(basename "$0") delete-user --username user@example.com
+
+    # Delete entire User Pool
+    $(basename "$0") delete-pool
+
+    # Update user email
+    $(basename "$0") update-attrs --username user@example.com
+
+    # Disable user
+    $(basename "$0") disable-user --username user@example.com
+
+    # Enable user
+    $(basename "$0") enable-user --username user@example.com
+
+CONFIGURATION:
+    The script reads configuration from:
+      - ${OUTPUTS_DIR}/cognito-config.env
+
+    Or environment variables:
+      - COGNITO_USER_POOL_ID
+      - AWS_REGION
+      - AWS_PROFILE (optional)
+
+EOF
+    exit 0
+}
+
+# Load configuration
+load_config() {
+    local ENV_FILE="${OUTPUTS_DIR}/cognito-config.env"
+
+    if [[ -f "$ENV_FILE" ]]; then
+        # Source the env file
+        export $(grep -v '^#' "$ENV_FILE" | grep -v '^$' | xargs)
+
+        USER_POOL_ID="${COGNITO_USER_POOL_ID:-}"
+        AWS_REGION="${AWS_REGION:-us-east-1}"
+        AWS_PROFILE="${AWS_PROFILE:-}"
+    else
+        USER_POOL_ID="${COGNITO_USER_POOL_ID:-}"
+        AWS_REGION="${AWS_REGION:-us-east-1}"
+        AWS_PROFILE="${AWS_PROFILE:-}"
+    fi
+
+    # Build AWS CLI profile option
+    if [[ -n "$AWS_PROFILE" ]]; then
+        AWS_OPTS="--profile $AWS_PROFILE --region $AWS_REGION"
+    else
+        AWS_OPTS="--region $AWS_REGION"
+    fi
+}
+
+# Show User Pool details
+cmd_show() {
+    print_header "User Pool Details"
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo ""
+
+    aws cognito-idp describe-user-pool \
+        --user-pool-id "$USER_POOL_ID" \
+        $AWS_OPTS \
+        --output json | jq '.'
+}
+
+# List users
+cmd_list_users() {
+    print_header "Users in Pool"
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo ""
+
+    aws cognito-idp list-users \
+        --user-pool-id "$USER_POOL_ID" \
+        $AWS_OPTS \
+        --output table
+}
+
+# Get user info
+cmd_user_info() {
+    local username="$1"
+
+    if [[ -z "$username" ]]; then
+        print_error "Username is required"
+        echo "Usage: $(basename "$0") user-info --username EMAIL"
+        exit 1
+    fi
+
+    print_header "User Information: ${username}"
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo ""
+
+    aws cognito-idp admin-get-user \
+        --user-pool-id "$USER_POOL_ID" \
+        --username "$username" \
+        $AWS_OPTS \
+        --output json | jq '.'
+}
+
+# Reset password
+cmd_reset_password() {
+    local username="$1"
+
+    if [[ -z "$username" ]]; then
+        print_error "Username is required"
+        echo "Usage: $(basename "$0") reset-password --username EMAIL"
+        exit 1
+    fi
+
+    print_warning "This will reset the password for: ${username}"
+    echo ""
+
+    read -s -p "$(echo -e ${BLUE}New password: ${NC})" new_password
+    echo ""
+    read -s -p "$(echo -e ${BLUE}Confirm password: ${NC})" confirm_password
+    echo ""
+
+    if [[ "$new_password" != "$confirm_password" ]]; then
+        print_error "Passwords do not match"
+        exit 1
+    fi
+
+    echo ""
+    read -p "$(echo -e ${YELLOW}Set as permanent password? [y/N]: ${NC})" -n 1 -r
+    echo ""
+
+    local permanent_flag=""
+    if [[ $REPLY =~ ^[Yy]$ ]]; then
+        permanent_flag="--permanent"
+    fi
+
+    aws cognito-idp admin-set-user-password \
+        --user-pool-id "$USER_POOL_ID" \
+        --username "$username" \
+        --password "$new_password" \
+        $permanent_flag \
+        $AWS_OPTS
+
+    print_success "Password reset successfully"
+}
+
+# Delete user
+cmd_delete_user() {
+    local username="$1"
+
+    if [[ -z "$username" ]]; then
+        print_error "Username is required"
+        echo "Usage: $(basename "$0") delete-user --username EMAIL"
+        exit 1
+    fi
+
+    print_warning "This will permanently delete user: ${username}"
+    echo ""
+
+    read -p "$(echo -e ${RED}Are you sure? [y/N]: ${NC})" -n 1 -r
+    echo ""
+
+    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+        print_info "Cancelled"
+        exit 0
+    fi
+
+    aws cognito-idp admin-delete-user \
+        --user-pool-id "$USER_POOL_ID" \
+        --username "$username" \
+        $AWS_OPTS
+
+    print_success "User deleted successfully"
+}
+
+# Delete User Pool
+cmd_delete_pool() {
+    print_warning "This will permanently delete the entire User Pool!"
+    print_warning "User Pool ID: ${USER_POOL_ID}"
+    echo ""
+
+    # First, check if domain exists
+    DOMAIN=$(aws cognito-idp describe-user-pool \
+        --user-pool-id "$USER_POOL_ID" \
+        $AWS_OPTS \
+        --query 'UserPool.Domain' \
+        --output text 2>/dev/null || echo "")
+
+    if [[ -n "$DOMAIN" ]] && [[ "$DOMAIN" != "None" ]]; then
+        print_info "Found domain: ${DOMAIN}"
+        print_warning "Domain must be deleted first"
+        echo ""
+
+        read -p "$(echo -e ${YELLOW}Delete domain? [y/N]: ${NC})" -n 1 -r
+        echo ""
+
+        if [[ $REPLY =~ ^[Yy]$ ]]; then
+            print_info "Deleting domain..."
+            aws cognito-idp delete-user-pool-domain \
+                --domain "$DOMAIN" \
+                --user-pool-id "$USER_POOL_ID" \
+                $AWS_OPTS
+
+            print_success "Domain deleted"
+            echo ""
+        else
+            print_error "Cannot delete User Pool with domain attached"
+            exit 1
+        fi
+    fi
+
+    read -p "$(echo -e ${RED}Delete User Pool? This cannot be undone! [y/N]: ${NC})" -n 1 -r
+    echo ""
+
+    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+        print_info "Cancelled"
+        exit 0
+    fi
+
+    aws cognito-idp delete-user-pool \
+        --user-pool-id "$USER_POOL_ID" \
+        $AWS_OPTS
+
+    print_success "User Pool deleted successfully"
+    print_warning "Remember to delete the configuration files:"
+    echo "  rm ${OUTPUTS_DIR}/cognito-config.env"
+    echo "  rm ${OUTPUTS_DIR}/cognito-config.json"
+}
+
+# Update user attributes
+cmd_update_attrs() {
+    local username="$1"
+
+    if [[ -z "$username" ]]; then
+        print_error "Username is required"
+        echo "Usage: $(basename "$0") update-attrs --username EMAIL"
+        exit 1
+    fi
+
+    print_header "Update User Attributes: ${username}"
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo ""
+
+    read -p "Attribute name (e.g., name, email, custom:role): " attr_name
+    read -p "Attribute value: " attr_value
+
+    aws cognito-idp admin-update-user-attributes \
+        --user-pool-id "$USER_POOL_ID" \
+        --username "$username" \
+        --user-attributes Name="$attr_name",Value="$attr_value" \
+        $AWS_OPTS
+
+    print_success "User attributes updated successfully"
+}
+
+# Disable user
+cmd_disable_user() {
+    local username="$1"
+
+    if [[ -z "$username" ]]; then
+        print_error "Username is required"
+        echo "Usage: $(basename "$0") disable-user --username EMAIL"
+        exit 1
+    fi
+
+    print_warning "This will disable user: ${username}"
+    echo ""
+
+    read -p "$(echo -e ${YELLOW}Continue? [y/N]: ${NC})" -n 1 -r
+    echo ""
+
+    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+        print_info "Cancelled"
+        exit 0
+    fi
+
+    aws cognito-idp admin-disable-user \
+        --user-pool-id "$USER_POOL_ID" \
+        --username "$username" \
+        $AWS_OPTS
+
+    print_success "User disabled successfully"
+}
+
+# Enable user
+cmd_enable_user() {
+    local username="$1"
+
+    if [[ -z "$username" ]]; then
+        print_error "Username is required"
+        echo "Usage: $(basename "$0") enable-user --username EMAIL"
+        exit 1
+    fi
+
+    aws cognito-idp admin-enable-user \
+        --user-pool-id "$USER_POOL_ID" \
+        --username "$username" \
+        $AWS_OPTS
+
+    print_success "User enabled successfully"
+}
+
+# ============================================
+# Main Script
+# ============================================
+
+# Check for command
+if [[ $# -eq 0 ]] || [[ "$1" == "-h" ]] || [[ "$1" == "--help" ]]; then
+    usage
+fi
+
+COMMAND="$1"
+shift
+
+# Parse options
+USERNAME=""
+USER_POOL_ID=""
+AWS_REGION=""
+
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        -h|--help)
+            usage
+            ;;
+        -u|--username)
+            USERNAME="$2"
+            shift 2
+            ;;
+        --pool-id)
+            USER_POOL_ID="$2"
+            shift 2
+            ;;
+        --region)
+            AWS_REGION="$2"
+            shift 2
+            ;;
+        *)
+            print_error "Unknown option: $1"
+            usage
+            ;;
+    esac
+done
+
+# Load config
+load_config
+
+# Check required values
+if [[ -z "$USER_POOL_ID" ]]; then
+    print_error "COGNITO_USER_POOL_ID not found"
+    print_info "Either:"
+    echo "  1. Run ./aws/bin/setup-cognito first"
+    echo "  2. Set COGNITO_USER_POOL_ID environment variable"
+    echo "  3. Use --pool-id option"
+    exit 1
+fi
+
+# Execute command
+case "$COMMAND" in
+    show)
+        cmd_show
+        ;;
+    list-users)
+        cmd_list_users
+        ;;
+    user-info)
+        cmd_user_info "$USERNAME"
+        ;;
+    reset-password)
+        cmd_reset_password "$USERNAME"
+        ;;
+    delete-user)
+        cmd_delete_user "$USERNAME"
+        ;;
+    delete-pool)
+        cmd_delete_pool
+        ;;
+    update-attrs)
+        cmd_update_attrs "$USERNAME"
+        ;;
+    disable-user)
+        cmd_disable_user "$USERNAME"
+        ;;
+    enable-user)
+        cmd_enable_user "$USERNAME"
+        ;;
+    *)
+        print_error "Unknown command: $COMMAND"
+        echo ""
+        usage
+        ;;
+esac

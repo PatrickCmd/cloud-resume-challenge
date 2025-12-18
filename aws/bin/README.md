@@ -1356,6 +1356,807 @@ aws cloudfront list-invalidations --distribution-id $DIST_ID --profile patrickcm
 
 ---
 
+### `setup-cognito`
+
+Create and configure Amazon Cognito User Pool for backend API authentication.
+
+#### Features
+
+- ✅ Creates Cognito User Pool with custom password policy
+- ✅ Creates User Pool App Client with JWT configuration
+- ✅ Creates owner account with temporary password
+- ✅ Configures custom user attributes (role)
+- ✅ Optional SES email integration
+- ✅ Creates User Pool Domain for hosted UI
+- ✅ Saves configuration to output files
+- ✅ Comprehensive security warnings and best practices
+- ✅ Uses Ansible Vault for secure configuration
+
+#### Prerequisites
+
+1. **Ansible installed**
+   ```bash
+   pip install ansible
+   ```
+
+2. **AWS CLI configured**
+   ```bash
+   aws configure --profile YOUR_PROFILE
+   ```
+
+3. **Vault configuration**
+   ```bash
+   # Edit vault with cognito_config section
+   ansible-vault edit aws/playbooks/vaults/config.yml
+   ```
+
+4. **Vault password file**
+   ```bash
+   echo "your-vault-password" > ~/.vault_pass.txt
+   chmod 600 ~/.vault_pass.txt
+   ```
+
+#### Vault Configuration
+
+Before running the script, ensure your vault contains the `cognito_config` section:
+
+```yaml
+cognito_config:
+  user_pool_name: portfolio-api-user-pool
+  user_pool_client_name: portfolio-frontend-client
+  owner_email: your-email@example.com
+  owner_name: Your Full Name
+  owner_role: owner
+  use_ses_email: false  # Set to true if you have SES configured
+  ses_from_email: noreply@your-domain.com
+  ses_from_name: Your App Name
+  id_token_validity: 3600       # 1 hour
+  access_token_validity: 3600   # 1 hour
+  refresh_token_validity: 2592000  # 30 days
+  mfa_configuration: OPTIONAL   # OFF, OPTIONAL, or ON
+  password_minimum_length: 12
+  password_require_uppercase: true
+  password_require_lowercase: true
+  password_require_numbers: true
+  password_require_symbols: true
+  password_temporary_validity_days: 7
+```
+
+#### Usage
+
+```bash
+# Basic setup
+./bin/setup-cognito
+
+# With verbose output
+./bin/setup-cognito --verbose
+
+# With custom vault password file
+./bin/setup-cognito --vault-password-file /path/to/vault_pass.txt
+```
+
+#### Options
+
+| Option | Description |
+|--------|-------------|
+| `-h, --help` | Show help message |
+| `-v, --verbose` | Verbose output (-v, -vv, -vvv) |
+| `--vault-password-file` | Path to vault password file (default: ~/.vault_pass.txt) |
+
+#### What Gets Created
+
+1. **Cognito User Pool**
+   - Custom password policy (12+ chars, mixed case, numbers, symbols)
+   - Custom 'role' attribute for authorization
+   - Email verification enabled
+   - Account recovery via email
+   - Optional MFA support
+
+2. **User Pool App Client**
+   - JWT token configuration (ID: 1h, Access: 1h, Refresh: 30d)
+   - Auth flows: USER_PASSWORD_AUTH, REFRESH_TOKEN_AUTH, USER_SRP_AUTH
+   - Token revocation enabled
+
+3. **Owner Account**
+   - Pre-verified email
+   - Temporary password (must change on first login)
+   - Custom role attribute (role=owner)
+
+4. **User Pool Domain (Optional)**
+   - Cognito hosted UI domain
+   - Format: portfolio-api-XXXXXXXX.auth.REGION.amazoncognito.com
+
+#### Output Files
+
+The script generates configuration files in `aws/outputs/`:
+
+1. **cognito-config.env** - Environment variables format
+   ```env
+   AWS_REGION=us-east-1
+   COGNITO_USER_POOL_ID=us-east-1_xxxxxxxxx
+   COGNITO_CLIENT_ID=xxxxxxxxxxxxxxxxxxxxxxxxxx
+   OWNER_EMAIL=your-email@example.com
+   TEMPORARY_PASSWORD=YourSecurePassword123!
+   ```
+
+2. **cognito-config.json** - JSON format with JWT authorizer config
+   ```json
+   {
+     "userPool": {
+       "id": "us-east-1_xxxxxxxxx",
+       "arn": "arn:aws:cognito-idp:...",
+       "name": "portfolio-api-user-pool"
+     },
+     "jwtAuthorizer": {
+       "issuer": "https://cognito-idp.us-east-1.amazonaws.com/...",
+       "audience": ["xxxxxxxxxxxxxxxxxxxxxxxxxx"]
+     }
+   }
+   ```
+
+3. **README.md** - Security instructions and usage guide
+
+#### Security Warning
+
+**IMPORTANT**: The output files contain sensitive credentials including:
+- User Pool IDs
+- Client IDs
+- **Temporary password for owner account**
+
+**Best Practices:**
+
+1. **Immediately** copy the temporary password to a password manager
+2. **Delete** or secure the output files after extracting credentials:
+   ```bash
+   rm aws/outputs/cognito-config.env
+   rm aws/outputs/cognito-config.json
+   ```
+3. **Never** commit these files to version control (already in .gitignore)
+4. Use environment variables or AWS Parameter Store for production
+
+#### Next Steps
+
+After running the script:
+
+1. **Save the temporary password** to a password manager
+2. **Copy configuration to backend**:
+   ```bash
+   cp aws/outputs/cognito-config.env backend/.env
+   ```
+3. **Update SAM template.yaml** with JWT Authorizer config:
+   ```yaml
+   PortfolioApi:
+     Type: AWS::Serverless::Api
+     Properties:
+       Auth:
+         Authorizers:
+           CognitoAuthorizer:
+             UserPoolArn: !Sub 'arn:aws:cognito-idp:${AWS::Region}:${AWS::AccountId}:userpool/${CognitoUserPoolId}'
+   ```
+4. **Login and change password** on first use
+5. **Delete the output files** after copying credentials
+
+#### Examples
+
+##### Basic Setup
+```bash
+./bin/setup-cognito
+```
+
+##### With Verbose Output
+```bash
+./bin/setup-cognito -vv
+```
+
+##### Verify Cognito Resources
+```bash
+# List user pools
+aws cognito-idp list-user-pools --max-results 10
+
+# Describe user pool
+aws cognito-idp describe-user-pool --user-pool-id us-east-1_xxxxxxxxx
+
+# List users
+aws cognito-idp list-users --user-pool-id us-east-1_xxxxxxxxx
+```
+
+#### Troubleshooting
+
+##### User Pool Already Exists
+
+If you need to recreate the User Pool:
+
+```bash
+# List existing user pools
+aws cognito-idp list-user-pools --max-results 10
+
+# Delete existing user pool
+aws cognito-idp delete-user-pool --user-pool-id us-east-1_xxxxxxxxx
+
+# Re-run setup
+./bin/setup-cognito
+```
+
+##### Vault Password Incorrect
+
+```bash
+# Test vault password
+ansible-vault view aws/playbooks/vaults/config.yml --vault-password-file ~/.vault_pass.txt
+```
+
+##### Missing Cognito Config in Vault
+
+```bash
+# Edit vault and add cognito_config section
+ansible-vault edit aws/playbooks/vaults/config.yml --vault-password-file ~/.vault_pass.txt
+```
+
+##### AWS Credentials Not Configured
+
+```bash
+# Configure AWS credentials
+aws configure --profile YOUR_PROFILE
+
+# Verify credentials
+aws sts get-caller-identity --profile YOUR_PROFILE
+```
+
+#### Cost Information
+
+Amazon Cognito pricing:
+- **User Pool**: Free for first 50,000 MAUs (Monthly Active Users)
+- **After 50,000 MAUs**: $0.0055 per MAU
+- **MFA SMS**: $0.02-$0.05 per message (if using SMS MFA)
+- **Email via Cognito**: First 50 emails/day free, then $0.10 per 1,000 emails
+- **Email via SES**: $0.10 per 1,000 emails (with verified domain)
+
+**For a personal portfolio (owner-only):** Cognito is **FREE** (well under 50,000 MAUs)
+
+---
+
+### `cognito-show-config`
+
+Display Cognito User Pool configuration from generated output files.
+
+#### Features
+
+- ✅ View configuration in environment variables format
+- ✅ View configuration in JSON format
+- ✅ Hide/show temporary password
+- ✅ Display useful AWS CLI commands
+- ✅ Security warnings and best practices
+- ✅ Quick action commands
+
+#### Usage
+
+```bash
+# Show all configuration (both env and JSON)
+./bin/cognito-show-config
+
+# Show only JSON format
+./bin/cognito-show-config --json
+
+# Show only environment variables
+./bin/cognito-show-config --env
+
+# Show with password visible
+./bin/cognito-show-config --show-password
+
+# Show useful AWS CLI commands
+./bin/cognito-show-config --commands
+
+# Combination
+./bin/cognito-show-config --env --show-password
+```
+
+#### Examples
+
+**Basic configuration view:**
+```bash
+$ ./bin/cognito-show-config
+
+╔════════════════════════════════════════════════════════════╗
+║        Cognito Configuration Viewer                       ║
+╚════════════════════════════════════════════════════════════╝
+
+Environment Variables (cognito-config.env)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+# User Pool Configuration
+AWS_REGION=us-east-1
+COGNITO_USER_POOL_ID=us-east-1_xxxxxxxxx
+COGNITO_CLIENT_ID=xxxxxxxxxxxxxxxxxxxxxxxxxx
+TEMPORARY_PASSWORD=********** (hidden, use --show-password to reveal)
+
+JSON Configuration (cognito-config.json)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+{
+  "userPool": {
+    "id": "us-east-1_xxxxxxxxx",
+    "name": "portfolio-api-user-pool"
+  },
+  "jwtAuthorizer": {
+    "issuer": "https://cognito-idp.us-east-1.amazonaws.com/...",
+    "audience": ["xxxxxxxxxxxxxxxxxxxxxxxxxx"]
+  }
+}
+```
+
+**Show useful commands:**
+```bash
+$ ./bin/cognito-show-config --commands
+
+Useful AWS CLI Commands
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+# Describe User Pool
+aws cognito-idp describe-user-pool \
+  --user-pool-id us-east-1_xxxxxxxxx \
+  --region us-east-1
+
+# List users in pool
+aws cognito-idp list-users \
+  --user-pool-id us-east-1_xxxxxxxxx \
+  --region us-east-1
+```
+
+#### Security Warning
+
+The output files contain sensitive credentials:
+- User Pool IDs and ARNs
+- Client IDs
+- **Temporary password for owner account**
+
+**Best Practices:**
+1. Store temporary password in a password manager immediately
+2. Delete output files after copying to backend/.env
+3. Never commit these files to version control
+
+---
+
+### `cognito-change-password`
+
+Change the temporary password to a permanent password for Cognito users.
+
+#### Features
+
+- ✅ Admin set password (no old password required)
+- ✅ User change password flow (requires old password)
+- ✅ Password validation (meets Cognito policy)
+- ✅ Interactive password entry (hidden input)
+- ✅ Password confirmation
+- ✅ Loads configuration from output files automatically
+
+#### Usage
+
+```bash
+# Interactive mode (prompts for all values)
+./bin/cognito-change-password
+
+# Admin set password (first login or reset)
+./bin/cognito-change-password \
+  --username user@example.com \
+  --new-password 'MyNewPassword123!'
+
+# User change password flow
+./bin/cognito-change-password \
+  --username user@example.com \
+  --old-password 'TempPassword123!' \
+  --new-password 'MyNewPassword123!' \
+  --user
+```
+
+#### Password Requirements
+
+The password must meet Cognito's policy:
+- **Minimum 12 characters**
+- At least **one uppercase** letter
+- At least **one lowercase** letter
+- At least **one number**
+- At least **one symbol** (!@#$%^&*)
+
+#### Examples
+
+**First login (admin set permanent password):**
+```bash
+$ ./bin/cognito-change-password
+
+╔════════════════════════════════════════════════════════════╗
+║        Cognito Password Change Script                    ║
+╚════════════════════════════════════════════════════════════╝
+
+ℹ Loading configuration from: aws/outputs/cognito-config.env
+✓ User Pool ID: us-east-1_xxxxxxxxx
+
+ℹ Username: user@example.com
+
+New password: ************
+Confirm new password: ************
+
+ℹ Using admin set password method...
+⚠ This will set a permanent password without requiring the old password
+
+Continue? [y/N]: y
+
+ℹ Setting permanent password...
+✓ Password changed successfully!
+ℹ The user can now login with the new password
+```
+
+**Using command-line arguments:**
+```bash
+$ ./bin/cognito-change-password \
+    --username patrick@example.com \
+    --new-password 'SecurePass123!'
+
+✓ Password changed successfully!
+```
+
+#### Next Steps After Password Change
+
+1. Test login with new password
+2. Update backend/.env if needed
+3. Delete temporary password from cognito-config.env
+4. (Optional) Configure MFA for enhanced security
+
+---
+
+### `cognito-manage`
+
+Comprehensive Cognito User Pool and user management tool.
+
+#### Features
+
+- ✅ Show User Pool details
+- ✅ List all users
+- ✅ Get detailed user information
+- ✅ Reset user passwords (admin)
+- ✅ Delete users
+- ✅ Delete entire User Pool
+- ✅ Update user attributes
+- ✅ Enable/disable user accounts
+- ✅ Automatic domain cleanup when deleting pool
+
+#### Commands
+
+```bash
+# Show User Pool details
+./bin/cognito-manage show
+
+# List all users in the pool
+./bin/cognito-manage list-users
+
+# Get detailed user information
+./bin/cognito-manage user-info --username user@example.com
+
+# Reset user password (admin)
+./bin/cognito-manage reset-password --username user@example.com
+
+# Delete a user
+./bin/cognito-manage delete-user --username user@example.com
+
+# Delete the entire User Pool
+./bin/cognito-manage delete-pool
+
+# Update user attributes
+./bin/cognito-manage update-attrs --username user@example.com
+
+# Disable user account
+./bin/cognito-manage disable-user --username user@example.com
+
+# Enable user account
+./bin/cognito-manage enable-user --username user@example.com
+```
+
+#### Examples
+
+**Show User Pool details:**
+```bash
+$ ./bin/cognito-manage show
+
+User Pool Details
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+{
+  "UserPool": {
+    "Id": "us-east-1_xxxxxxxxx",
+    "Name": "portfolio-api-user-pool",
+    "Policies": {
+      "PasswordPolicy": {
+        "MinimumLength": 12,
+        "RequireUppercase": true,
+        "RequireLowercase": true,
+        "RequireNumbers": true,
+        "RequireSymbols": true
+      }
+    },
+    "CreationDate": "2025-12-18T12:00:00.000Z",
+    "MfaConfiguration": "OFF"
+  }
+}
+```
+
+**List users:**
+```bash
+$ ./bin/cognito-manage list-users
+
+Users in Pool
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+----------------------------------------------------
+|                    ListUsers                     |
++------------------------+-------------------------+
+|  Username              |  Status                 |
++------------------------+-------------------------+
+|  user@example.com      |  CONFIRMED              |
++------------------------+-------------------------+
+```
+
+**Get user information:**
+```bash
+$ ./bin/cognito-manage user-info --username user@example.com
+
+User Information: user@example.com
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+{
+  "Username": "user@example.com",
+  "UserAttributes": [
+    {
+      "Name": "email",
+      "Value": "user@example.com"
+    },
+    {
+      "Name": "email_verified",
+      "Value": "true"
+    },
+    {
+      "Name": "custom:role",
+      "Value": "owner"
+    }
+  ],
+  "Enabled": true,
+  "UserStatus": "CONFIRMED"
+}
+```
+
+**Reset password:**
+```bash
+$ ./bin/cognito-manage reset-password --username user@example.com
+
+⚠ This will reset the password for: user@example.com
+
+New password: ************
+Confirm password: ************
+
+⚠ Set as permanent password? [y/N]: y
+
+✓ Password reset successfully
+```
+
+**Delete User Pool:**
+```bash
+$ ./bin/cognito-manage delete-pool
+
+⚠ This will permanently delete the entire User Pool!
+⚠ User Pool ID: us-east-1_xxxxxxxxx
+
+ℹ Found domain: portfolio-api-xxxxxxxx
+⚠ Domain must be deleted first
+
+⚠ Delete domain? [y/N]: y
+ℹ Deleting domain...
+✓ Domain deleted
+
+✗ Delete User Pool? This cannot be undone! [y/N]: y
+
+✓ User Pool deleted successfully
+⚠ Remember to delete the configuration files:
+  rm aws/outputs/cognito-config.env
+  rm aws/outputs/cognito-config.json
+```
+
+**Update user attributes:**
+```bash
+$ ./bin/cognito-manage update-attrs --username user@example.com
+
+Update User Attributes: user@example.com
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Attribute name (e.g., name, email, custom:role): name
+Attribute value: John Doe
+
+✓ User attributes updated successfully
+```
+
+#### Common Operations
+
+**Disable a compromised account:**
+```bash
+./bin/cognito-manage disable-user --username user@example.com
+```
+
+**Re-enable an account:**
+```bash
+./bin/cognito-manage enable-user --username user@example.com
+```
+
+**Change user's role:**
+```bash
+# Interactive mode
+./bin/cognito-manage update-attrs --username user@example.com
+# Then enter: custom:role
+# Then enter: admin
+```
+
+#### AWS CLI Commands Reference
+
+Here are useful AWS CLI commands for Cognito management:
+
+**User Pool Operations:**
+```bash
+# List all User Pools
+aws cognito-idp list-user-pools --max-results 10
+
+# Describe specific User Pool
+aws cognito-idp describe-user-pool \
+  --user-pool-id us-east-1_xxxxxxxxx
+
+# Update User Pool configuration
+aws cognito-idp update-user-pool \
+  --user-pool-id us-east-1_xxxxxxxxx \
+  --mfa-configuration OPTIONAL
+
+# Delete User Pool domain
+aws cognito-idp delete-user-pool-domain \
+  --domain portfolio-api-xxxxxxxx \
+  --user-pool-id us-east-1_xxxxxxxxx
+
+# Delete User Pool
+aws cognito-idp delete-user-pool \
+  --user-pool-id us-east-1_xxxxxxxxx
+```
+
+**User Operations:**
+```bash
+# List users
+aws cognito-idp list-users \
+  --user-pool-id us-east-1_xxxxxxxxx
+
+# Get user details
+aws cognito-idp admin-get-user \
+  --user-pool-id us-east-1_xxxxxxxxx \
+  --username user@example.com
+
+# Create user
+aws cognito-idp admin-create-user \
+  --user-pool-id us-east-1_xxxxxxxxx \
+  --username user@example.com \
+  --user-attributes Name=email,Value=user@example.com \
+  --temporary-password "TempPass123!"
+
+# Set permanent password
+aws cognito-idp admin-set-user-password \
+  --user-pool-id us-east-1_xxxxxxxxx \
+  --username user@example.com \
+  --password "NewPassword123!" \
+  --permanent
+
+# Delete user
+aws cognito-idp admin-delete-user \
+  --user-pool-id us-east-1_xxxxxxxxx \
+  --username user@example.com
+
+# Disable user
+aws cognito-idp admin-disable-user \
+  --user-pool-id us-east-1_xxxxxxxxx \
+  --username user@example.com
+
+# Enable user
+aws cognito-idp admin-enable-user \
+  --user-pool-id us-east-1_xxxxxxxxx \
+  --username user@example.com
+
+# Update user attributes
+aws cognito-idp admin-update-user-attributes \
+  --user-pool-id us-east-1_xxxxxxxxx \
+  --username user@example.com \
+  --user-attributes Name=custom:role,Value=admin
+
+# Sign out user from all devices
+aws cognito-idp admin-user-global-sign-out \
+  --user-pool-id us-east-1_xxxxxxxxx \
+  --username user@example.com
+```
+
+**App Client Operations:**
+```bash
+# List app clients
+aws cognito-idp list-user-pool-clients \
+  --user-pool-id us-east-1_xxxxxxxxx
+
+# Describe app client
+aws cognito-idp describe-user-pool-client \
+  --user-pool-id us-east-1_xxxxxxxxx \
+  --client-id xxxxxxxxxxxxxxxxxxxxxxxxxx
+
+# Update app client
+aws cognito-idp update-user-pool-client \
+  --user-pool-id us-east-1_xxxxxxxxx \
+  --client-id xxxxxxxxxxxxxxxxxxxxxxxxxx \
+  --token-validity-units IdToken=hours,AccessToken=hours,RefreshToken=days \
+  --id-token-validity 1 \
+  --access-token-validity 1 \
+  --refresh-token-validity 30
+```
+
+**Testing Authentication:**
+```bash
+# Test user authentication (admin flow)
+aws cognito-idp admin-initiate-auth \
+  --user-pool-id us-east-1_xxxxxxxxx \
+  --client-id xxxxxxxxxxxxxxxxxxxxxxxxxx \
+  --auth-flow ADMIN_NO_SRP_AUTH \
+  --auth-parameters USERNAME=user@example.com,PASSWORD='YourPassword123!' \
+  --region us-east-1
+
+# Refresh token
+aws cognito-idp admin-initiate-auth \
+  --user-pool-id us-east-1_xxxxxxxxx \
+  --client-id xxxxxxxxxxxxxxxxxxxxxxxxxx \
+  --auth-flow REFRESH_TOKEN_AUTH \
+  --auth-parameters REFRESH_TOKEN='your-refresh-token' \
+  --region us-east-1
+```
+
+#### Troubleshooting
+
+**User Pool deletion fails:**
+```
+Error: User pool cannot be deleted. It has a domain configured that should be deleted first.
+```
+
+Solution: Delete the domain first using `cognito-manage delete-pool` (it handles this automatically) or manually:
+```bash
+# Get domain name
+aws cognito-idp describe-user-pool \
+  --user-pool-id us-east-1_xxxxxxxxx \
+  --query 'UserPool.Domain' \
+  --output text
+
+# Delete domain
+aws cognito-idp delete-user-pool-domain \
+  --domain portfolio-api-xxxxxxxx \
+  --user-pool-id us-east-1_xxxxxxxxx
+
+# Now delete pool
+aws cognito-idp delete-user-pool \
+  --user-pool-id us-east-1_xxxxxxxxx
+```
+
+**Configuration not found:**
+```
+Error: COGNITO_USER_POOL_ID not found
+```
+
+Solution: Run setup-cognito first or set environment variables:
+```bash
+export COGNITO_USER_POOL_ID=us-east-1_xxxxxxxxx
+export AWS_REGION=us-east-1
+```
+
+**Invalid password:**
+```
+Error: Password did not conform with password policy
+```
+
+Solution: Ensure password meets all requirements:
+- Minimum 12 characters
+- Contains uppercase, lowercase, number, and symbol
+
+---
+
 ### `budget-setup`
 
 Monitor and manage AWS monthly budgets with email notifications.
@@ -2564,6 +3365,11 @@ bin/
 **Build and Upload Frontend**:
 ```bash
 ./bin/s3-upload --verbose
+```
+
+**Setup Backend Authentication (Cognito)**:
+```bash
+./bin/setup-cognito --verbose
 ```
 
 **Check Deployment Status**:

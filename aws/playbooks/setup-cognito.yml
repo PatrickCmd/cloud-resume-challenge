@@ -1,0 +1,489 @@
+---
+# Ansible Playbook: Setup Amazon Cognito User Pool for Portfolio API
+# This playbook creates and configures the Cognito User Pool and App Client
+# for the serverless portfolio backend with owner-only authentication.
+#
+# Usage with Ansible Vault:
+#   ansible-playbook aws/playbooks/setup-cognito.yml --ask-vault-pass
+#   ansible-playbook aws/playbooks/setup-cognito.yml --vault-password-file ~/.vault_pass.txt
+
+- name: Setup Amazon Cognito User Pool for Portfolio API
+  hosts: localhost
+  gather_facts: false
+
+  vars_files:
+    - vaults/config.yml
+
+  vars:
+    # AWS Configuration (loaded from vault)
+    aws_region: "{{ aws_config.region }}"
+    aws_profile: "{{ aws_config.profile }}"
+
+    # Cognito User Pool Configuration (loaded from vault)
+    user_pool_name: "{{ cognito_config.user_pool_name }}"
+    user_pool_client_name: "{{ cognito_config.user_pool_client_name }}"
+
+    # Owner Account Configuration (loaded from vault)
+    owner_email: "{{ cognito_config.owner_email }}"
+    owner_name: "{{ cognito_config.owner_name }}"
+    owner_role: "{{ cognito_config.owner_role }}"
+
+    # Email Configuration (loaded from vault)
+    use_ses_email: "{{ cognito_config.use_ses_email }}"
+    ses_from_email: "{{ cognito_config.ses_from_email }}"
+    ses_from_name: "{{ cognito_config.ses_from_name }}"
+
+    # Token Validity (loaded from vault)
+    id_token_validity: "{{ cognito_config.id_token_validity }}"
+    access_token_validity: "{{ cognito_config.access_token_validity }}"
+    refresh_token_validity: "{{ cognito_config.refresh_token_validity }}"
+
+    # MFA Configuration (loaded from vault)
+    mfa_configuration: "{{ cognito_config.mfa_configuration }}"
+
+    # Password Policy (loaded from vault)
+    password_minimum_length: "{{ cognito_config.password_minimum_length }}"
+    password_require_uppercase: "{{ cognito_config.password_require_uppercase }}"
+    password_require_lowercase: "{{ cognito_config.password_require_lowercase }}"
+    password_require_numbers: "{{ cognito_config.password_require_numbers }}"
+    password_require_symbols: "{{ cognito_config.password_require_symbols }}"
+    password_temporary_validity_days: "{{ cognito_config.password_temporary_validity_days }}"
+
+  tasks:
+    - name: Display configuration
+      ansible.builtin.debug:
+        msg:
+          - "Setting up Cognito User Pool for Portfolio API"
+          - "Region: {{ aws_region }}"
+          - "User Pool Name: {{ user_pool_name }}"
+          - "Owner Email: {{ owner_email }}"
+          - "MFA: {{ mfa_configuration }}"
+
+    # ==========================================
+    # CREATE COGNITO USER POOL
+    # ==========================================
+
+    - name: Create Cognito User Pool
+      ansible.builtin.command:
+        cmd: >
+          aws cognito-idp create-user-pool
+          --pool-name {{ user_pool_name }}
+          --region {{ aws_region }}
+          --profile {{ aws_profile }}
+          --policies '{
+            "PasswordPolicy": {
+              "MinimumLength": {{ password_minimum_length }},
+              "RequireUppercase": {{ password_require_uppercase | lower }},
+              "RequireLowercase": {{ password_require_lowercase | lower }},
+              "RequireNumbers": {{ password_require_numbers | lower }},
+              "RequireSymbols": {{ password_require_symbols | lower }},
+              "TemporaryPasswordValidityDays": {{ password_temporary_validity_days }}
+            }
+          }'
+          --auto-verified-attributes email
+          --username-attributes email
+          --mfa-configuration OFF
+          --account-recovery-setting '{
+            "RecoveryMechanisms": [
+              {
+                "Priority": 1,
+                "Name": "verified_email"
+              }
+            ]
+          }'
+          --user-attribute-update-settings '{
+            "AttributesRequireVerificationBeforeUpdate": ["email"]
+          }'
+          --schema '[
+            {
+              "Name": "email",
+              "AttributeDataType": "String",
+              "Required": true,
+              "Mutable": true
+            },
+            {
+              "Name": "name",
+              "AttributeDataType": "String",
+              "Required": true,
+              "Mutable": true
+            },
+            {
+              "Name": "role",
+              "AttributeDataType": "String",
+              "Required": false,
+              "Mutable": true,
+              "DeveloperOnlyAttribute": false,
+              "StringAttributeConstraints": {
+                "MinLength": "1",
+                "MaxLength": "20"
+              }
+            }
+          ]'
+          --user-pool-tags '{
+            "Project": "{{ stack_tags.Project }}",
+            "Component": "backend-auth",
+            "Environment": "{{ deployment.environment }}",
+            "ManagedBy": "{{ stack_tags.ManagedBy }}",
+            "Owner": "{{ stack_tags.Owner }}"
+          }'
+          --output json
+      register: user_pool_result
+      changed_when: true
+
+    - name: Parse User Pool ID
+      ansible.builtin.set_fact:
+        user_pool_id: "{{ (user_pool_result.stdout | from_json).UserPool.Id }}"
+        user_pool_arn: "{{ (user_pool_result.stdout | from_json).UserPool.Arn }}"
+
+    - name: Display User Pool details
+      ansible.builtin.debug:
+        msg:
+          - "User Pool created successfully!"
+          - "User Pool ID: {{ user_pool_id }}"
+          - "User Pool ARN: {{ user_pool_arn }}"
+
+    # ==========================================
+    # EMAIL CONFIGURATION
+    # ==========================================
+    # Email configuration is set to COGNITO_DEFAULT by default.
+    # Cognito will use its built-in email service for:
+    #   - Verification emails
+    #   - Password reset emails
+    #   - Temporary password emails
+    #
+    # To use SES (Amazon Simple Email Service) instead:
+    #   1. Verify your email or domain in SES
+    #   2. Add email configuration during create-user-pool:
+    #      --email-configuration '{
+    #        "SourceArn": "arn:aws:ses:REGION:ACCOUNT:identity/EMAIL",
+    #        "EmailSendingAccount": "DEVELOPER",
+    #        "From": "Your App <noreply@your-domain.com>"
+    #      }'
+    #
+    # Note: Updating email configuration after pool creation requires
+    # including all other user pool settings which is complex.
+    # It's better to set email configuration during initial creation.
+
+    # ==========================================
+    # CREATE USER POOL CLIENT
+    # ==========================================
+
+    - name: Create User Pool Client (App Client)
+      ansible.builtin.command:
+        cmd: >
+          aws cognito-idp create-user-pool-client
+          --user-pool-id {{ user_pool_id }}
+          --client-name {{ user_pool_client_name }}
+          --region {{ aws_region }}
+          --profile {{ aws_profile }}
+          --explicit-auth-flows
+            ALLOW_USER_PASSWORD_AUTH
+            ALLOW_REFRESH_TOKEN_AUTH
+            ALLOW_USER_SRP_AUTH
+            ALLOW_ADMIN_USER_PASSWORD_AUTH
+          --token-validity-units '{
+            "IdToken": "seconds",
+            "AccessToken": "seconds",
+            "RefreshToken": "seconds"
+          }'
+          --id-token-validity {{ id_token_validity }}
+          --access-token-validity {{ access_token_validity }}
+          --refresh-token-validity {{ refresh_token_validity }}
+          --prevent-user-existence-errors ENABLED
+          --enable-token-revocation
+          --output json
+      register: user_pool_client_result
+      changed_when: true
+
+    - name: Parse User Pool Client ID
+      ansible.builtin.set_fact:
+        user_pool_client_id: "{{ (user_pool_client_result.stdout | from_json).UserPoolClient.ClientId }}"
+
+    - name: Display User Pool Client details
+      ansible.builtin.debug:
+        msg:
+          - "User Pool Client created successfully!"
+          - "Client ID: {{ user_pool_client_id }}"
+          - "Client Name: {{ user_pool_client_name }}"
+
+    # ==========================================
+    # CREATE OWNER ACCOUNT
+    # ==========================================
+
+    - name: Generate temporary password for owner account
+      ansible.builtin.set_fact:
+        # Generate a password that meets Cognito requirements:
+        # - At least 12 characters
+        # - Contains uppercase letters
+        # - Contains lowercase letters
+        # - Contains numbers
+        # - Contains symbols
+        # Format: UpperLower123!@#RandomChars
+        temp_password: "{{ lookup('password', '/dev/null length=4 chars=ascii_uppercase') }}{{ lookup('password', '/dev/null length=4 chars=ascii_lowercase') }}{{ lookup('password', '/dev/null length=3 chars=digits') }}{{ lookup('password', '/dev/null length=3 chars=punctuation') }}{{ lookup('password', '/dev/null length=2 chars=ascii_letters,digits') }}"
+
+    - name: Create owner user account
+      ansible.builtin.command:
+        cmd: >
+          aws cognito-idp admin-create-user
+          --user-pool-id {{ user_pool_id }}
+          --username {{ owner_email }}
+          --region {{ aws_region }}
+          --profile {{ aws_profile }}
+          --user-attributes
+            Name=email,Value={{ owner_email }}
+            Name=email_verified,Value=true
+            Name=name,Value="{{ owner_name }}"
+            Name=custom:role,Value={{ owner_role }}
+          --message-action SUPPRESS
+          --temporary-password "{{ temp_password }}"
+          --output json
+      register: owner_account_result
+      changed_when: true
+
+    - name: Display owner account details
+      ansible.builtin.debug:
+        msg:
+          - "Owner account created successfully!"
+          - "Username/Email: {{ owner_email }}"
+          - "Name: {{ owner_name }}"
+          - "Role: {{ owner_role }}"
+          - "Temporary Password: {{ temp_password }}"
+          - ""
+          - "IMPORTANT: Save this temporary password securely!"
+          - "You will need to change it on first login."
+
+    # ==========================================
+    # CONFIGURE USER POOL DOMAIN (OPTIONAL)
+    # ==========================================
+
+    - name: Create Cognito domain prefix
+      ansible.builtin.set_fact:
+        cognito_domain_prefix: "portfolio-api-{{ lookup('password', '/dev/null length=8 chars=ascii_lowercase,digits') }}"
+
+    - name: Create User Pool Domain
+      ansible.builtin.command:
+        cmd: >
+          aws cognito-idp create-user-pool-domain
+          --domain {{ cognito_domain_prefix }}
+          --user-pool-id {{ user_pool_id }}
+          --region {{ aws_region }}
+          --profile {{ aws_profile }}
+          --output json
+      register: domain_result
+      changed_when: true
+      ignore_errors: true
+
+    - name: Display User Pool Domain
+      ansible.builtin.debug:
+        msg:
+          - "User Pool Domain: {{ cognito_domain_prefix }}.auth.{{ aws_region }}.amazoncognito.com"
+      when: domain_result.rc == 0
+
+    # ==========================================
+    # SAVE CONFIGURATION TO FILE
+    # ==========================================
+
+    - name: Create output directory
+      ansible.builtin.file:
+        path: "{{ playbook_dir }}/../outputs"
+        state: directory
+        mode: '0755'
+
+    - name: Get current timestamp
+      ansible.builtin.command:
+        cmd: date -u +"%Y-%m-%dT%H:%M:%SZ"
+      register: current_timestamp
+      changed_when: false
+
+    - name: Save Cognito configuration to file
+      ansible.builtin.copy:
+        content: |
+          # Amazon Cognito Configuration
+          # Generated by Ansible playbook: setup-cognito.yml
+          # Date: {{ current_timestamp.stdout }}
+
+          # User Pool Configuration
+          AWS_REGION={{ aws_region }}
+          AWS_PROFILE={{ aws_profile }}
+          COGNITO_USER_POOL_ID={{ user_pool_id }}
+          COGNITO_USER_POOL_ARN={{ user_pool_arn }}
+          COGNITO_CLIENT_ID={{ user_pool_client_id }}
+          COGNITO_DOMAIN={{ cognito_domain_prefix }}.auth.{{ aws_region }}.amazoncognito.com
+
+          # Owner Account
+          OWNER_EMAIL={{ owner_email }}
+          OWNER_NAME={{ owner_name }}
+          OWNER_ROLE={{ owner_role }}
+
+          # Token Validity (seconds)
+          ID_TOKEN_VALIDITY={{ id_token_validity }}
+          ACCESS_TOKEN_VALIDITY={{ access_token_validity }}
+          REFRESH_TOKEN_VALIDITY={{ refresh_token_validity }}
+
+          # IMPORTANT: Temporary Password (save securely and delete this file after first login)
+          TEMPORARY_PASSWORD={{ temp_password }}
+
+          # API Gateway JWT Authorizer Configuration
+          # Use these values in your SAM template.yaml:
+          # JwtConfiguration:
+          #   Issuer: https://cognito-idp.{{ aws_region }}.amazonaws.com/{{ user_pool_id }}
+          #   Audience:
+          #     - {{ user_pool_client_id }}
+        dest: "{{ playbook_dir }}/../outputs/cognito-config.env"
+        mode: '0600'
+
+    - name: Save Cognito configuration as JSON
+      ansible.builtin.copy:
+        content: |
+          {
+            "userPool": {
+              "id": "{{ user_pool_id }}",
+              "arn": "{{ user_pool_arn }}",
+              "name": "{{ user_pool_name }}",
+              "region": "{{ aws_region }}"
+            },
+            "appClient": {
+              "id": "{{ user_pool_client_id }}",
+              "name": "{{ user_pool_client_name }}"
+            },
+            "domain": {
+              "prefix": "{{ cognito_domain_prefix }}",
+              "url": "{{ cognito_domain_prefix }}.auth.{{ aws_region }}.amazoncognito.com"
+            },
+            "ownerAccount": {
+              "email": "{{ owner_email }}",
+              "name": "{{ owner_name }}",
+              "role": "{{ owner_role }}"
+            },
+            "tokenValidity": {
+              "idToken": {{ id_token_validity }},
+              "accessToken": {{ access_token_validity }},
+              "refreshToken": {{ refresh_token_validity }}
+            },
+            "jwtAuthorizer": {
+              "issuer": "https://cognito-idp.{{ aws_region }}.amazonaws.com/{{ user_pool_id }}",
+              "audience": ["{{ user_pool_client_id }}"]
+            }
+          }
+        dest: "{{ playbook_dir }}/../outputs/cognito-config.json"
+        mode: '0600'
+
+    # ==========================================
+    # SUMMARY
+    # ==========================================
+
+    - name: Display setup summary
+      ansible.builtin.debug:
+        msg:
+          - "=========================================="
+          - "Cognito Setup Complete!"
+          - "=========================================="
+          - ""
+          - "User Pool ID: {{ user_pool_id }}"
+          - "Client ID: {{ user_pool_client_id }}"
+          - "Region: {{ aws_region }}"
+          - ""
+          - "Owner Account:"
+          - "  Email: {{ owner_email }}"
+          - "  Temporary Password: {{ temp_password }}"
+          - ""
+          - "Configuration files saved to:"
+          - "  - {{ playbook_dir }}/../outputs/cognito-config.env"
+          - "  - {{ playbook_dir }}/../outputs/cognito-config.json"
+          - ""
+          - "Next Steps:"
+          - "  1. Save the temporary password securely"
+          - "  2. Login and change password on first use"
+          - "  3. Update backend/.env with these values"
+          - "  4. Update SAM template.yaml with JWT Authorizer config"
+          - "  5. Delete cognito-config.env after copying credentials"
+          - ""
+          - "JWT Authorizer Configuration for SAM template:"
+          - "  Issuer: https://cognito-idp.{{ aws_region }}.amazonaws.com/{{ user_pool_id }}"
+          - "  Audience: {{ user_pool_client_id }}"
+          - "=========================================="
+
+    # ==========================================
+    # MFA Configuration
+    # ==========================================
+    # MFA is disabled (OFF) by default because it requires SMS configuration.
+    # To enable MFA, you need to:
+    #   1. Configure SNS for SMS delivery
+    #   2. Set mfa_configuration to OPTIONAL or ON
+    #   3. Add phone number verification to the user pool
+    # For email-only authentication (current setup), MFA is not supported.
+
+    # ==========================================
+    # CREATE README FOR OUTPUTS
+    # ==========================================
+
+    - name: Create README for outputs directory
+      ansible.builtin.copy:
+        content: |
+          # Cognito Configuration Outputs
+
+          This directory contains the configuration files generated by the Cognito setup playbook.
+
+          ## Files
+
+          - `cognito-config.env` - Environment variables format (use in .env files)
+          - `cognito-config.json` - JSON format (use for programmatic access)
+
+          ## Security Warning
+
+          **IMPORTANT**: These files contain sensitive credentials including:
+          - User Pool IDs
+          - Client IDs
+          - Temporary password for owner account
+
+          ### Best Practices
+
+          1. **Immediately** copy the temporary password to a secure location (password manager)
+          2. **Delete** or secure these files after extracting the needed information
+          3. **Never** commit these files to version control
+          4. Use environment variables or AWS Parameter Store for production deployments
+
+          ## Usage in Backend
+
+          Copy the values from `cognito-config.env` to your backend `.env` file:
+
+          ```bash
+          cp cognito-config.env ../../backend/.env
+          # Or manually copy the values you need
+          ```
+
+          ## Usage in SAM Template
+
+          Add the JWT Authorizer configuration to your `template.yaml`:
+
+          ```yaml
+          PortfolioApi:
+            Type: AWS::Serverless::Api
+            Properties:
+              Auth:
+                Authorizers:
+                  CognitoAuthorizer:
+                    UserPoolArn: !Sub 'arn:aws:cognito-idp:${AWS::Region}:${AWS::AccountId}:userpool/${CognitoUserPoolId}'
+                    Identity:
+                      Header: Authorization
+          ```
+
+          ## First Login
+
+          After setup, the owner must:
+
+          1. Use the temporary password to login via the API or Cognito Hosted UI
+          2. Change the password to a permanent one
+          3. (Optional) Set up MFA for enhanced security
+
+          ## Cleanup
+
+          After successfully configuring your backend and testing the authentication:
+
+          ```bash
+          # Securely delete the configuration files
+          rm cognito-config.env
+          rm cognito-config.json
+          ```
+        dest: "{{ playbook_dir }}/../outputs/README.md"
+        mode: '0644'
