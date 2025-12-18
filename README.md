@@ -524,6 +524,10 @@ Comprehensive documentation is available for all components:
   - stack-manager - Stack troubleshooting
   - budget-setup - AWS Budget monitoring with email alerts
   - billing-alarm-setup - CloudWatch billing alarms (more reliable emails)
+  - setup-cognito - Cognito User Pool automated setup
+  - cognito-show-config - Display Cognito configuration (env/JSON)
+  - cognito-change-password - Change password with validation
+  - cognito-manage - Comprehensive user and pool management
 
 **Troubleshooting**:
 - **[Debugging Guide](aws/playbooks/README.md#troubleshooting)** - 15 documented issues with solutions
@@ -561,6 +565,7 @@ cloud-resume-challenge/
 │   │   ├── frontend-deploy.yml        # Infrastructure deployment
 │   │   ├── s3-upload.yml              # Build & upload frontend
 │   │   ├── cloudfront-invalidate.yml  # Cache invalidation
+│   │   ├── setup-cognito.yml          # Cognito User Pool setup
 │   │   ├── requirements.txt           # Python dependencies
 │   │   ├── requirements.yml           # Ansible collections
 │   │   ├── setup.sh                   # Automated setup script
@@ -569,7 +574,7 @@ cloud-resume-challenge/
 │   │   ├── QUICKSTART.md              # 5-minute setup guide
 │   │   ├── CLOUDFORMATION_CONFIG.md   # CFN deep dive (400+ lines)
 │   │   └── vaults/                    # Encrypted configuration
-│   │       ├── config.yml             # Encrypted vault
+│   │       ├── config.yml             # Encrypted vault (includes cognito_config)
 │   │       ├── config.example.yml     # Example configuration
 │   │       └── README.md              # Vault guide (500+ lines)
 │   │
@@ -582,10 +587,16 @@ cloud-resume-challenge/
 │   │   ├── stack-manager              # Stack troubleshooting
 │   │   ├── budget-setup               # AWS Budget monitoring and management
 │   │   ├── billing-alarm-setup        # CloudWatch billing alarms (recommended)
+│   │   ├── setup-cognito              # Cognito User Pool setup automation
+│   │   ├── cognito-show-config        # Display Cognito configuration
+│   │   ├── cognito-change-password    # Change user password (first login)
+│   │   ├── cognito-manage             # Comprehensive Cognito management tool
 │   │   └── README.md                  # Scripts documentation (2200+ lines)
 │   │
-│   ├── outputs/                       # CloudFormation outputs
-│   │   └── frontend-stack-outputs.env # Stack outputs (generated)
+│   ├── outputs/                       # CloudFormation & Cognito outputs
+│   │   ├── frontend-stack-outputs.env # Stack outputs (generated)
+│   │   ├── cognito-config.env         # Cognito configuration (generated, gitignored)
+│   │   └── cognito-config.json        # Cognito JWT config (generated, gitignored)
 │   │
 │   └── README.md                      # AWS infrastructure overview
 │
@@ -673,13 +684,31 @@ cloud-resume-challenge/
 - [x] Code generation guides (TypeScript, Python, Go clients)
 - [x] Mock server and testing documentation
 
+**Authentication & User Management**:
+- [x] Amazon Cognito User Pool setup with Ansible playbook
+- [x] Custom password policy (12+ chars, mixed case, numbers, symbols)
+- [x] Custom user attributes (role attribute for authorization)
+- [x] Email verification and account recovery configuration
+- [x] Owner account creation with secure temporary password
+- [x] JWT token configuration (ID: 1h, Access: 1h, Refresh: 30d)
+- [x] Multiple authentication flows (USER_PASSWORD_AUTH, USER_SRP_AUTH, ADMIN_USER_PASSWORD_AUTH)
+- [x] Token revocation support
+- [x] User Pool App Client with security best practices
+- [x] Cognito domain for hosted UI (optional)
+- [x] Configuration export (env variables and JSON formats)
+- [x] Cognito management scripts (show config, change password, user management)
+- [x] Password change script with validation
+- [x] User Pool management tools (create, delete, update, disable users)
+- [x] AWS profile integration for all Cognito scripts
+
 ### 🚧 In Progress / Planned
 
 **Backend & Database**:
 - [ ] DynamoDB visitor counter table
 - [ ] Lambda function for visitor count API
-- [ ] API Gateway integration
+- [ ] API Gateway with Cognito JWT Authorizer integration
 - [ ] CORS configuration
+- [ ] Backend Lambda functions for blog, projects, certifications APIs
 
 **DevOps**:
 - [ ] CI/CD pipeline with GitHub Actions
@@ -722,11 +751,17 @@ cloud-resume-challenge/
 - **CloudWatch** - Billing alarms and cost monitoring
 - **SNS (Simple Notification Service)** - Email notifications for billing alerts
 - **AWS Budgets** - Monthly budget tracking and threshold alerts
+- **Cognito** - User authentication and authorization with JWT tokens
+  - User Pool with custom password policies
+  - App Client with multiple auth flows
+  - Custom user attributes for role-based access
+  - Token management (ID, Access, Refresh tokens)
+  - Email verification and account recovery
 
 ### AWS Services (Planned)
-- **Lambda** - Serverless functions for visitor counter
-- **API Gateway** - RESTful API management
-- **DynamoDB** - NoSQL database for visitor count
+- **Lambda** - Serverless functions for backend APIs (visitor counter, blog, projects, certifications)
+- **API Gateway** - RESTful API management with Cognito JWT Authorizer
+- **DynamoDB** - NoSQL database for application data (visitor count, blog posts, projects, certifications)
 
 ### DevOps & Automation
 - **Ansible** 9.13.0 - Configuration management

@@ -157,8 +157,9 @@ terraform.tfvars
 ansible.log
 *.vault
 
-# CloudFormation Stack Outputs
+# CloudFormation Stack Outputs & Cognito Config
 aws/outputs/*.env
+aws/outputs/cognito-config.json
 !aws/outputs/.gitkeep
 
 # IDE
