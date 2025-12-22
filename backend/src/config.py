@@ -7,6 +7,7 @@ Uses Pydantic Settings for validation and type safety.
 
 import os
 from typing import List
+from pydantic import ConfigDict
 from pydantic_settings import BaseSettings
 
 
@@ -27,7 +28,8 @@ class Settings(BaseSettings):
     cognito_region: str = os.getenv("AWS_REGION", "us-east-1")
 
     # DynamoDB Configuration
-    dynamodb_table_name: str = os.getenv("DYNAMODB_TABLE_NAME", "portfolio-data")
+    dynamodb_table_name: str = os.getenv("DYNAMODB_TABLE_NAME", "portfolio-api-table")
+    dynamodb_endpoint: str = os.getenv("DYNAMODB_ENDPOINT", "")  # For local DynamoDB (http://localhost:8000)
 
     # CORS Configuration
     cors_origins: List[str] = [
@@ -45,11 +47,11 @@ class Settings(BaseSettings):
     default_page_size: int = 20
     max_page_size: int = 100
 
-    class Config:
-        """Pydantic configuration."""
-        env_file = ".env"
-        case_sensitive = False
-        extra = "ignore"  # Ignore extra fields from .env file
+    model_config = ConfigDict(
+        env_file=".env",
+        case_sensitive=False,
+        extra="ignore"  # Ignore extra fields from .env file
+    )
 
 
 # Global settings instance

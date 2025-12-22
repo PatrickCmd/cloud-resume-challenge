@@ -149,7 +149,7 @@ DYNAMODB_TABLE_NAME=portfolio-data
    - Test with Cognito tokens
 
 2. **Set up DynamoDB**:
-   - Create DynamoDB table following `DYNAMODB-DESIGN.md`
+   - Create DynamoDB table following [DYNAMODB-DESIGN.md](DYNAMODB-DESIGN.md)
    - Implement repository layer
    - Test CRUD operations
 
@@ -199,11 +199,12 @@ cat .env
 
 ## Documentation
 
-- [README.md](./README.md) - Project overview and architecture
-- [AUTHENTICATION.md](./AUTHENTICATION.md) - Authentication strategy
-- [DYNAMODB-DESIGN.md](./DYNAMODB-DESIGN.md) - Database design
-- [AGENTS.md](./AGENTS.md) - Development guidelines
-- [OpenAPI Spec](../openapi.yml) - API specification
+- [README.md](../README.md) - Project overview and architecture
+- [AUTHENTICATION.md](AUTHENTICATION.md) - Authentication strategy
+- [DYNAMODB-DESIGN.md](DYNAMODB-DESIGN.md) - Database design
+- [DYNAMODB-SCAN-VS-QUERY.md](DYNAMODB-SCAN-VS-QUERY.md) - DynamoDB operations guide
+- [AGENTS.md](../AGENTS.md) - Development guidelines
+- [OpenAPI Spec](../../openapi.yml) - API specification
 
 ## Support
 

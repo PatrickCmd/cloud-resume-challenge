@@ -6,7 +6,7 @@ Defines all Pydantic models for visitor tracking including:
 - Internal DynamoDB model
 """
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 from datetime import datetime
 from typing import Optional
 
@@ -51,9 +51,8 @@ class VisitorLog(BaseModel):
     user_agent: Optional[str] = Field(None, description="User agent string")
     timestamp: datetime = Field(default_factory=datetime.utcnow, description="Visit timestamp")
 
-    class Config:
-        """Pydantic configuration."""
-        json_schema_extra = {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "pk": "VISITOR#2025-01-01",
                 "sk": "2025-01-01T12:00:00#abc123",
@@ -67,6 +66,7 @@ class VisitorLog(BaseModel):
                 "user_agent": "Mozilla/5.0...",
             }
         }
+    )
 
 
 class VisitorCount(BaseModel):
@@ -83,9 +83,8 @@ class VisitorCount(BaseModel):
     total_visitors: int = Field(default=0, description="Total visitor count")
     last_updated: datetime = Field(default_factory=datetime.utcnow, description="Last update timestamp")
 
-    class Config:
-        """Pydantic configuration."""
-        json_schema_extra = {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "pk": "ANALYTICS",
                 "sk": "VISITOR_COUNT",
@@ -94,3 +93,4 @@ class VisitorCount(BaseModel):
                 "last_updated": "2025-01-01T12:00:00",
             }
         }
+    )

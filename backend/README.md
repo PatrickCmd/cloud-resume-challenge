@@ -136,7 +136,7 @@ flowchart TD
 ## Authentication & Authorization
 
 **Documentation**:
-- 📖 [AUTHENTICATION.md](AUTHENTICATION.md) - Authentication specification and planning
+- 📖 [docs/AUTHENTICATION.md](docs/AUTHENTICATION.md) - Authentication specification and planning
 - ✅ [docs/AUTH_IMPLEMENTATION_SUMMARY.md](docs/AUTH_IMPLEMENTATION_SUMMARY.md) - Implementation summary
 - 🧪 [docs/AUTH_TESTING.md](docs/AUTH_TESTING.md) - Testing documentation
 
@@ -187,7 +187,7 @@ Authentication is handled entirely by **Amazon Cognito User Pool**:
 
 ## Database Design
 
-**Detailed planning**: See [DYNAMODB-DESIGN.md](DYNAMODB-DESIGN.md)
+**Detailed planning**: See [docs/DYNAMODB-DESIGN.md](docs/DYNAMODB-DESIGN.md)
 
 ### Overview
 
@@ -305,8 +305,11 @@ backend/
 ├── pyproject.toml                # Project dependencies (uv)
 ├── uv.lock                       # Locked dependencies
 ├── README.md                     # This file
-├── AUTHENTICATION.md             # Auth planning
-├── DYNAMODB-DESIGN.md            # Database planning
+├── docs/
+│   ├── docs/AUTHENTICATION.md         # Auth planning
+│   ├── docs/DYNAMODB-DESIGN.md        # Database planning
+│   ├── DYNAMODB-SCAN-VS-QUERY.md # DynamoDB operations guide
+│   └── QUICKSTART.md             # Quick start guide
 └── AGENTS.md                     # Development guidelines
 ```
 
@@ -601,8 +604,10 @@ PortfolioApiFunction:
 
 - **OpenAPI Specification**: [../openapi.yml](../openapi.yml)
 - **Developer Guide**: [../API.md](../API.md)
-- **Authentication Planning**: [AUTHENTICATION.md](AUTHENTICATION.md)
-- **Database Design**: [DYNAMODB-DESIGN.md](DYNAMODB-DESIGN.md)
+- **Authentication Planning**: [docs/AUTHENTICATION.md](docs/AUTHENTICATION.md)
+- **Database Design**: [docs/DYNAMODB-DESIGN.md](docs/DYNAMODB-DESIGN.md)
+- **DynamoDB Operations Guide**: [DYNAMODB-SCAN-VS-QUERY.md](docs/DYNAMODB-SCAN-VS-QUERY.md)
+- **Quick Start Guide**: [QUICKSTART.md](docs/QUICKSTART.md)
 
 ---
 
@@ -646,8 +651,8 @@ PortfolioApiFunction:
 
 ### Phase 1: Planning (Current)
 - [x] Architecture design
-- [x] Authentication planning (see [AUTHENTICATION.md](AUTHENTICATION.md))
-- [x] Database design (see [DYNAMODB-DESIGN.md](DYNAMODB-DESIGN.md))
+- [x] Authentication planning (see [docs/AUTHENTICATION.md](docs/AUTHENTICATION.md))
+- [x] Database design (see [docs/DYNAMODB-DESIGN.md](docs/DYNAMODB-DESIGN.md))
 
 ### Phase 2: Implementation
 - [x] Set up project structure

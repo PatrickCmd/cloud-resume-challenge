@@ -54,7 +54,7 @@ def mock_valid_token_claims():
         "email_verified": True,
         "aud": settings.cognito_client_id,
         "iss": settings.jwt_issuer,
-        "exp": int((datetime.utcnow() + timedelta(hours=1)).timestamp())
+        "exp": int((datetime.now() + timedelta(hours=1)).timestamp())
     }
 
 
@@ -69,7 +69,7 @@ def mock_expired_token_claims():
         "email_verified": True,
         "aud": settings.cognito_client_id,
         "iss": settings.jwt_issuer,
-        "exp": int((datetime.utcnow() - timedelta(hours=1)).timestamp())
+        "exp": int((datetime.now() - timedelta(hours=1)).timestamp())
     }
 
 

@@ -245,9 +245,67 @@ def sample_project_create_request():
     }
 
 
+# Repository override helper
+@pytest.fixture
+def override_get_blog_repository(mock_blog_repo):
+    """Override blog repository dependency."""
+    from src.main import app
+    from src.dependencies import get_blog_repository
+
+    app.dependency_overrides[get_blog_repository] = lambda: mock_blog_repo
+    yield
+    app.dependency_overrides.clear()
+
+
+@pytest.fixture
+def override_get_project_repository(mock_project_repo):
+    """Override project repository dependency."""
+    from src.main import app
+    from src.dependencies import get_project_repository
+
+    app.dependency_overrides[get_project_repository] = lambda: mock_project_repo
+    yield
+    app.dependency_overrides.clear()
+
+
+@pytest.fixture
+def override_get_certification_repository(mock_cert_repo):
+    """Override certification repository dependency."""
+    from src.main import app
+    from src.dependencies import get_certification_repository
+
+    app.dependency_overrides[get_certification_repository] = lambda: mock_cert_repo
+    yield
+    app.dependency_overrides.clear()
+
+
+@pytest.fixture
+def override_get_visitor_repository(mock_visitor_repo):
+    """Override visitor repository dependency."""
+    from src.main import app
+    from src.dependencies import get_visitor_repository
+
+    app.dependency_overrides[get_visitor_repository] = lambda: mock_visitor_repo
+    yield
+    app.dependency_overrides.clear()
+
+
+@pytest.fixture
+def override_get_analytics_repository(mock_analytics_repo):
+    """Override analytics repository dependency."""
+    from src.main import app
+    from src.dependencies import get_analytics_repository
+
+    app.dependency_overrides[get_analytics_repository] = lambda: mock_analytics_repo
+    yield
+    app.dependency_overrides.clear()
+
+
 # Cleanup fixture
 @pytest.fixture(autouse=True)
 def reset_mocks():
-    """Reset all mocks after each test."""
+    """Reset all mocks and dependency overrides after each test."""
     yield
     # Cleanup happens after test completes
+    from src.main import app
+    app.dependency_overrides.clear()

@@ -32,7 +32,7 @@ async def login(request: LoginRequest):
 
     Returns JWT tokens (access, id, refresh) from Cognito.
 
-    Following AUTHENTICATION.md lines 419-458:
+    Following docs/AUTHENTICATION.md lines 419-458:
     - Uses USER_PASSWORD_AUTH flow
     - Returns IdToken, AccessToken, and RefreshToken
     - Handles various Cognito error responses
@@ -69,7 +69,7 @@ async def login(request: LoginRequest):
         error_code = e.response["Error"]["Code"]
 
         # Map Cognito errors to appropriate HTTP responses
-        # Following AUTHENTICATION.md lines 454-458
+        # Following docs/AUTHENTICATION.md lines 454-458
         if error_code == "NotAuthorizedException":
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
@@ -114,7 +114,7 @@ async def refresh_token(request: RefreshTokenRequest):
 
     Returns new access and id tokens.
 
-    Following AUTHENTICATION.md lines 528-563:
+    Following docs/AUTHENTICATION.md lines 528-563:
     - Uses REFRESH_TOKEN_AUTH flow
     - Returns new IdToken and AccessToken
     - May return new RefreshToken
@@ -174,7 +174,7 @@ async def logout(current_user: Annotated[dict, Depends(get_current_user)]):
     """
     Logout user and invalidate tokens.
 
-    Following AUTHENTICATION.md lines 460-487:
+    Following docs/AUTHENTICATION.md lines 460-487:
     - Requires valid JWT token
     - Calls Cognito GlobalSignOut to invalidate all tokens
     - Frontend should clear stored tokens
@@ -214,7 +214,7 @@ async def get_current_user_info(
     """
     Get current authenticated user information.
 
-    Following AUTHENTICATION.md lines 489-515:
+    Following docs/AUTHENTICATION.md lines 489-515:
     - Requires valid JWT token in Authorization header
     - Extracts user info from JWT claims (done by dependency)
     - Returns user profile

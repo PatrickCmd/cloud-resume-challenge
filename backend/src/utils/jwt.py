@@ -18,7 +18,7 @@ def get_cognito_public_keys() -> Dict:
     Fetch and cache Cognito public keys for JWT validation.
 
     Fetches JWKS from Cognito's well-known endpoint and caches the result.
-    Following AUTHENTICATION.md lines 222-230 for token validation.
+    Following docs/AUTHENTICATION.md lines 222-230 for token validation.
 
     Returns:
         Dictionary of Cognito public keys (JWKs)
@@ -40,7 +40,7 @@ def decode_token(token: str) -> Optional[Dict]:
     """
     Decode and validate a JWT token from Cognito.
 
-    Performs complete JWT validation following AUTHENTICATION.md lines 221-231:
+    Performs complete JWT validation following docs/AUTHENTICATION.md lines 221-231:
     1. Fetches public keys from Cognito JWKS endpoint
     2. Verifies token signature using the matching public key
     3. Validates token expiration (exp claim)
@@ -95,7 +95,7 @@ def extract_user_from_token(token: str) -> Optional[Dict]:
     Extract user information from JWT token.
 
     Decodes and validates the JWT token, then extracts relevant user claims.
-    Following AUTHENTICATION.md lines 149-168 for ID token structure.
+    Following docs/AUTHENTICATION.md lines 149-168 for ID token structure.
 
     Args:
         token: JWT token string (IdToken from Cognito)

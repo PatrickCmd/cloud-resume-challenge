@@ -497,7 +497,7 @@ dev = [
 
 ## References
 
-- [Backend AUTHENTICATION.md](../AUTHENTICATION.md) - Authentication specification
+- [Backend AUTHENTICATION.md](AUTHENTICATION.md) - Authentication specification
 - [Backend API.md](../API.md) - API documentation
 - [Backend README.md](../README.md) - Project overview
 - [AUTH_TESTING.md](./AUTH_TESTING.md) - Testing documentation
@@ -517,7 +517,7 @@ dev = [
 
 ## Contributors
 
-- Implementation based on [AUTHENTICATION.md](../AUTHENTICATION.md) specification
+- Implementation based on [AUTHENTICATION.md](AUTHENTICATION.md) specification
 - Tests follow AWS Cognito best practices
 - Code structure follows FastAPI patterns
 

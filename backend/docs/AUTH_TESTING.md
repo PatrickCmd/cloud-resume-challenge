@@ -562,4 +562,4 @@ uv run pytest tests/ -n auto
 - [unittest.mock Documentation](https://docs.python.org/3/library/unittest.mock.html)
 - [FastAPI Testing Guide](https://fastapi.tiangolo.com/tutorial/testing/)
 - [AWS Cognito Documentation](https://docs.aws.amazon.com/cognito/)
-- [Backend AUTHENTICATION.md](../AUTHENTICATION.md) - Authentication specification
+- [Backend AUTHENTICATION.md](AUTHENTICATION.md) - Authentication specification

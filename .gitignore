@@ -184,3 +184,6 @@ lerna-debug.log*
 .AppleDouble
 .LSOverride
 Thumbs.db
+
+# dynamodb local files
+dynamodb_data/

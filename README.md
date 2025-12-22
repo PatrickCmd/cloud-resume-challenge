@@ -513,6 +513,12 @@ Comprehensive documentation is available for all components:
   - Testing and mock server setup
   - Interactive Swagger UI documentation
 - **[OpenAPI Specification](openapi.yml)** - Machine-readable API spec (OpenAPI 3.0.3)
+- **[Backend Local Testing](backend/docs/LOCAL_TESTING.md)** - Local development guide
+  - Setup options (AWS DynamoDB vs Local DynamoDB)
+  - Multiple testing methods (cURL, HTTPie, Swagger UI, Python)
+  - Complete endpoint documentation (public vs protected)
+  - Authentication and JWT token usage
+  - Development workflow and troubleshooting
 
 **Scripts & Tools**:
 - **[Deployment Scripts](aws/bin/README.md)** - Script usage and examples (2200+ lines)
@@ -600,7 +606,30 @@ cloud-resume-challenge/
 │   │
 │   └── README.md                      # AWS infrastructure overview
 │
-├── backend/                           # AWS Lambda functions (planned)
+├── backend/                           # FastAPI Backend Application
+│   ├── src/                           # Application source code
+│   │   ├── api/                       # API endpoint implementations
+│   │   │   ├── auth.py                # Authentication endpoints
+│   │   │   ├── blog.py                # Blog CRUD operations
+│   │   │   ├── projects.py            # Projects CRUD operations
+│   │   │   ├── certifications.py      # Certifications CRUD operations
+│   │   │   ├── visitors.py            # Visitor tracking
+│   │   │   └── analytics.py           # Analytics and reporting
+│   │   ├── models/                    # Pydantic data models
+│   │   ├── repositories/              # DynamoDB data access layer
+│   │   ├── utils/                     # Utility functions and helpers
+│   │   ├── config.py                  # Application configuration
+│   │   ├── dependencies.py            # FastAPI dependencies
+│   │   └── main.py                    # FastAPI application entry point
+│   ├── tests/                         # Comprehensive test suite
+│   │   ├── unit/                      # Unit tests (211 tests)
+│   │   └── conftest.py                # Pytest configuration and fixtures
+│   ├── docs/                          # Backend documentation
+│   │   └── LOCAL_TESTING.md           # Local development and testing guide
+│   ├── pyproject.toml                 # Python project configuration (uv)
+│   ├── docker-compose.yml             # Local DynamoDB setup
+│   └── README.md                      # Backend setup instructions
+│
 ├── .github/                           # CI/CD workflows (planned)
 │
 ├── API.md                             # Complete API documentation (developer guide)
@@ -701,14 +730,37 @@ cloud-resume-challenge/
 - [x] User Pool management tools (create, delete, update, disable users)
 - [x] AWS profile integration for all Cognito scripts
 
+**Backend API Implementation**:
+- [x] FastAPI application setup with Python 3.12 and uv package manager
+- [x] DynamoDB single-table design with repositories pattern
+- [x] Repository implementations for all content types (blog, projects, certifications, visitors, analytics)
+- [x] API endpoints integrated with repositories (34 endpoints across 6 modules)
+- [x] JWT authentication with Cognito integration
+- [x] Role-based authorization (owner vs public access)
+- [x] Pydantic data models with validation
+- [x] Error handling and HTTP status codes
+- [x] CORS middleware configuration
+- [x] Comprehensive unit tests (211 tests, 100% passing)
+- [x] Test fixtures and mocking infrastructure
+- [x] Dependency injection for testability
+- [x] Local development environment setup
+- [x] Local testing documentation (backend/docs/LOCAL_TESTING.md)
+- [x] Docker Compose for local DynamoDB
+- [x] Environment configuration management
+
 ### 🚧 In Progress / Planned
 
-**Backend & Database**:
-- [ ] DynamoDB visitor counter table
-- [ ] Lambda function for visitor count API
-- [ ] API Gateway with Cognito JWT Authorizer integration
-- [ ] CORS configuration
-- [ ] Backend Lambda functions for blog, projects, certifications APIs
+**Backend Infrastructure & Deployment**:
+- [ ] DynamoDB table CloudFormation template
+- [ ] Lambda function packaging and deployment
+- [ ] API Gateway REST API with Lambda integration
+- [ ] API Gateway Cognito JWT Authorizer configuration
+- [ ] Lambda environment variables configuration
+- [ ] Lambda IAM roles and permissions
+- [ ] CloudWatch logs for Lambda functions
+- [ ] API Gateway stage and deployment
+- [ ] Custom domain for API Gateway
+- [ ] API Gateway usage plans and API keys (optional)
 
 **DevOps**:
 - [ ] CI/CD pipeline with GitHub Actions
@@ -731,6 +783,15 @@ cloud-resume-challenge/
 - **shadcn-ui** - Re-usable component library
 - **React Router** - Client-side routing
 - **TanStack Query** - Data fetching and caching
+
+### Backend
+- **FastAPI** - Modern Python web framework for APIs
+- **Python 3.12** - Programming language
+- **uv** - Fast Python package installer and resolver
+- **Pydantic** - Data validation using Python type hints
+- **boto3** - AWS SDK for Python
+- **pytest** - Testing framework with 211 unit tests
+- **Mangum** - AWS Lambda adapter for ASGI applications
 
 ### Infrastructure as Code
 - **AWS CloudFormation** - Infrastructure definition
@@ -758,10 +819,13 @@ cloud-resume-challenge/
   - Token management (ID, Access, Refresh tokens)
   - Email verification and account recovery
 
-### AWS Services (Planned)
-- **Lambda** - Serverless functions for backend APIs (visitor counter, blog, projects, certifications)
-- **API Gateway** - RESTful API management with Cognito JWT Authorizer
-- **DynamoDB** - NoSQL database for application data (visitor count, blog posts, projects, certifications)
+### AWS Services (In Progress)
+- **DynamoDB** - NoSQL database for application data (single-table design)
+  - Visitor tracking and analytics
+  - Blog posts, projects, certifications content
+  - View counts and page analytics
+- **Lambda** - Serverless FastAPI functions (Mangum adapter)
+- **API Gateway** - RESTful API with Cognito JWT Authorizer integration
 
 ### DevOps & Automation
 - **Ansible** 9.13.0 - Configuration management
@@ -813,7 +877,35 @@ npm run dev
 
 See [frontend/README.md](frontend/README.md) for detailed frontend setup.
 
-#### 3. Infrastructure Setup
+#### 3. Backend Development (Optional)
+
+```bash
+# Navigate to backend
+cd backend
+
+# Install dependencies using uv
+uv sync
+
+# Configure environment variables
+cp .env.example .env
+nano .env  # Update with your AWS credentials and configuration
+
+# Option A: Run with AWS DynamoDB
+uv run uvicorn src.main:app --reload --host 0.0.0.0 --port 8000
+
+# Option B: Run with local DynamoDB
+docker-compose up -d  # Start local DynamoDB
+uv run uvicorn src.main:app --reload --host 0.0.0.0 --port 8000
+
+# Visit http://localhost:8000/docs for interactive API documentation
+
+# Run tests
+uv run pytest tests/unit/ -v
+```
+
+See [backend/docs/LOCAL_TESTING.md](backend/docs/LOCAL_TESTING.md) for detailed backend setup and testing guide.
+
+#### 4. Infrastructure Setup
 
 ```bash
 # Navigate to playbooks
@@ -828,7 +920,7 @@ cd aws/playbooks
 # - Ansible collections (amazon.aws, community.aws)
 ```
 
-#### 4. Configure Deployment
+#### 5. Configure Deployment
 
 ```bash
 # Create vault password file
@@ -843,7 +935,7 @@ nano vaults/config.yml  # Update bucket name and AWS profile
 ansible-vault encrypt vaults/config.yml --vault-password-file ~/.vault_pass.txt
 ```
 
-#### 5. Deploy to AWS
+#### 6. Deploy to AWS
 
 ```bash
 # Deploy S3 bucket infrastructure
@@ -857,7 +949,7 @@ cd ../..  # Back to project root
 ./aws/bin/stack-manager outputs
 ```
 
-#### 6. Access Your Website
+#### 7. Access Your Website
 
 ```bash
 # The S3 website URL will be displayed in the outputs

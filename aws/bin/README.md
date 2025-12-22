@@ -2885,6 +2885,362 @@ aws ce get-cost-and-usage \
 
 ---
 
+### `dynamodb-query`
+
+**DynamoDB Query Tool for Local and Remote Databases**
+
+A flexible command-line tool to query and explore DynamoDB data from both local (DynamoDB Local) and remote (AWS) databases. Supports all entity types defined in the single-table design.
+
+#### Features
+
+- ✅ Query local or remote DynamoDB instances
+- ✅ Support for all entity types (Blog, Project, Certification, Visitor, Analytics)
+- ✅ Multiple output formats (table, JSON, YAML)
+- ✅ High-level commands for common operations
+- ✅ Low-level DynamoDB operations (scan, get-item, query)
+- ✅ Visitor statistics and trends
+- ✅ Analytics and top content queries
+- ✅ Environment variable support
+
+#### Prerequisites
+
+- AWS CLI installed and configured
+- DynamoDB Local running on `http://localhost:8000` (for local queries)
+- `jq` installed for JSON processing
+- Table name: `portfolio-api-table` (default, configurable)
+
+#### Usage
+
+```bash
+# Basic usage
+./bin/dynamodb-query [OPTIONS] COMMAND [ARGS]
+
+# Show help
+./bin/dynamodb-query --help
+```
+
+#### Global Options
+
+| Option | Description | Default |
+|--------|-------------|---------|
+| `-e, --env ENV` | Environment: local or remote | `local` |
+| `-t, --table TABLE` | Table name | `portfolio-api-table` |
+| `-r, --region REGION` | AWS region | `us-east-1` |
+| `-l, --local-endpoint URL` | Local DynamoDB endpoint | `http://localhost:8000` |
+| `-f, --format FORMAT` | Output format: table, json, yaml | `table` |
+
+#### Commands
+
+##### Low-Level DynamoDB Operations
+
+###### Prerequisites (for local queries)
+```sh
+cd backend && docker-compose up -d dynamodb
+export AWS_ACCESS_KEY_ID=test AWS_SECRET_ACCESS_KEY=test
+```
+
+```bash
+# Scan entire table
+./bin/dynamodb-query scan
+
+# Get item by partition key and sort key
+./bin/dynamodb-query get-item "BLOG#123" "METADATA"
+
+# Query all items with partition key
+./bin/dynamodb-query query-pk "BLOG#123"
+
+# Count total items
+./bin/dynamodb-query count-items
+```
+
+##### Blog Post Queries
+
+```bash
+# List all published blogs
+./bin/dynamodb-query list-blogs PUBLISHED
+
+# List all draft blogs
+./bin/dynamodb-query list-blogs DRAFT
+
+# List all blogs (published and draft)
+./bin/dynamodb-query list-blogs all
+
+# Get specific blog by ID
+./bin/dynamodb-query get-blog "abc-123"
+```
+
+##### Project Queries
+
+```bash
+# List all published projects
+./bin/dynamodb-query list-projects PUBLISHED
+
+# List all draft projects
+./bin/dynamodb-query list-projects DRAFT
+
+# Get specific project by ID
+./bin/dynamodb-query get-project "project-456"
+```
+
+##### Certification Queries
+
+```bash
+# List all published certifications
+./bin/dynamodb-query list-certs PUBLISHED
+
+# List all certifications
+./bin/dynamodb-query list-certs all
+
+# Get specific certification by ID
+./bin/dynamodb-query get-cert "cert-789"
+```
+
+##### Visitor Statistics
+
+```bash
+# Get overall visitor statistics (total and today)
+./bin/dynamodb-query visitor-stats
+
+# Get daily visitor trends (last 7 days)
+./bin/dynamodb-query visitor-trends
+
+# Get daily visitor trends (last 30 days)
+./bin/dynamodb-query visitor-trends 30
+```
+
+##### Analytics Queries
+
+```bash
+# Get all analytics for blog posts
+./bin/dynamodb-query analytics blog
+
+# Get all analytics for projects
+./bin/dynamodb-query analytics project
+
+# Get top 10 viewed blog posts
+./bin/dynamodb-query top-content blog
+
+# Get top 5 viewed projects
+./bin/dynamodb-query top-content project 5
+```
+
+#### Examples
+
+##### Query Local Database
+
+```bash
+# List published blogs from local database
+./bin/dynamodb-query list-blogs PUBLISHED
+
+# Get visitor stats from local database
+./bin/dynamodb-query visitor-stats
+```
+
+##### Query Remote Database
+
+```bash
+# List published blogs from AWS
+./bin/dynamodb-query --env remote list-blogs PUBLISHED
+
+# Get visitor trends from AWS
+./bin/dynamodb-query --env remote visitor-trends 30
+
+# Scan entire remote table
+./bin/dynamodb-query --env remote scan
+```
+
+##### Custom Table and Region
+
+```bash
+# Query custom table in different region
+./bin/dynamodb-query \
+  --env remote \
+  --table my-custom-table \
+  --region eu-west-1 \
+  list-projects
+```
+
+##### JSON Output for Scripts
+
+```bash
+# Get visitor stats as JSON for processing
+./bin/dynamodb-query --format json visitor-stats
+
+# Get blog list as JSON
+./bin/dynamodb-query --format json list-blogs PUBLISHED | jq '.[] | .title'
+```
+
+##### Environment Variables
+
+```bash
+# Set environment variables
+export DYNAMODB_TABLE_NAME="my-table"
+export AWS_REGION="us-west-2"
+export DYNAMODB_ENDPOINT="http://localhost:8001"
+
+# Commands will use environment variables
+./bin/dynamodb-query list-blogs
+```
+
+#### Understanding the Output
+
+##### Blog Posts Output
+
+```json
+{
+  "id": "abc-123",
+  "title": "My First Blog Post",
+  "status": "PUBLISHED",
+  "category": "Technology",
+  "publishedAt": "2024-01-15T10:30:00Z"
+}
+```
+
+##### Projects Output
+
+```json
+{
+  "id": "project-456",
+  "name": "Cloud Resume Challenge",
+  "status": "PUBLISHED",
+  "featured": true
+}
+```
+
+##### Visitor Statistics Output
+
+```
+Total Visitors: 1234
+Last Updated: 2024-01-15T10:30:00Z
+Today's Visitors: 42
+```
+
+##### Visitor Trends Output
+
+```
+2024-01-09: 23 visitors
+2024-01-10: 31 visitors
+2024-01-11: 28 visitors
+2024-01-12: 35 visitors
+2024-01-13: 29 visitors
+2024-01-14: 33 visitors
+2024-01-15: 42 visitors
+```
+
+#### Troubleshooting
+
+##### Local DynamoDB Not Running
+
+```bash
+# Error: connect ECONNREFUSED 127.0.0.1:8000
+# Solution: Start DynamoDB Local
+cd backend
+docker-compose up -d dynamodb
+```
+
+##### Table Not Found
+
+```bash
+# Error: Requested resource not found
+# Solution: Create the table first
+cd backend
+python scripts/create_dynamodb_table.py
+
+# Or specify correct table name
+./bin/dynamodb-query --table correct-table-name list-blogs
+```
+
+##### AWS Credentials Issues
+
+```bash
+# Error: Unable to locate credentials
+# Solution: Configure AWS CLI or use profile
+aws configure
+
+# Or use specific profile
+export AWS_PROFILE=patrickcmd
+./bin/dynamodb-query --env remote list-blogs
+```
+
+##### Region Mismatch
+
+```bash
+# Solution: Specify correct region
+./bin/dynamodb-query --env remote --region us-east-1 list-blogs
+```
+
+#### Integration with Backend
+
+This script queries data following the single-table design patterns documented in:
+- `backend/docs/DYNAMODB-DESIGN.md` - Complete DynamoDB design
+- `backend/docs/DYNAMODB-SCAN-VS-QUERY.md` - Query vs Scan operations
+
+##### Key Patterns Used
+
+| Entity | Partition Key | Sort Key | GSI1 PK | GSI1 SK |
+|--------|---------------|----------|---------|---------|
+| Blog Post | `BLOG#<id>` | `METADATA` | `BLOG#STATUS#<status>` | `BLOG#<publishedAt>` |
+| Project | `PROJECT#<id>` | `METADATA` | `PROJECT#STATUS#<status>` | `PROJECT#<createdAt>` |
+| Certification | `CERT#<id>` | `METADATA` | `CERT#STATUS#<status>#<type>` | `CERT#<dateEarned>` |
+| Visitor Daily | `VISITOR#DAILY#<date>` | `COUNT` | - | - |
+| Visitor Total | `VISITOR#TOTAL` | `COUNT` | - | - |
+| Analytics | `ANALYTICS#<type>#<id>` | `VIEWS` | `ANALYTICS#<type>` | `ANALYTICS#VIEWS#<count>` |
+
+#### Advanced Usage
+
+##### Combining with Other Tools
+
+```bash
+# Count published blogs
+./bin/dynamodb-query list-blogs PUBLISHED | jq 'length'
+
+# Get all blog titles
+./bin/dynamodb-query --format json list-blogs | jq -r '.[] | .title'
+
+# Export to CSV
+./bin/dynamodb-query --format json list-blogs | \
+  jq -r '.[] | [.id, .title, .status, .publishedAt] | @csv' > blogs.csv
+
+# Monitor visitor count
+watch -n 60 './bin/dynamodb-query visitor-stats'
+```
+
+##### Querying Specific Patterns
+
+```bash
+# Get all items for a specific blog post (main item + related items)
+./bin/dynamodb-query query-pk "BLOG#abc-123"
+
+# Get daily visitor count for specific date
+./bin/dynamodb-query get-item "VISITOR#DAILY#2024-01-15" "COUNT"
+
+# Get analytics for specific blog post
+./bin/dynamodb-query get-item "ANALYTICS#BLOG#abc-123" "VIEWS"
+```
+
+#### Related Scripts
+
+- `backend/scripts/seed_data.py` - Seed test data into DynamoDB
+- `backend/scripts/create_dynamodb_table.py` - Create DynamoDB table
+
+#### Environment Variable Reference
+
+```bash
+# Override table name
+export DYNAMODB_TABLE_NAME="my-custom-table"
+
+# Override AWS region
+export AWS_REGION="eu-west-1"
+
+# Override local endpoint
+export DYNAMODB_ENDPOINT="http://localhost:9000"
+
+# Then run any command
+./bin/dynamodb-query list-blogs
+```
+
+---
+
 ## AWS Free Tier Usage Monitoring
 
 ### Understanding AWS Free Tier

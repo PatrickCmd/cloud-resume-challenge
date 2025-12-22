@@ -24,7 +24,7 @@ async def get_current_user(
     """
     Dependency to extract and validate the current user from JWT token.
 
-    Following AUTHENTICATION.md lines 353-374:
+    Following docs/AUTHENTICATION.md lines 353-374:
     - Extracts JWT token from Authorization header
     - Validates token signature with Cognito public keys
     - Extracts and returns user claims
@@ -59,7 +59,7 @@ async def get_current_user_optional(
     """
     Optional authentication dependency.
 
-    Following AUTHENTICATION.md lines 290-301:
+    Following docs/AUTHENTICATION.md lines 290-301:
     - Returns user if valid token provided
     - Returns None if no token or invalid token
     - Used for endpoints with optional authentication (different data for owner)
@@ -85,7 +85,7 @@ async def require_owner_role(
     """
     Dependency to require owner role for protected endpoints.
 
-    Following AUTHENTICATION.md lines 303-313:
+    Following docs/AUTHENTICATION.md lines 303-313:
     - Requires valid JWT token
     - Checks if user has 'owner' role
     - Raises 403 if not owner
@@ -107,16 +107,30 @@ async def require_owner_role(
     return current_user
 
 
-def get_dynamodb_client():
+def get_dynamodb_resource():
     """
-    Dependency to get DynamoDB client.
+    Dependency to get DynamoDB resource.
 
     Returns:
-        Configured boto3 DynamoDB client
+        Configured boto3 DynamoDB resource
     """
-    # TODO: Implement DynamoDB client initialization
-    # TODO: Use boto3.resource('dynamodb') with proper configuration
-    pass
+    import boto3
+
+    # Configure DynamoDB resource based on environment
+    if settings.dynamodb_endpoint:
+        # Local DynamoDB
+        resource = boto3.resource(
+            'dynamodb',
+            endpoint_url=settings.dynamodb_endpoint,
+            region_name=settings.aws_region,
+            aws_access_key_id='test',
+            aws_secret_access_key='test'
+        )
+    else:
+        # AWS DynamoDB
+        resource = boto3.resource('dynamodb', region_name=settings.aws_region)
+
+    return resource
 
 
 def get_dynamodb_table():
@@ -126,6 +140,67 @@ def get_dynamodb_table():
     Returns:
         DynamoDB table resource for the portfolio data table
     """
-    # TODO: Implement table resource initialization
-    # TODO: Return table from get_dynamodb_client()
-    pass
+    resource = get_dynamodb_resource()
+    return resource.Table(settings.dynamodb_table_name)
+
+
+# Repository Dependencies
+
+def get_blog_repository():
+    """
+    Dependency to get BlogRepository instance.
+
+    Returns:
+        BlogRepository instance
+    """
+    from src.repositories.blog import BlogRepository
+    table = get_dynamodb_table()
+    return BlogRepository(table)
+
+
+def get_project_repository():
+    """
+    Dependency to get ProjectRepository instance.
+
+    Returns:
+        ProjectRepository instance
+    """
+    from src.repositories.project import ProjectRepository
+    table = get_dynamodb_table()
+    return ProjectRepository(table)
+
+
+def get_certification_repository():
+    """
+    Dependency to get CertificationRepository instance.
+
+    Returns:
+        CertificationRepository instance
+    """
+    from src.repositories.certification import CertificationRepository
+    table = get_dynamodb_table()
+    return CertificationRepository(table)
+
+
+def get_visitor_repository():
+    """
+    Dependency to get VisitorRepository instance.
+
+    Returns:
+        VisitorRepository instance
+    """
+    from src.repositories.visitor import VisitorRepository
+    table = get_dynamodb_table()
+    return VisitorRepository(table)
+
+
+def get_analytics_repository():
+    """
+    Dependency to get AnalyticsRepository instance.
+
+    Returns:
+        AnalyticsRepository instance
+    """
+    from src.repositories.analytics import AnalyticsRepository
+    table = get_dynamodb_table()
+    return AnalyticsRepository(table)

@@ -1,0 +1,727 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# ============================================
+# DynamoDB Query Script
+# ============================================
+# Flexible script to query DynamoDB data from both local and remote databases
+# Supports all entity types defined in docs/DYNAMODB-DESIGN.md
+
+# Colors for output
+BLUE='\033[0;34m'
+GREEN='\033[0;32m'
+RED='\033[0;31m'
+YELLOW='\033[1;33m'
+CYAN='\033[0;36m'
+MAGENTA='\033[0;35m'
+NC='\033[0m' # No Color
+
+# Script directory
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
+
+# Default values
+ENVIRONMENT="local"
+TABLE_NAME="portfolio-api-table"
+AWS_REGION="us-east-1"
+LOCAL_ENDPOINT="http://localhost:8000"
+OUTPUT_FORMAT="table"
+
+# Function to print colored messages
+print_info() {
+    echo -e "${BLUE}ℹ ${1}${NC}"
+}
+
+print_success() {
+    echo -e "${GREEN}✓ ${1}${NC}"
+}
+
+print_error() {
+    echo -e "${RED}✗ ${1}${NC}"
+}
+
+print_warning() {
+    echo -e "${YELLOW}⚠ ${1}${NC}"
+}
+
+print_header() {
+    echo -e "${CYAN}${1}${NC}"
+}
+
+print_data() {
+    echo -e "${MAGENTA}${1}${NC}"
+}
+
+# Function to print banner
+print_banner() {
+    echo ""
+    echo "╔════════════════════════════════════════════════════════════╗"
+    echo "║           DynamoDB Query Tool                             ║"
+    echo "╚════════════════════════════════════════════════════════════╝"
+    echo ""
+}
+
+# Function to show usage
+usage() {
+    cat << EOF
+Usage: $(basename "$0") [OPTIONS] COMMAND [ARGS]
+
+Query DynamoDB data from local or remote database.
+
+GLOBAL OPTIONS:
+    -h, --help              Show this help message
+    -e, --env ENV           Environment: local|remote (default: local)
+    -t, --table TABLE       Table name (default: portfolio-api-table)
+    -r, --region REGION     AWS region (default: us-east-1)
+    -l, --local-endpoint URL Local DynamoDB endpoint (default: http://localhost:8000)
+    -f, --format FORMAT     Output format: table|json|yaml (default: table)
+
+COMMANDS:
+    scan                    Scan entire table
+    get-item PK SK          Get item by partition and sort key
+    query-pk PK             Query all items with partition key
+    list-blogs [STATUS]     List blog posts (STATUS: PUBLISHED|DRAFT|all)
+    list-projects [STATUS]  List projects (STATUS: PUBLISHED|DRAFT|all)
+    list-certs [STATUS]     List certifications (STATUS: PUBLISHED|DRAFT|all)
+    get-blog ID             Get blog post by ID
+    get-project ID          Get project by ID
+    get-cert ID             Get certification by ID
+    visitor-stats           Get visitor statistics
+    visitor-trends [DAYS]   Get daily visitor trends (default: 7 days)
+    analytics CONTENT-TYPE  Get analytics for content type (blog|project|cert)
+    top-content TYPE [N]    Get top N viewed content (default: 10)
+    count-items             Count total items in table
+
+EXAMPLES:
+    # Scan local database
+    $(basename "$0") scan
+
+    # Scan remote database
+    $(basename "$0") --env remote scan
+
+    # Get specific item
+    $(basename "$0") get-item "BLOG#123" "METADATA"
+
+    # Query all items with partition key
+    $(basename "$0") query-pk "BLOG#123"
+
+    # List all published blogs
+    $(basename "$0") list-blogs PUBLISHED
+
+    # List all projects in remote database
+    $(basename "$0") --env remote list-projects
+
+    # Get blog post by ID
+    $(basename "$0") get-blog "abc-123"
+
+    # Get visitor statistics
+    $(basename "$0") visitor-stats
+
+    # Get 30-day visitor trends
+    $(basename "$0") visitor-trends 30
+
+    # Get top 5 viewed blog posts
+    $(basename "$0") top-content blog 5
+
+    # Count items with JSON output
+    $(basename "$0") --format json count-items
+
+ENVIRONMENT VARIABLES:
+    DYNAMODB_TABLE_NAME     Override default table name
+    AWS_REGION              Override default AWS region
+    DYNAMODB_ENDPOINT       Override local endpoint
+
+PREREQUISITES:
+    - AWS CLI must be installed and configured
+    - For local queries: DynamoDB Local must be running
+      Start with: cd backend && docker-compose up -d dynamodb
+    - AWS credentials required (even for local queries)
+      Use dummy credentials for local: export AWS_ACCESS_KEY_ID=test AWS_SECRET_ACCESS_KEY=test
+
+EOF
+    exit 0
+}
+
+# Parse global options
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        -h|--help)
+            usage
+            ;;
+        -e|--env)
+            ENVIRONMENT="$2"
+            shift 2
+            ;;
+        -t|--table)
+            TABLE_NAME="$2"
+            shift 2
+            ;;
+        -r|--region)
+            AWS_REGION="$2"
+            shift 2
+            ;;
+        -l|--local-endpoint)
+            LOCAL_ENDPOINT="$2"
+            shift 2
+            ;;
+        -f|--format)
+            OUTPUT_FORMAT="$2"
+            shift 2
+            ;;
+        *)
+            break
+            ;;
+    esac
+done
+
+# Override with environment variables if set
+TABLE_NAME="${DYNAMODB_TABLE_NAME:-$TABLE_NAME}"
+AWS_REGION="${AWS_REGION:-$AWS_REGION}"
+LOCAL_ENDPOINT="${DYNAMODB_ENDPOINT:-$LOCAL_ENDPOINT}"
+
+# Build AWS CLI command base
+build_aws_cmd() {
+    local cmd="aws dynamodb"
+
+    if [[ "$ENVIRONMENT" == "local" ]]; then
+        cmd="$cmd --endpoint-url $LOCAL_ENDPOINT"
+    fi
+
+    cmd="$cmd --region $AWS_REGION"
+    echo "$cmd"
+}
+
+# Format output based on user preference
+format_output() {
+    local data="$1"
+
+    case "$OUTPUT_FORMAT" in
+        json)
+            echo "$data" | jq '.'
+            ;;
+        yaml)
+            echo "$data" | jq -r 'to_entries | .[] | "\(.key): \(.value)"'
+            ;;
+        table)
+            echo "$data" | jq -r '.'
+            ;;
+        *)
+            echo "$data"
+            ;;
+    esac
+}
+
+# Scan entire table
+cmd_scan() {
+    print_header "Scanning table: $TABLE_NAME"
+    local aws_cmd=$(build_aws_cmd)
+
+    local result=$($aws_cmd scan \
+        --table-name "$TABLE_NAME" \
+        --output json 2>&1)
+
+    if [[ $? -eq 0 ]] && echo "$result" | jq -e '.' > /dev/null 2>&1; then
+        local count=$(echo "$result" | jq '.Count')
+        print_success "Found $count items"
+        echo "$result" | jq '.Items'
+    else
+        print_error "Failed to scan table"
+        echo "$result" | head -5
+        exit 1
+    fi
+}
+
+# Get item by PK and SK
+cmd_get_item() {
+    local pk="$1"
+    local sk="$2"
+
+    print_header "Getting item: PK=$pk, SK=$sk"
+    local aws_cmd=$(build_aws_cmd)
+
+    local result=$($aws_cmd get-item \
+        --table-name "$TABLE_NAME" \
+        --key "{\"PK\": {\"S\": \"$pk\"}, \"SK\": {\"S\": \"$sk\"}}" \
+        --output json 2>&1)
+
+    if [[ $? -eq 0 ]] && echo "$result" | jq -e '.' > /dev/null 2>&1; then
+        if echo "$result" | jq -e '.Item' > /dev/null 2>&1; then
+            print_success "Item found"
+            echo "$result" | jq '.Item'
+        else
+            print_warning "Item not found"
+        fi
+    else
+        print_error "Failed to get item"
+        echo "$result" | head -5
+        exit 1
+    fi
+}
+
+# Query by partition key
+cmd_query_pk() {
+    local pk="$1"
+
+    print_header "Querying partition key: $pk"
+    local aws_cmd=$(build_aws_cmd)
+
+    local result=$($aws_cmd query \
+        --table-name "$TABLE_NAME" \
+        --key-condition-expression "PK = :pk" \
+        --expression-attribute-values "{\":pk\": {\"S\": \"$pk\"}}" \
+        --output json 2>&1)
+
+    if [[ $? -eq 0 ]] && echo "$result" | jq -e '.' > /dev/null 2>&1; then
+        local count=$(echo "$result" | jq '.Count')
+        print_success "Found $count items"
+        echo "$result" | jq '.Items'
+    else
+        print_error "Failed to query"
+        echo "$result" | head -5
+        exit 1
+    fi
+}
+
+# List blog posts
+cmd_list_blogs() {
+    local status="${1:-PUBLISHED}"
+    status=$(echo "$status" | tr '[:lower:]' '[:upper:]')
+
+    if [[ "$status" == "ALL" ]]; then
+        print_header "Listing all blog posts"
+        local aws_cmd=$(build_aws_cmd)
+
+        local result=$($aws_cmd scan \
+            --table-name "$TABLE_NAME" \
+            --filter-expression "begins_with(PK, :pk) AND SK = :sk" \
+            --expression-attribute-values "{\":pk\": {\"S\": \"BLOG#\"}, \":sk\": {\"S\": \"METADATA\"}}" \
+            --output json 2>&1)
+    else
+        print_header "Listing $status blog posts"
+        local aws_cmd=$(build_aws_cmd)
+
+        local result
+        if [[ "$ENVIRONMENT" == "local" ]]; then
+            result=$(aws dynamodb query \
+                --endpoint-url "$LOCAL_ENDPOINT" \
+                --region "$AWS_REGION" \
+                --table-name "$TABLE_NAME" \
+                --index-name "GSI1" \
+                --key-condition-expression "GSI1PK = :gsi1pk" \
+                --expression-attribute-values "{\":gsi1pk\": {\"S\": \"BLOG#STATUS#$status\"}}" \
+                --no-scan-index-forward \
+                --output json 2>&1)
+        else
+            result=$(aws dynamodb query \
+                --region "$AWS_REGION" \
+                --table-name "$TABLE_NAME" \
+                --index-name "GSI1" \
+                --key-condition-expression "GSI1PK = :gsi1pk" \
+                --expression-attribute-values "{\":gsi1pk\": {\"S\": \"BLOG#STATUS#$status\"}}" \
+                --no-scan-index-forward \
+                --output json 2>&1)
+        fi
+    fi
+
+    if [[ $? -eq 0 ]] && echo "$result" | jq -e '.' > /dev/null 2>&1; then
+        local count=$(echo "$result" | jq '.Count')
+        print_success "Found $count blog posts"
+        echo "$result" | jq -r '.Items[] | {
+            id: .Data.M.id.S,
+            title: .Data.M.title.S,
+            status: .Status.S,
+            category: .Data.M.category.S,
+            publishedAt: (.Data.M.publishedAt.S // "N/A")
+        }'
+    else
+        print_error "Failed to list blogs"
+        echo "$result" | head -5
+        exit 1
+    fi
+}
+
+# List projects
+cmd_list_projects() {
+    local status="${1:-PUBLISHED}"
+    status=$(echo "$status" | tr '[:lower:]' '[:upper:]')
+
+    if [[ "$status" == "ALL" ]]; then
+        print_header "Listing all projects"
+        local aws_cmd=$(build_aws_cmd)
+
+        local result=$($aws_cmd scan \
+            --table-name "$TABLE_NAME" \
+            --filter-expression "begins_with(PK, :pk) AND SK = :sk" \
+            --expression-attribute-values "{\":pk\": {\"S\": \"PROJECT#\"}, \":sk\": {\"S\": \"METADATA\"}}" \
+            --output json 2>&1)
+    else
+        print_header "Listing $status projects"
+        local aws_cmd=$(build_aws_cmd)
+
+        local result
+        if [[ "$ENVIRONMENT" == "local" ]]; then
+            result=$(aws dynamodb query \
+                --endpoint-url "$LOCAL_ENDPOINT" \
+                --region "$AWS_REGION" \
+                --table-name "$TABLE_NAME" \
+                --index-name "GSI1" \
+                --key-condition-expression "GSI1PK = :gsi1pk" \
+                --expression-attribute-values "{\":gsi1pk\": {\"S\": \"PROJECT#STATUS#$status\"}}" \
+                --no-scan-index-forward \
+                --output json 2>&1)
+        else
+            result=$(aws dynamodb query \
+                --region "$AWS_REGION" \
+                --table-name "$TABLE_NAME" \
+                --index-name "GSI1" \
+                --key-condition-expression "GSI1PK = :gsi1pk" \
+                --expression-attribute-values "{\":gsi1pk\": {\"S\": \"PROJECT#STATUS#$status\"}}" \
+                --no-scan-index-forward \
+                --output json 2>&1)
+        fi
+    fi
+
+    if [[ $? -eq 0 ]] && echo "$result" | jq -e '.' > /dev/null 2>&1; then
+        local count=$(echo "$result" | jq '.Count')
+        print_success "Found $count projects"
+        echo "$result" | jq -r '.Items[] | {
+            id: .Data.M.id.S,
+            name: .Data.M.name.S,
+            status: .Status.S,
+            featured: .Data.M.featured.BOOL
+        }'
+    else
+        print_error "Failed to list projects"
+        echo "$result" | head -5
+        exit 1
+    fi
+}
+
+# List certifications
+cmd_list_certs() {
+    local status="${1:-PUBLISHED}"
+    status=$(echo "$status" | tr '[:lower:]' '[:upper:]')
+
+    if [[ "$status" == "ALL" ]]; then
+        print_header "Listing all certifications"
+        local aws_cmd=$(build_aws_cmd)
+
+        local result=$($aws_cmd scan \
+            --table-name "$TABLE_NAME" \
+            --filter-expression "begins_with(PK, :pk) AND SK = :sk" \
+            --expression-attribute-values "{\":pk\": {\"S\": \"CERT#\"}, \":sk\": {\"S\": \"METADATA\"}}" \
+            --output json 2>&1)
+    else
+        print_header "Listing $status certifications"
+        local aws_cmd=$(build_aws_cmd)
+
+        local result=$($aws_cmd scan \
+            --table-name "$TABLE_NAME" \
+            --filter-expression "begins_with(GSI1PK, :prefix)" \
+            --expression-attribute-values "{\":prefix\": {\"S\": \"CERT#STATUS#$status\"}}" \
+            --output json 2>&1)
+    fi
+
+    if [[ $? -eq 0 ]] && echo "$result" | jq -e '.' > /dev/null 2>&1; then
+        local count=$(echo "$result" | jq '.Count')
+        print_success "Found $count certifications"
+        echo "$result" | jq -r '.Items[] | {
+            id: .Data.M.id.S,
+            name: .Data.M.name.S,
+            issuer: .Data.M.issuer.S,
+            type: .Data.M.type.S,
+            status: .Status.S
+        }'
+    else
+        print_error "Failed to list certifications"
+        echo "$result" | head -5
+        exit 1
+    fi
+}
+
+# Get blog by ID
+cmd_get_blog() {
+    local id="$1"
+    cmd_get_item "BLOG#$id" "METADATA"
+}
+
+# Get project by ID
+cmd_get_project() {
+    local id="$1"
+    cmd_get_item "PROJECT#$id" "METADATA"
+}
+
+# Get certification by ID
+cmd_get_cert() {
+    local id="$1"
+    cmd_get_item "CERT#$id" "METADATA"
+}
+
+# Get visitor statistics
+cmd_visitor_stats() {
+    print_header "Visitor Statistics"
+    local aws_cmd=$(build_aws_cmd)
+
+    # Get total count
+    print_info "Fetching total visitor count..."
+    local total_result=$($aws_cmd get-item \
+        --table-name "$TABLE_NAME" \
+        --key "{\"PK\": {\"S\": \"VISITOR#TOTAL\"}, \"SK\": {\"S\": \"COUNT\"}}" \
+        --output json 2>&1)
+
+    if [[ $? -eq 0 ]] && echo "$total_result" | jq -e '.Item' > /dev/null 2>&1; then
+        local total_count=$(echo "$total_result" | jq -r '.Item.Data.M.totalCount.N // "0"')
+        local last_updated=$(echo "$total_result" | jq -r '.Item.Data.M.lastUpdated.S // "N/A"')
+
+        print_success "Total Visitors: $total_count"
+        print_info "Last Updated: $last_updated"
+    else
+        print_warning "No total visitor data found"
+    fi
+
+    # Get today's count
+    local today=$(date +%Y-%m-%d)
+    print_info "Fetching today's visitor count..."
+    local today_result=$($aws_cmd get-item \
+        --table-name "$TABLE_NAME" \
+        --key "{\"PK\": {\"S\": \"VISITOR#DAILY#$today\"}, \"SK\": {\"S\": \"COUNT\"}}" \
+        --output json 2>&1)
+
+    if [[ $? -eq 0 ]] && echo "$today_result" | jq -e '.Item' > /dev/null 2>&1; then
+        local today_count=$(echo "$today_result" | jq -r '.Item.Data.M.count.N // "0"')
+        print_success "Today's Visitors: $today_count"
+    else
+        print_warning "No visitors today yet"
+    fi
+}
+
+# Get visitor trends
+cmd_visitor_trends() {
+    local days="${1:-7}"
+    print_header "Visitor Trends (Last $days days)"
+    local aws_cmd=$(build_aws_cmd)
+
+    # Generate date keys for the last N days
+    for i in $(seq 0 $((days - 1))); do
+        if [[ "$OSTYPE" == "darwin"* ]]; then
+            # macOS
+            local date=$(date -v-${i}d +%Y-%m-%d)
+        else
+            # Linux
+            local date=$(date -d "$i days ago" +%Y-%m-%d)
+        fi
+
+        local result=$($aws_cmd get-item \
+            --table-name "$TABLE_NAME" \
+            --key "{\"PK\": {\"S\": \"VISITOR#DAILY#$date\"}, \"SK\": {\"S\": \"COUNT\"}}" \
+            --output json 2>&1)
+
+        if [[ $? -eq 0 ]] && echo "$result" | jq -e '.Item' > /dev/null 2>&1; then
+            local count=$(echo "$result" | jq -r '.Item.Data.M.count.N // "0"')
+            echo "$date: $count visitors"
+        else
+            echo "$date: 0 visitors"
+        fi
+    done
+}
+
+# Get analytics for content type
+cmd_analytics() {
+    local content_type="$1"
+    content_type=$(echo "$content_type" | tr '[:lower:]' '[:upper:]')
+
+    print_header "Analytics for $content_type"
+    local aws_cmd=$(build_aws_cmd)
+
+    local result=$($aws_cmd scan \
+        --table-name "$TABLE_NAME" \
+        --filter-expression "begins_with(PK, :pk) AND SK = :sk" \
+        --expression-attribute-values "{\":pk\": {\"S\": \"ANALYTICS#$content_type#\"}, \":sk\": {\"S\": \"VIEWS\"}}" \
+        --output json 2>&1)
+
+    if [[ $? -eq 0 ]] && echo "$result" | jq -e '.' > /dev/null 2>&1; then
+        local count=$(echo "$result" | jq '.Count')
+        print_success "Found $count tracked items"
+        echo "$result" | jq -r '.Items[] | {
+            contentId: (.PK.S | split("#")[2]),
+            views: .Data.M.viewCount.N,
+            uniqueVisitors: .Data.M.uniqueVisitors.N
+        }'
+    else
+        print_error "Failed to get analytics"
+        echo "$result" | head -5
+        exit 1
+    fi
+}
+
+# Get top viewed content
+cmd_top_content() {
+    local content_type="$1"
+    local limit="${2:-10}"
+    content_type=$(echo "$content_type" | tr '[:lower:]' '[:upper:]')
+
+    print_header "Top $limit Viewed $content_type"
+    local aws_cmd=$(build_aws_cmd)
+
+    local result
+    if [[ "$ENVIRONMENT" == "local" ]]; then
+        result=$(aws dynamodb query \
+            --endpoint-url "$LOCAL_ENDPOINT" \
+            --region "$AWS_REGION" \
+            --table-name "$TABLE_NAME" \
+            --index-name "GSI1" \
+            --key-condition-expression "GSI1PK = :gsi1pk" \
+            --expression-attribute-values "{\":gsi1pk\": {\"S\": \"ANALYTICS#$content_type\"}}" \
+            --no-scan-index-forward \
+            --limit "$limit" \
+            --output json 2>&1)
+    else
+        result=$(aws dynamodb query \
+            --region "$AWS_REGION" \
+            --table-name "$TABLE_NAME" \
+            --index-name "GSI1" \
+            --key-condition-expression "GSI1PK = :gsi1pk" \
+            --expression-attribute-values "{\":gsi1pk\": {\"S\": \"ANALYTICS#$content_type\"}}" \
+            --no-scan-index-forward \
+            --limit "$limit" \
+            --output json 2>&1)
+    fi
+
+    if [[ $? -eq 0 ]] && echo "$result" | jq -e '.' > /dev/null 2>&1; then
+        print_success "Top content retrieved"
+        echo "$result" | jq -r '.Items[] | {
+            contentId: (.PK.S | split("#")[2]),
+            views: .Data.M.viewCount.N,
+            uniqueVisitors: .Data.M.uniqueVisitors.N
+        }'
+    else
+        print_error "Failed to get top content"
+        echo "$result" | head -5
+        exit 1
+    fi
+}
+
+# Count total items
+cmd_count_items() {
+    print_header "Counting items in table: $TABLE_NAME"
+    local aws_cmd=$(build_aws_cmd)
+
+    local result=$($aws_cmd scan \
+        --table-name "$TABLE_NAME" \
+        --select "COUNT" \
+        --output json 2>&1)
+
+    if [[ $? -eq 0 ]] && echo "$result" | jq -e '.' > /dev/null 2>&1; then
+        local count=$(echo "$result" | jq '.Count')
+        print_success "Total items: $count"
+
+        if [[ "$OUTPUT_FORMAT" == "json" ]]; then
+            echo "{\"totalItems\": $count}"
+        fi
+    else
+        print_error "Failed to count items"
+        echo "$result" | head -5
+        exit 1
+    fi
+}
+
+# Main command dispatcher
+main() {
+    if [[ $# -eq 0 ]]; then
+        usage
+    fi
+
+    print_banner
+    print_info "Environment: $ENVIRONMENT"
+    print_info "Table: $TABLE_NAME"
+    print_info "Region: $AWS_REGION"
+
+    if [[ "$ENVIRONMENT" == "local" ]]; then
+        print_info "Endpoint: $LOCAL_ENDPOINT"
+    fi
+    echo ""
+
+    local command="$1"
+    shift
+
+    case "$command" in
+        scan)
+            cmd_scan "$@"
+            ;;
+        get-item)
+            if [[ $# -lt 2 ]]; then
+                print_error "get-item requires PK and SK arguments"
+                exit 1
+            fi
+            cmd_get_item "$@"
+            ;;
+        query-pk)
+            if [[ $# -lt 1 ]]; then
+                print_error "query-pk requires PK argument"
+                exit 1
+            fi
+            cmd_query_pk "$@"
+            ;;
+        list-blogs)
+            cmd_list_blogs "$@"
+            ;;
+        list-projects)
+            cmd_list_projects "$@"
+            ;;
+        list-certs)
+            cmd_list_certs "$@"
+            ;;
+        get-blog)
+            if [[ $# -lt 1 ]]; then
+                print_error "get-blog requires ID argument"
+                exit 1
+            fi
+            cmd_get_blog "$@"
+            ;;
+        get-project)
+            if [[ $# -lt 1 ]]; then
+                print_error "get-project requires ID argument"
+                exit 1
+            fi
+            cmd_get_project "$@"
+            ;;
+        get-cert)
+            if [[ $# -lt 1 ]]; then
+                print_error "get-cert requires ID argument"
+                exit 1
+            fi
+            cmd_get_cert "$@"
+            ;;
+        visitor-stats)
+            cmd_visitor_stats "$@"
+            ;;
+        visitor-trends)
+            cmd_visitor_trends "$@"
+            ;;
+        analytics)
+            if [[ $# -lt 1 ]]; then
+                print_error "analytics requires content-type argument"
+                exit 1
+            fi
+            cmd_analytics "$@"
+            ;;
+        top-content)
+            if [[ $# -lt 1 ]]; then
+                print_error "top-content requires TYPE argument"
+                exit 1
+            fi
+            cmd_top_content "$@"
+            ;;
+        count-items)
+            cmd_count_items "$@"
+            ;;
+        *)
+            print_error "Unknown command: $command"
+            echo ""
+            usage
+            ;;
+    esac
+}
+
+# Run main function
+main "$@"

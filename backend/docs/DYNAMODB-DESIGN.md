@@ -103,6 +103,250 @@ Status      - String (for published/draft filtering)
 | **Analytics View** | `ANALYTICS#<contentType>#<contentId>` | `VIEWS` | `ANALYTICS#<contentType>` | `ANALYTICS#VIEWS#<viewCount>` |
 | **Analytics Session** | `ANALYTICS#SESSION#<sessionId>` | `<contentType>#<contentId>` | - | - |
 
+## Understanding Key Design Patterns
+
+### Why SK: 'METADATA'?
+
+The `SK: 'METADATA'` pattern is a fundamental design choice in our single-table DynamoDB design. Here's why we use it:
+
+#### 1. Primary Item Identification
+
+In a single-table design, we need a consistent way to identify the "main" or "canonical" item for each entity. The `METADATA` sort key serves as this identifier.
+
+```python
+# Primary blog post item
+{
+    'PK': 'BLOG#123',
+    'SK': 'METADATA',  # ← This is the main blog post item
+    'EntityType': 'BLOG_POST',
+    'Data': {
+        'title': 'My Blog Post',
+        'content': '...',
+        'author': 'John Doe'
+    }
+}
+```
+
+#### 2. Enables Related Items Pattern
+
+Using `METADATA` as the sort key for the primary item allows us to store related items under the same partition key with different sort keys. This enables efficient querying of an entity and all its related data in a single query.
+
+```python
+# Main blog post
+{
+    'PK': 'BLOG#123',
+    'SK': 'METADATA',  # Primary item
+    'Data': {...}
+}
+
+# Related items (future expansion)
+{
+    'PK': 'BLOG#123',
+    'SK': 'COMMENT#456',  # Related comment
+    'Data': {...}
+}
+
+{
+    'PK': 'BLOG#123',
+    'SK': 'LIKE#789',  # Related like
+    'Data': {...}
+}
+
+{
+    'PK': 'BLOG#123',
+    'SK': 'VERSION#2024-01-15',  # Version history
+    'Data': {...}
+}
+```
+
+With this pattern, you can:
+- Get just the blog post: `GetItem(PK='BLOG#123', SK='METADATA')`
+- Get the blog post + all comments: `Query(PK='BLOG#123', SK begins_with 'COMMENT#')`
+- Get everything related to the blog: `Query(PK='BLOG#123')`
+
+#### 3. Consistent Query Pattern
+
+Having a standard sort key value (`METADATA`) for primary items creates a consistent pattern across all entity types:
+
+```python
+# Get any entity by ID - same pattern everywhere
+blog_post = get_item(PK='BLOG#123', SK='METADATA')
+project = get_item(PK='PROJECT#456', SK='METADATA')
+certification = get_item(PK='CERT#789', SK='METADATA')
+```
+
+This makes repository code more maintainable and predictable.
+
+#### 4. Future-Proof Design
+
+Even if we don't currently have related items for all entities, using `METADATA` leaves the door open for future enhancements without requiring data migration:
+
+```python
+# Today: Just the project
+{
+    'PK': 'PROJECT#123',
+    'SK': 'METADATA',
+    'Data': {...}
+}
+
+# Tomorrow: Add project milestones without changing existing data
+{
+    'PK': 'PROJECT#123',
+    'SK': 'MILESTONE#2024-Q1',
+    'Data': {...}
+}
+```
+
+### What is GSI (Global Secondary Index)?
+
+A **Global Secondary Index (GSI)** is an alternate query path for your DynamoDB table. It solves a fundamental limitation: DynamoDB can only efficiently query by the primary key (PK + SK).
+
+#### The Problem GSIs Solve
+
+Without a GSI, you can only query by the exact partition key:
+
+```python
+# ✅ Works - querying by exact PK
+table.query(KeyConditionExpression=Key('PK').eq('BLOG#123'))
+
+# ❌ Doesn't work - can't query by status
+table.query(KeyConditionExpression=Key('status').eq('PUBLISHED'))
+
+# 😢 Must use Scan (reads entire table, slow and expensive)
+table.scan(FilterExpression=Attr('status').eq('PUBLISHED'))
+```
+
+#### How GSIs Work
+
+A GSI is like a materialized view with different keys. When you write an item to the main table, DynamoDB automatically maintains a copy in the GSI with different partition and sort keys.
+
+**Main Table View:**
+| PK | SK | Status | PublishedAt | Title |
+|----|-------|--------|-------------|-------|
+| BLOG#1 | METADATA | PUBLISHED | 2024-01-15 | Post 1 |
+| BLOG#2 | METADATA | DRAFT | - | Post 2 |
+| BLOG#3 | METADATA | PUBLISHED | 2024-01-20 | Post 3 |
+
+**GSI1 View (same data, different keys):**
+| GSI1PK | GSI1SK | PK | SK | Title |
+|--------|--------|----|----|-------|
+| BLOG#STATUS#PUBLISHED | BLOG#2024-01-20 | BLOG#3 | METADATA | Post 3 |
+| BLOG#STATUS#PUBLISHED | BLOG#2024-01-15 | BLOG#1 | METADATA | Post 1 |
+| BLOG#STATUS#DRAFT | BLOG#- | BLOG#2 | METADATA | Post 2 |
+
+Now we can efficiently query published posts by date:
+
+```python
+# Query published posts, newest first
+table.query(
+    IndexName='GSI1',
+    KeyConditionExpression=Key('GSI1PK').eq('BLOG#STATUS#PUBLISHED'),
+    ScanIndexForward=False  # Descending order by date
+)
+```
+
+#### Our GSI Design Patterns
+
+We use **GSI1** with several key patterns:
+
+**1. Status-Based Listing (Blog Posts, Projects, Certifications)**
+```python
+# GSI1PK includes both entity type AND status
+GSI1PK = 'BLOG#STATUS#PUBLISHED'
+GSI1SK = 'BLOG#2024-01-15T10:30:00Z'  # Sortable timestamp
+
+# Enables queries like:
+# - "Get all published blog posts, newest first"
+# - "Get all draft projects"
+```
+
+**2. Category + Status (Certifications)**
+```python
+# GSI1PK includes entity, status, AND type
+GSI1PK = 'CERT#STATUS#PUBLISHED#certification'
+GSI1SK = 'CERT#2023-06-15'
+
+# Enables queries like:
+# - "Get all published certifications"
+# - "Get all published courses"
+```
+
+**3. Analytics Ranking (Most Viewed Content)**
+```python
+# GSI1SK uses view count for sorting
+GSI1PK = 'ANALYTICS#BLOG'
+GSI1SK = 'ANALYTICS#VIEWS#000000150'  # Padded for sorting
+
+# Enables queries like:
+# - "Get most viewed blog posts"
+# - "Get most viewed projects"
+```
+
+#### Real-World Examples from Our Codebase
+
+**Example 1: List Published Blog Posts**
+```python
+# src/repositories/blog.py
+def list_posts(self, status='PUBLISHED'):
+    from boto3.dynamodb.conditions import Key
+
+    response = self.resource.query(
+        IndexName='GSI1',
+        KeyConditionExpression=Key('GSI1PK').eq(f'BLOG#STATUS#{status}'),
+        ScanIndexForward=False  # Newest first
+    )
+
+    return [self.from_item(item) for item in response['Items']]
+```
+
+**Example 2: Get Most Viewed Projects**
+```python
+# src/repositories/analytics.py
+def get_top_content(self, content_type='PROJECT', limit=10):
+    from boto3.dynamodb.conditions import Key
+
+    response = self.resource.query(
+        IndexName='GSI1',
+        KeyConditionExpression=Key('GSI1PK').eq(f'ANALYTICS#{content_type}'),
+        ScanIndexForward=False,  # Highest views first
+        Limit=limit
+    )
+
+    return response['Items']
+```
+
+#### GSI Costs and Limits
+
+**Important Considerations:**
+
+1. **Write Costs**: Every write to the main table also writes to the GSI (double write capacity)
+2. **Storage Costs**: GSI stores a copy of projected attributes (we use `ProjectionType: ALL`)
+3. **Limit**: Maximum 20 GSIs per table (we use 1 to keep it simple)
+4. **Eventual Consistency**: GSI updates are eventually consistent (usually milliseconds)
+
+**Why We Use Only 1 GSI:**
+- Keeps costs predictable
+- Simpler to maintain
+- Sufficient for our access patterns
+- We use composite keys in GSI1PK to handle multiple query patterns
+
+#### When NOT to Use GSI
+
+Don't create a GSI for:
+- One-time queries or admin operations (use Scan with caution)
+- Queries you can handle with main table keys
+- Attributes that change frequently (causes expensive GSI updates)
+
+For our use case, we use Scan for operations like monthly visitor aggregation where we need to sum across partition keys:
+
+```python
+# src/repositories/visitor.py - Monthly trends use Scan
+# This is acceptable because it's an admin/analytics operation, not user-facing
+result = self.resource.scan(
+    FilterExpression=Key('PK').begins_with(f'VISITOR#DAILY#{year_month}')
+)
+```
+
 ## Access Patterns Mapping
 
 ### Blog Posts (8 Endpoints)

@@ -13,7 +13,7 @@ from src.config import settings
 from src.utils.errors import register_error_handlers
 
 # Import routers
-from src.api import auth
+from src.api import auth, blog, projects, certifications, visitors, analytics
 
 # Create FastAPI application
 app = FastAPI(
@@ -58,14 +58,11 @@ async def root():
 
 # Register API routers
 app.include_router(auth.router, prefix="/auth", tags=["Authentication"])
-
-# TODO: Register remaining routers
-# from src.api import blog, projects, certifications, visitors, analytics
-# app.include_router(blog.router, prefix="/blog", tags=["Blog"])
-# app.include_router(projects.router, prefix="/projects", tags=["Projects"])
-# app.include_router(certifications.router, prefix="/certifications", tags=["Certifications"])
-# app.include_router(visitors.router, prefix="/visitors", tags=["Visitors"])
-# app.include_router(analytics.router, prefix="/analytics", tags=["Analytics"])
+app.include_router(blog.router, prefix="/blogs", tags=["Blog"])
+app.include_router(projects.router, prefix="/projects", tags=["Projects"])
+app.include_router(certifications.router, prefix="/certifications", tags=["Certifications"])
+app.include_router(visitors.router, prefix="/visitors", tags=["Visitors"])
+app.include_router(analytics.router, prefix="/analytics", tags=["Analytics"])
 
 # Lambda handler
 handler = Mangum(app, lifespan="off")

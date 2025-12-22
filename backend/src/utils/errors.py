@@ -45,7 +45,7 @@ class ValidationException(PortfolioAPIException):
     """Exception raised for validation errors."""
 
     def __init__(self, message: str):
-        super().__init__(message, status_code=status.HTTP_422_UNPROCESSABLE_ENTITY)
+        super().__init__(message, status_code=status.HTTP_422_UNPROCESSABLE_CONTENT)
 
 
 class DuplicateResourceException(PortfolioAPIException):
@@ -83,11 +83,11 @@ async def http_exception_handler(request: Request, exc: StarletteHTTPException):
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
     """Handle validation errors."""
     return JSONResponse(
-        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+        status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
         content={
             "error": "Validation error",
             "details": exc.errors(),
-            "status_code": status.HTTP_422_UNPROCESSABLE_ENTITY,
+            "status_code": status.HTTP_422_UNPROCESSABLE_CONTENT,
         },
     )
 

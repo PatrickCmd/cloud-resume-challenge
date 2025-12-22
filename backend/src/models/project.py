@@ -8,90 +8,59 @@ Defines all Pydantic models for projects including:
 
 from typing import List, Optional
 from pydantic import BaseModel, Field, HttpUrl
-from datetime import datetime
 
 
 # API Request Models
 
 class ProjectCreate(BaseModel):
     """Project creation request model."""
-    title: str = Field(..., min_length=1, max_length=200)
+    name: str = Field(..., min_length=1, max_length=200)
     description: str = Field(..., min_length=1)
-    technologies: List[str] = Field(default_factory=list)
-    github_url: Optional[HttpUrl] = None
-    demo_url: Optional[HttpUrl] = None
-    is_featured: bool = False
+    longDescription: Optional[str] = Field(None, description="Detailed project description")
+    tech: List[str] = Field(default_factory=list, description="Technologies used")
+    company: Optional[str] = Field(None, max_length=200)
+    featured: bool = False
+    githubUrl: Optional[HttpUrl] = None
+    liveUrl: Optional[HttpUrl] = None
+    imageUrl: Optional[HttpUrl] = None
 
 
 class ProjectUpdate(BaseModel):
     """Project update request model."""
-    title: Optional[str] = Field(None, min_length=1, max_length=200)
+    name: Optional[str] = Field(None, min_length=1, max_length=200)
     description: Optional[str] = Field(None, min_length=1)
-    technologies: Optional[List[str]] = None
-    github_url: Optional[HttpUrl] = None
-    demo_url: Optional[HttpUrl] = None
-    is_featured: Optional[bool] = None
+    longDescription: Optional[str] = None
+    tech: Optional[List[str]] = None
+    company: Optional[str] = Field(None, max_length=200)
+    featured: Optional[bool] = None
+    githubUrl: Optional[HttpUrl] = None
+    liveUrl: Optional[HttpUrl] = None
+    imageUrl: Optional[HttpUrl] = None
 
 
 # API Response Models
 
 class ProjectResponse(BaseModel):
     """Project API response model."""
-    project_id: str
-    title: str
+    id: str
+    name: str
     description: str
-    technologies: List[str]
-    github_url: Optional[str]
-    demo_url: Optional[str]
-    is_featured: bool
-    created_at: datetime
-    updated_at: datetime
+    longDescription: Optional[str]
+    tech: List[str]
+    company: Optional[str]
+    featured: bool
+    status: str = Field(..., description="Publication status: DRAFT or PUBLISHED")
+    githubUrl: Optional[str]
+    liveUrl: Optional[str]
+    imageUrl: Optional[str]
+    createdAt: str = Field(..., description="ISO 8601 timestamp")
+    updatedAt: str = Field(..., description="ISO 8601 timestamp")
 
 
-# Internal DynamoDB Model
+class ProjectListResponse(BaseModel):
+    """Project list response with pagination."""
+    items: List[ProjectResponse]
+    count: int
+    lastEvaluatedKey: Optional[dict] = Field(None, description="Pagination token for next page")
 
-class Project(BaseModel):
-    """Project internal model for DynamoDB."""
 
-    # Primary Key
-    pk: str = Field(..., description="Partition key: PROJECT#<project_id>")
-    sk: str = Field(..., description="Sort key: PROJECT#<project_id>")
-
-    # GSI Keys
-    gsi1_pk: str = Field(..., description="GSI1 PK: PROJECTS")
-    gsi1_sk: str = Field(..., description="GSI1 SK: <created_at>#<project_id>")
-
-    # Entity Type
-    entity_type: str = Field(default="project", description="Entity type identifier")
-
-    # Attributes
-    project_id: str = Field(..., description="Unique project identifier (UUID)")
-    title: str = Field(..., min_length=1, max_length=200)
-    description: str = Field(..., min_length=1, description="Project description")
-    technologies: List[str] = Field(default_factory=list, description="Technologies used")
-    github_url: Optional[str] = Field(None, description="GitHub repository URL")
-    demo_url: Optional[str] = Field(None, description="Live demo URL")
-    is_featured: bool = Field(default=False, description="Featured project flag")
-
-    # Timestamps
-    created_at: datetime = Field(default_factory=datetime.utcnow)
-    updated_at: datetime = Field(default_factory=datetime.utcnow)
-
-    class Config:
-        """Pydantic configuration."""
-        json_schema_extra = {
-            "example": {
-                "pk": "PROJECT#123e4567-e89b-12d3-a456-426614174000",
-                "sk": "PROJECT#123e4567-e89b-12d3-a456-426614174000",
-                "gsi1_pk": "PROJECTS",
-                "gsi1_sk": "2025-01-01T00:00:00#123e4567-e89b-12d3-a456-426614174000",
-                "entity_type": "project",
-                "project_id": "123e4567-e89b-12d3-a456-426614174000",
-                "title": "Cloud Resume Challenge",
-                "description": "Serverless portfolio with AWS Lambda, DynamoDB, and Cognito",
-                "technologies": ["Python", "AWS Lambda", "DynamoDB", "FastAPI"],
-                "github_url": "https://github.com/patrickcmd/cloud-resume-challenge",
-                "demo_url": "https://patrickcmd.com",
-                "is_featured": True,
-            }
-        }

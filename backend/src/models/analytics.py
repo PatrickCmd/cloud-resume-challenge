@@ -7,8 +7,8 @@ Defines all Pydantic models for analytics including:
 """
 
 from typing import List
-from pydantic import BaseModel, Field
-from datetime import date
+from pydantic import BaseModel, Field, ConfigDict
+from datetime import date as date_type
 
 
 # API Response Models
@@ -22,7 +22,7 @@ class PageView(BaseModel):
 
 class DailyStats(BaseModel):
     """Daily statistics model."""
-    date: date
+    date: date_type
     total_views: int
     unique_visitors: int
 
@@ -66,9 +66,8 @@ class PageViewAggregate(BaseModel):
     view_count: int = Field(default=0, description="Total view count")
     unique_visitors: int = Field(default=0, description="Unique visitor count")
 
-    class Config:
-        """Pydantic configuration."""
-        json_schema_extra = {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "pk": "ANALYTICS#PAGE",
                 "sk": "/blog/my-first-post",
@@ -80,6 +79,7 @@ class PageViewAggregate(BaseModel):
                 "unique_visitors": 567,
             }
         }
+    )
 
 
 class DailyStatsAggregate(BaseModel):
@@ -97,13 +97,12 @@ class DailyStatsAggregate(BaseModel):
     entity_type: str = Field(default="daily_stats_aggregate", description="Entity type identifier")
 
     # Attributes
-    date: date = Field(..., description="Statistics date")
+    date: date_type = Field(..., description="Statistics date")
     total_views: int = Field(default=0, description="Total views for the day")
     unique_visitors: int = Field(default=0, description="Unique visitors for the day")
 
-    class Config:
-        """Pydantic configuration."""
-        json_schema_extra = {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "pk": "ANALYTICS#DAILY",
                 "sk": "2025-01-01",
@@ -115,3 +114,4 @@ class DailyStatsAggregate(BaseModel):
                 "unique_visitors": 123,
             }
         }
+    )
