@@ -891,13 +891,13 @@ cp .env.example .env
 nano .env  # Update with your AWS credentials and configuration
 
 # Option A: Run with AWS DynamoDB
-uv run uvicorn src.main:app --reload --host 0.0.0.0 --port 8000
+uv run uvicorn src.main:app --reload --host 0.0.0.0 --port 8080
 
-# Option B: Run with local DynamoDB
-docker-compose up -d  # Start local DynamoDB
-uv run uvicorn src.main:app --reload --host 0.0.0.0 --port 8000
+# Option B: Run with local DynamoDB (DynamoDB Local uses port 8000)
+docker-compose up -d  # Start local DynamoDB on port 8000
+uv run uvicorn src.main:app --reload --host 0.0.0.0 --port 8080
 
-# Visit http://localhost:8000/docs for interactive API documentation
+# Visit http://localhost:8080/docs for interactive API documentation
 
 # Run tests
 uv run pytest tests/unit/ -v

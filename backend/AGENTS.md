@@ -72,9 +72,14 @@ uv run pytest tests/unit/test_blog_api.py -v
 ## Development Server
 
 ```bash
-# Start development server with auto-reload
-uv run uvicorn src.main:app --reload --host 0.0.0.0 --port 8000
+# Start development server with auto-reload (port 8080 to avoid conflict with DynamoDB Local)
+uv run uvicorn src.main:app --reload --host 0.0.0.0 --port 8080
 
 # Or using make
 make dev-server
+
+# Access the API at:
+# - API: http://localhost:8080
+# - Interactive docs: http://localhost:8080/docs
+# - ReDoc: http://localhost:8080/redoc
 ```

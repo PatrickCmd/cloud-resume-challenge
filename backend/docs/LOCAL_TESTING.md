@@ -27,14 +27,16 @@ Use your existing AWS DynamoDB table:
 2. **Run the server**:
    ```bash
    cd backend
-   uv run uvicorn src.main:app --reload --host 0.0.0.0 --port 8000
+   uv run uvicorn src.main:app --reload --host 0.0.0.0 --port 8080
    ```
 
 3. **Access the API**:
-   - API: http://localhost:8000
-   - Health check: http://localhost:8000/health
-   - Interactive docs: http://localhost:8000/docs
-   - ReDoc: http://localhost:8000/redoc
+   - API: http://localhost:8080
+   - Health check: http://localhost:8080/health
+   - Interactive docs: http://localhost:8080/docs
+   - ReDoc: http://localhost:8080/redoc
+
+   **Note**: Using port 8080 to avoid conflict with DynamoDB Local (port 8000)
 
 ### Option B: Test with Local DynamoDB
 
@@ -65,7 +67,7 @@ For fully local development without AWS connection:
 4. **Run the server**:
    ```bash
    cd backend
-   uv run uvicorn src.main:app --reload --host 0.0.0.0 --port 8000
+   uv run uvicorn src.main:app --reload --host 0.0.0.0 --port 8080
    ```
 
 ## Testing the API
@@ -74,27 +76,27 @@ For fully local development without AWS connection:
 
 ```bash
 # Health check
-curl http://localhost:8000/health
+curl http://localhost:8080/health
 
 # Get all published blogs
-curl http://localhost:8000/blogs
+curl http://localhost:8080/blogs
 
 # Get a specific blog
-curl http://localhost:8000/blogs/{blog_id}
+curl http://localhost:8080/blogs/{blog_id}
 
 # Track a visitor (public endpoint)
-curl -X POST http://localhost:8000/visitors/track \
+curl -X POST http://localhost:8080/visitors/track \
   -H "Content-Type: application/json" \
   -d '{"page_path": "/", "referrer": "https://google.com"}'
 
 # Get visitor count
-curl http://localhost:8000/visitors/count
+curl http://localhost:8080/visitors/count
 
 # Track analytics (public endpoint)
-curl -X POST http://localhost:8000/analytics/track/blog/my-blog-post
+curl -X POST http://localhost:8080/analytics/track/blog/my-blog-post
 
 # Get total views
-curl http://localhost:8000/analytics/views/total
+curl http://localhost:8080/analytics/views/total
 ```
 
 ### 2. Using HTTPie (prettier output)
@@ -104,16 +106,16 @@ curl http://localhost:8000/analytics/views/total
 brew install httpie  # or: pip install httpie
 
 # Make requests
-http GET localhost:8000/health
-http GET localhost:8000/blogs
-http POST localhost:8000/visitors/track page_path="/" referrer="https://google.com"
+http GET localhost:8080/health
+http GET localhost:8080/blogs
+http POST localhost:8080/visitors/track page_path="/" referrer="https://google.com"
 ```
 
 ### 3. Using Interactive API Docs
 
 The easiest way to test! Open in your browser:
-- **Swagger UI**: http://localhost:8000/docs
-- **ReDoc**: http://localhost:8000/redoc
+- **Swagger UI**: http://localhost:8080/docs
+- **ReDoc**: http://localhost:8080/redoc
 
 The Swagger UI lets you:
 - See all available endpoints
@@ -127,16 +129,16 @@ The Swagger UI lets you:
 import requests
 
 # Health check
-response = requests.get("http://localhost:8000/health")
+response = requests.get("http://localhost:8080/health")
 print(response.json())
 
 # Get blogs
-response = requests.get("http://localhost:8000/blogs")
+response = requests.get("http://localhost:8080/blogs")
 print(response.json())
 
 # Track visitor
 response = requests.post(
-    "http://localhost:8000/visitors/track",
+    "http://localhost:8080/visitors/track",
     json={"page_path": "/blog/test", "referrer": ""}
 )
 print(response.json())
@@ -147,7 +149,7 @@ print(response.json())
 If you use VS Code:
 1. Install "Thunder Client" extension
 2. Create a new collection
-3. Add requests with URL `http://localhost:8000/...`
+3. Add requests with URL `http://localhost:8080/...`
 
 ## Testing Protected Endpoints
 
@@ -156,14 +158,14 @@ Some endpoints require authentication (owner role):
 1. **Get an auth token** (you need to authenticate via Cognito):
    ```bash
    # Login endpoint
-   curl -X POST http://localhost:8000/auth/login \
+   curl -X POST http://localhost:8080/auth/login \
      -H "Content-Type: application/json" \
      -d '{"email": "your-email@example.com", "password": "your-password"}'
    ```
 
 2. **Use the token**:
    ```bash
-   curl -X POST http://localhost:8000/blogs \
+   curl -X POST http://localhost:8080/blogs \
      -H "Content-Type: application/json" \
      -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
      -d '{
@@ -238,7 +240,7 @@ Some endpoints require authentication (owner role):
 
 2. **Make code changes**: Edit files in `src/`
 
-3. **Test immediately**: The server auto-reloads, test at http://localhost:8000
+3. **Test immediately**: The server auto-reloads, test at http://localhost:8080
 
 4. **Run unit tests**:
    ```bash
@@ -275,7 +277,7 @@ Save this as `test_api.sh`:
 ```bash
 #!/bin/bash
 
-BASE_URL="http://localhost:8000"
+BASE_URL="http://localhost:8080"
 
 echo "Testing Health Check..."
 curl -s "$BASE_URL/health" | jq .
@@ -299,7 +301,7 @@ Run with: `bash test_api.sh`
 ## Next Steps
 
 1. Start the server with Option A (AWS DynamoDB) or Option B (Local)
-2. Open http://localhost:8000/docs in your browser
+2. Open http://localhost:8080/docs in your browser
 3. Try the endpoints interactively
 4. Test your frontend integration
 

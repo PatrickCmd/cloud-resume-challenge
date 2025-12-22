@@ -51,7 +51,7 @@ coverage:
 
 # Start development server
 dev-server:
-	uv run uvicorn src.main:app --reload --host 0.0.0.0 --port 8000
+	uv run uvicorn src.main:app --reload --host 0.0.0.0 --port 8080
 
 # Clean generated files
 clean:
