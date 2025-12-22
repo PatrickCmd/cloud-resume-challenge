@@ -4,13 +4,14 @@ Pytest configuration and shared fixtures.
 This file contains pytest fixtures that are available to all test modules.
 """
 
-import pytest
-from unittest.mock import Mock
 from datetime import datetime, timedelta
+from unittest.mock import Mock
+
+import pytest
 from fastapi.testclient import TestClient
 
-from src.main import app
 from src.config import settings
+from src.main import app
 
 
 # Test client fixture
@@ -39,7 +40,7 @@ def mock_cognito_success_response():
             "IdToken": "mock-id-token-67890",
             "RefreshToken": "mock-refresh-token-abcde",
             "ExpiresIn": 3600,
-            "TokenType": "Bearer"
+            "TokenType": "Bearer",
         }
     }
 
@@ -52,7 +53,7 @@ def mock_refresh_success_response():
             "AccessToken": "new-access-token-12345",
             "IdToken": "new-id-token-67890",
             "ExpiresIn": 3600,
-            "TokenType": "Bearer"
+            "TokenType": "Bearer",
         }
     }
 
@@ -69,7 +70,7 @@ def mock_jwks():
                 "kty": "RSA",
                 "use": "sig",
                 "n": "test-modulus",
-                "e": "AQAB"
+                "e": "AQAB",
             },
             {
                 "kid": "test-key-id-2",
@@ -77,8 +78,8 @@ def mock_jwks():
                 "kty": "RSA",
                 "use": "sig",
                 "n": "test-modulus-2",
-                "e": "AQAB"
-            }
+                "e": "AQAB",
+            },
         ]
     }
 
@@ -95,7 +96,7 @@ def valid_token_claims():
         "aud": settings.cognito_client_id,
         "iss": settings.jwt_issuer,
         "exp": int((datetime.utcnow() + timedelta(hours=1)).timestamp()),
-        "iat": int(datetime.utcnow().timestamp())
+        "iat": int(datetime.utcnow().timestamp()),
     }
 
 
@@ -111,7 +112,7 @@ def expired_token_claims():
         "aud": settings.cognito_client_id,
         "iss": settings.jwt_issuer,
         "exp": int((datetime.utcnow() - timedelta(hours=1)).timestamp()),
-        "iat": int((datetime.utcnow() - timedelta(hours=2)).timestamp())
+        "iat": int((datetime.utcnow() - timedelta(hours=2)).timestamp()),
     }
 
 
@@ -123,7 +124,7 @@ def mock_user_info():
         "email": "test@example.com",
         "name": "Test User",
         "role": "owner",
-        "email_verified": True
+        "email_verified": True,
     }
 
 
@@ -135,24 +136,20 @@ def mock_visitor_user_info():
         "email": "visitor@example.com",
         "name": "Visitor User",
         "role": "visitor",
-        "email_verified": True
+        "email_verified": True,
     }
 
 
 @pytest.fixture
 def valid_auth_headers():
     """Mock valid authorization headers."""
-    return {
-        "Authorization": "Bearer valid.jwt.token"
-    }
+    return {"Authorization": "Bearer valid.jwt.token"}
 
 
 @pytest.fixture
 def invalid_auth_headers():
     """Mock invalid authorization headers."""
-    return {
-        "Authorization": "Bearer invalid.jwt.token"
-    }
+    return {"Authorization": "Bearer invalid.jwt.token"}
 
 
 # Mock DynamoDB fixtures
@@ -185,7 +182,7 @@ def mock_blog_post_item():
         "tags": ["python", "testing"],
         "is_published": True,
         "created_at": "2024-01-15T10:00:00",
-        "updated_at": "2024-01-15T10:00:00"
+        "updated_at": "2024-01-15T10:00:00",
     }
 
 
@@ -205,7 +202,7 @@ def mock_project_item():
         "demo_url": "https://demo.example.com",
         "is_featured": True,
         "created_at": "2024-01-15T10:00:00",
-        "updated_at": "2024-01-15T10:00:00"
+        "updated_at": "2024-01-15T10:00:00",
     }
 
 
@@ -213,10 +210,7 @@ def mock_project_item():
 @pytest.fixture
 def sample_login_request():
     """Sample login request data."""
-    return {
-        "email": "test@example.com",
-        "password": "SecurePassword123!"
-    }
+    return {"email": "test@example.com", "password": "SecurePassword123!"}
 
 
 @pytest.fixture
@@ -228,7 +222,7 @@ def sample_blog_create_request():
         "content": "This is the content of the new blog post.",
         "excerpt": "Brief excerpt of the blog post.",
         "tags": ["python", "fastapi", "testing"],
-        "is_published": True
+        "is_published": True,
     }
 
 
@@ -241,7 +235,7 @@ def sample_project_create_request():
         "technologies": ["Python", "FastAPI", "AWS"],
         "github_url": "https://github.com/test/new-project",
         "demo_url": "https://demo-new.example.com",
-        "is_featured": False
+        "is_featured": False,
     }
 
 
@@ -249,8 +243,8 @@ def sample_project_create_request():
 @pytest.fixture
 def override_get_blog_repository(mock_blog_repo):
     """Override blog repository dependency."""
-    from src.main import app
     from src.dependencies import get_blog_repository
+    from src.main import app
 
     app.dependency_overrides[get_blog_repository] = lambda: mock_blog_repo
     yield
@@ -260,8 +254,8 @@ def override_get_blog_repository(mock_blog_repo):
 @pytest.fixture
 def override_get_project_repository(mock_project_repo):
     """Override project repository dependency."""
-    from src.main import app
     from src.dependencies import get_project_repository
+    from src.main import app
 
     app.dependency_overrides[get_project_repository] = lambda: mock_project_repo
     yield
@@ -271,8 +265,8 @@ def override_get_project_repository(mock_project_repo):
 @pytest.fixture
 def override_get_certification_repository(mock_cert_repo):
     """Override certification repository dependency."""
-    from src.main import app
     from src.dependencies import get_certification_repository
+    from src.main import app
 
     app.dependency_overrides[get_certification_repository] = lambda: mock_cert_repo
     yield
@@ -282,8 +276,8 @@ def override_get_certification_repository(mock_cert_repo):
 @pytest.fixture
 def override_get_visitor_repository(mock_visitor_repo):
     """Override visitor repository dependency."""
-    from src.main import app
     from src.dependencies import get_visitor_repository
+    from src.main import app
 
     app.dependency_overrides[get_visitor_repository] = lambda: mock_visitor_repo
     yield
@@ -293,8 +287,8 @@ def override_get_visitor_repository(mock_visitor_repo):
 @pytest.fixture
 def override_get_analytics_repository(mock_analytics_repo):
     """Override analytics repository dependency."""
-    from src.main import app
     from src.dependencies import get_analytics_repository
+    from src.main import app
 
     app.dependency_overrides[get_analytics_repository] = lambda: mock_analytics_repo
     yield
@@ -308,4 +302,5 @@ def reset_mocks():
     yield
     # Cleanup happens after test completes
     from src.main import app
+
     app.dependency_overrides.clear()

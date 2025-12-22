@@ -9,11 +9,10 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from mangum import Mangum
 
+# Import routers
+from src.api import analytics, auth, blog, certifications, projects, visitors
 from src.config import settings
 from src.utils.errors import register_error_handlers
-
-# Import routers
-from src.api import auth, blog, projects, certifications, visitors, analytics
 
 # Create FastAPI application
 app = FastAPI(
@@ -36,6 +35,7 @@ app.add_middleware(
 # Register error handlers
 register_error_handlers(app)
 
+
 # Health check endpoint
 @app.get("/health")
 async def health_check():
@@ -46,6 +46,7 @@ async def health_check():
         "version": settings.version,
     }
 
+
 # Root endpoint
 @app.get("/")
 async def root():
@@ -55,6 +56,7 @@ async def root():
         "version": settings.version,
         "docs": "/docs" if settings.environment == "development" else "disabled",
     }
+
 
 # Register API routers
 app.include_router(auth.router, prefix="/auth", tags=["Authentication"])

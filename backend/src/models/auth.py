@@ -8,24 +8,28 @@ Defines all Pydantic models for authentication including:
 
 from pydantic import BaseModel, EmailStr
 
-
 # API Request Models
+
 
 class LoginRequest(BaseModel):
     """Login request model."""
+
     email: EmailStr
     password: str
 
 
 class RefreshTokenRequest(BaseModel):
     """Refresh token request model."""
+
     refresh_token: str
 
 
 # API Response Models
 
+
 class LoginResponse(BaseModel):
     """Login response model with JWT tokens."""
+
     access_token: str
     id_token: str
     refresh_token: str
@@ -35,6 +39,7 @@ class LoginResponse(BaseModel):
 
 class UserInfoResponse(BaseModel):
     """User information response model."""
+
     user_id: str
     email: str
     name: str
@@ -44,8 +49,10 @@ class UserInfoResponse(BaseModel):
 
 # Internal Models
 
+
 class TokenPayload(BaseModel):
     """JWT token payload model."""
+
     sub: str  # User ID (Cognito sub)
     email: str
     name: str

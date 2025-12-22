@@ -6,15 +6,16 @@ Defines all Pydantic models for analytics including:
 - Internal aggregation models
 """
 
-from typing import List
-from pydantic import BaseModel, Field, ConfigDict
 from datetime import date as date_type
 
+from pydantic import BaseModel, ConfigDict, Field
 
 # API Response Models
 
+
 class PageView(BaseModel):
     """Page view analytics model."""
+
     page_path: str
     view_count: int
     unique_visitors: int
@@ -22,6 +23,7 @@ class PageView(BaseModel):
 
 class DailyStats(BaseModel):
     """Daily statistics model."""
+
     date: date_type
     total_views: int
     unique_visitors: int
@@ -29,14 +31,16 @@ class DailyStats(BaseModel):
 
 class AnalyticsOverview(BaseModel):
     """Analytics overview response model."""
+
     total_views: int
     unique_visitors: int
-    top_pages: List[PageView]
-    recent_activity: List[DailyStats]
+    top_pages: list[PageView]
+    recent_activity: list[DailyStats]
 
 
 class BlogPostStats(BaseModel):
     """Blog post statistics model."""
+
     post_id: str
     title: str
     view_count: int
@@ -46,6 +50,7 @@ class BlogPostStats(BaseModel):
 
 
 # Internal DynamoDB Models
+
 
 class PageViewAggregate(BaseModel):
     """Page view aggregate model for DynamoDB."""

@@ -5,15 +5,15 @@ Provides common functionality for all repositories following
 the single-table design pattern.
 """
 
-from typing import Any, Dict, List, Optional, TypeVar, Generic
 from abc import ABC, abstractmethod
+from typing import Any, Generic, TypeVar
+
 import boto3
 from botocore.exceptions import ClientError
 
 from src.config import settings
 
-
-T = TypeVar('T')  # Generic type for repository item
+T = TypeVar("T")  # Generic type for repository item
 
 
 class BaseRepository(ABC, Generic[T]):
@@ -45,17 +45,14 @@ class BaseRepository(ABC, Generic[T]):
         """
         if self._client is None:
             # Check if running locally
-            if hasattr(settings, 'dynamodb_endpoint') and settings.dynamodb_endpoint:
+            if hasattr(settings, "dynamodb_endpoint") and settings.dynamodb_endpoint:
                 self._client = boto3.client(
-                    'dynamodb',
+                    "dynamodb",
                     endpoint_url=settings.dynamodb_endpoint,
-                    region_name=settings.aws_region
+                    region_name=settings.aws_region,
                 )
             else:
-                self._client = boto3.client(
-                    'dynamodb',
-                    region_name=settings.aws_region
-                )
+                self._client = boto3.client("dynamodb", region_name=settings.aws_region)
         return self._client
 
     @property
@@ -68,17 +65,14 @@ class BaseRepository(ABC, Generic[T]):
         """
         if self._resource is None:
             # Check if running locally
-            if hasattr(settings, 'dynamodb_endpoint') and settings.dynamodb_endpoint:
+            if hasattr(settings, "dynamodb_endpoint") and settings.dynamodb_endpoint:
                 dynamodb = boto3.resource(
-                    'dynamodb',
+                    "dynamodb",
                     endpoint_url=settings.dynamodb_endpoint,
-                    region_name=settings.aws_region
+                    region_name=settings.aws_region,
                 )
             else:
-                dynamodb = boto3.resource(
-                    'dynamodb',
-                    region_name=settings.aws_region
-                )
+                dynamodb = boto3.resource("dynamodb", region_name=settings.aws_region)
             self._resource = dynamodb.Table(self.table_name)
         return self._resource
 
@@ -91,24 +85,14 @@ class BaseRepository(ABC, Generic[T]):
             boto3 DynamoDB service resource
         """
         # Check if running locally
-        if hasattr(settings, 'dynamodb_endpoint') and settings.dynamodb_endpoint:
+        if hasattr(settings, "dynamodb_endpoint") and settings.dynamodb_endpoint:
             return boto3.resource(
-                'dynamodb',
-                endpoint_url=settings.dynamodb_endpoint,
-                region_name=settings.aws_region
+                "dynamodb", endpoint_url=settings.dynamodb_endpoint, region_name=settings.aws_region
             )
         else:
-            return boto3.resource(
-                'dynamodb',
-                region_name=settings.aws_region
-            )
+            return boto3.resource("dynamodb", region_name=settings.aws_region)
 
-    def get_item(
-        self,
-        pk: str,
-        sk: str,
-        consistent_read: bool = False
-    ) -> Optional[Dict[str, Any]]:
+    def get_item(self, pk: str, sk: str, consistent_read: bool = False) -> dict[str, Any] | None:
         """
         Get a single item by primary key.
 
@@ -122,17 +106,16 @@ class BaseRepository(ABC, Generic[T]):
         """
         try:
             response = self.resource.get_item(
-                Key={'PK': pk, 'SK': sk},
-                ConsistentRead=consistent_read
+                Key={"PK": pk, "SK": sk}, ConsistentRead=consistent_read
             )
-            return response.get('Item')
+            return response.get("Item")
         except ClientError as e:
-            error_code = e.response['Error']['Code']
-            if error_code == 'ResourceNotFoundException':
+            error_code = e.response["Error"]["Code"]
+            if error_code == "ResourceNotFoundException":
                 return None
             raise
 
-    def put_item(self, item: Dict[str, Any]) -> Dict[str, Any]:
+    def put_item(self, item: dict[str, Any]) -> dict[str, Any]:
         """
         Put (create or replace) an item.
 
@@ -145,7 +128,7 @@ class BaseRepository(ABC, Generic[T]):
         try:
             self.resource.put_item(Item=item)
             return item
-        except ClientError as e:
+        except ClientError:
             raise
 
     def update_item(
@@ -153,10 +136,10 @@ class BaseRepository(ABC, Generic[T]):
         pk: str,
         sk: str,
         update_expression: str,
-        expression_attribute_values: Dict[str, Any],
-        expression_attribute_names: Optional[Dict[str, str]] = None,
-        condition_expression: Optional[str] = None
-    ) -> Dict[str, Any]:
+        expression_attribute_values: dict[str, Any],
+        expression_attribute_names: dict[str, str] | None = None,
+        condition_expression: str | None = None,
+    ) -> dict[str, Any]:
         """
         Update an existing item.
 
@@ -173,32 +156,27 @@ class BaseRepository(ABC, Generic[T]):
         """
         try:
             params = {
-                'Key': {'PK': pk, 'SK': sk},
-                'UpdateExpression': update_expression,
-                'ExpressionAttributeValues': expression_attribute_values,
-                'ReturnValues': 'ALL_NEW'
+                "Key": {"PK": pk, "SK": sk},
+                "UpdateExpression": update_expression,
+                "ExpressionAttributeValues": expression_attribute_values,
+                "ReturnValues": "ALL_NEW",
             }
 
             if expression_attribute_names:
-                params['ExpressionAttributeNames'] = expression_attribute_names
+                params["ExpressionAttributeNames"] = expression_attribute_names
 
             if condition_expression:
-                params['ConditionExpression'] = condition_expression
+                params["ConditionExpression"] = condition_expression
 
             response = self.resource.update_item(**params)
-            return response['Attributes']
+            return response["Attributes"]
         except ClientError as e:
-            error_code = e.response['Error']['Code']
-            if error_code == 'ConditionalCheckFailedException':
+            error_code = e.response["Error"]["Code"]
+            if error_code == "ConditionalCheckFailedException":
                 return None
             raise
 
-    def delete_item(
-        self,
-        pk: str,
-        sk: str,
-        condition_expression: Optional[str] = None
-    ) -> bool:
+    def delete_item(self, pk: str, sk: str, condition_expression: str | None = None) -> bool:
         """
         Delete an item.
 
@@ -211,30 +189,30 @@ class BaseRepository(ABC, Generic[T]):
             True if deleted, False if condition failed
         """
         try:
-            params = {'Key': {'PK': pk, 'SK': sk}}
+            params = {"Key": {"PK": pk, "SK": sk}}
 
             if condition_expression:
-                params['ConditionExpression'] = condition_expression
+                params["ConditionExpression"] = condition_expression
 
             self.resource.delete_item(**params)
             return True
         except ClientError as e:
-            error_code = e.response['Error']['Code']
-            if error_code == 'ConditionalCheckFailedException':
+            error_code = e.response["Error"]["Code"]
+            if error_code == "ConditionalCheckFailedException":
                 return False
             raise
 
     def query(
         self,
         key_condition_expression: str,
-        expression_attribute_values: Dict[str, Any],
-        expression_attribute_names: Optional[Dict[str, str]] = None,
-        filter_expression: Optional[str] = None,
-        index_name: Optional[str] = None,
+        expression_attribute_values: dict[str, Any],
+        expression_attribute_names: dict[str, str] | None = None,
+        filter_expression: str | None = None,
+        index_name: str | None = None,
         scan_index_forward: bool = True,
-        limit: Optional[int] = None,
-        exclusive_start_key: Optional[Dict[str, Any]] = None
-    ) -> Dict[str, Any]:
+        limit: int | None = None,
+        exclusive_start_key: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
         """
         Query items.
 
@@ -253,39 +231,36 @@ class BaseRepository(ABC, Generic[T]):
         """
         try:
             params = {
-                'KeyConditionExpression': key_condition_expression,
-                'ExpressionAttributeValues': expression_attribute_values,
-                'ScanIndexForward': scan_index_forward
+                "KeyConditionExpression": key_condition_expression,
+                "ExpressionAttributeValues": expression_attribute_values,
+                "ScanIndexForward": scan_index_forward,
             }
 
             if expression_attribute_names:
-                params['ExpressionAttributeNames'] = expression_attribute_names
+                params["ExpressionAttributeNames"] = expression_attribute_names
 
             if filter_expression:
-                params['FilterExpression'] = filter_expression
+                params["FilterExpression"] = filter_expression
 
             if index_name:
-                params['IndexName'] = index_name
+                params["IndexName"] = index_name
 
             if limit:
-                params['Limit'] = limit
+                params["Limit"] = limit
 
             if exclusive_start_key:
-                params['ExclusiveStartKey'] = exclusive_start_key
+                params["ExclusiveStartKey"] = exclusive_start_key
 
             response = self.resource.query(**params)
 
             return {
-                'Items': response.get('Items', []),
-                'LastEvaluatedKey': response.get('LastEvaluatedKey')
+                "Items": response.get("Items", []),
+                "LastEvaluatedKey": response.get("LastEvaluatedKey"),
             }
-        except ClientError as e:
+        except ClientError:
             raise
 
-    def batch_get_items(
-        self,
-        keys: List[Dict[str, str]]
-    ) -> List[Dict[str, Any]]:
+    def batch_get_items(self, keys: list[dict[str, str]]) -> list[dict[str, Any]]:
         """
         Get multiple items in a single request.
 
@@ -299,26 +274,19 @@ class BaseRepository(ABC, Generic[T]):
             # Use DynamoDB service resource which handles type conversion automatically
             responses = []
             for i in range(0, len(keys), 100):
-                batch_keys = keys[i:i + 100]
+                batch_keys = keys[i : i + 100]
 
                 response = self.dynamodb_resource.batch_get_item(
-                    RequestItems={
-                        self.table_name: {
-                            'Keys': batch_keys
-                        }
-                    }
+                    RequestItems={self.table_name: {"Keys": batch_keys}}
                 )
 
-                responses.extend(response['Responses'].get(self.table_name, []))
+                responses.extend(response["Responses"].get(self.table_name, []))
 
             return responses
-        except ClientError as e:
+        except ClientError:
             raise
 
-    def batch_write_items(
-        self,
-        items: List[Dict[str, Any]]
-    ) -> bool:
+    def batch_write_items(self, items: list[dict[str, Any]]) -> bool:
         """
         Write multiple items in batches.
 
@@ -331,18 +299,18 @@ class BaseRepository(ABC, Generic[T]):
         try:
             # Batch write items (max 25 per request)
             for i in range(0, len(items), 25):
-                batch_items = items[i:i + 25]
+                batch_items = items[i : i + 25]
 
                 with self.resource.batch_writer() as batch:
                     for item in batch_items:
                         batch.put_item(Item=item)
 
             return True
-        except ClientError as e:
+        except ClientError:
             raise
 
     @abstractmethod
-    def to_item(self, data: T) -> Dict[str, Any]:
+    def to_item(self, data: T) -> dict[str, Any]:
         """
         Convert domain model to DynamoDB item.
 
@@ -355,7 +323,7 @@ class BaseRepository(ABC, Generic[T]):
         pass
 
     @abstractmethod
-    def from_item(self, item: Dict[str, Any]) -> T:
+    def from_item(self, item: dict[str, Any]) -> T:
         """
         Convert DynamoDB item to domain model.
 

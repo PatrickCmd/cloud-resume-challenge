@@ -5,8 +5,8 @@ Defines custom exceptions and error handling middleware for the API.
 """
 
 from fastapi import Request, status
-from fastapi.responses import JSONResponse
 from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 
@@ -57,6 +57,7 @@ class DuplicateResourceException(PortfolioAPIException):
 
 
 # Error handlers
+
 
 async def portfolio_api_exception_handler(request: Request, exc: PortfolioAPIException):
     """Handle PortfolioAPIException."""

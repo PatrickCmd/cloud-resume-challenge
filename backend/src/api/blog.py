@@ -5,11 +5,10 @@ Handles blog post creation, retrieval, updates, and deletion.
 Public endpoints for reading, owner-only for write operations.
 """
 
-from typing import List, Optional
-from fastapi import APIRouter, Depends, HTTPException, status, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 
-from src.dependencies import require_owner_role, get_blog_repository
-from src.models.blog import BlogPostCreate, BlogPostUpdate, BlogPostResponse, BlogPostListResponse
+from src.dependencies import get_blog_repository, require_owner_role
+from src.models.blog import BlogPostCreate, BlogPostListResponse, BlogPostResponse, BlogPostUpdate
 from src.repositories.blog import BlogRepository
 
 router = APIRouter()
@@ -17,10 +16,12 @@ router = APIRouter()
 
 @router.get("", response_model=BlogPostListResponse)
 async def list_blog_posts(
-    status_filter: Optional[str] = Query(None, alias="status", description="Filter by status: PUBLISHED, DRAFT, or omit for all"),
-    category: Optional[str] = Query(None, description="Filter by category"),
+    status_filter: str | None = Query(
+        None, alias="status", description="Filter by status: PUBLISHED, DRAFT, or omit for all"
+    ),
+    category: str | None = Query(None, description="Filter by category"),
     limit: int = Query(20, ge=1, le=100),
-    last_key: Optional[str] = Query(None, description="Pagination token from previous response"),
+    last_key: str | None = Query(None, description="Pagination token from previous response"),
     blog_repo: BlogRepository = Depends(get_blog_repository),
 ):
     """
@@ -44,6 +45,7 @@ async def list_blog_posts(
     if last_key:
         try:
             import json
+
             last_evaluated_key = json.loads(last_key)
         except Exception:
             raise HTTPException(
@@ -56,7 +58,7 @@ async def list_blog_posts(
         status=status_filter.upper() if status_filter else None,
         category=category,
         limit=limit,
-        last_evaluated_key=last_evaluated_key
+        last_evaluated_key=last_evaluated_key,
     )
 
     return result
@@ -215,7 +217,7 @@ async def unpublish_blog_post(
     return unpublished_post
 
 
-@router.get("/categories/list", response_model=List[dict])
+@router.get("/categories/list", response_model=list[dict])
 async def list_categories(
     blog_repo: BlogRepository = Depends(get_blog_repository),
 ):

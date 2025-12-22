@@ -5,11 +5,10 @@ Handles project portfolio management - create, read, update, delete.
 Public endpoints for reading, owner-only for write operations.
 """
 
-from typing import Optional
-from fastapi import APIRouter, Depends, HTTPException, status, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 
-from src.dependencies import require_owner_role, get_project_repository
-from src.models.project import ProjectCreate, ProjectUpdate, ProjectResponse, ProjectListResponse
+from src.dependencies import get_project_repository, require_owner_role
+from src.models.project import ProjectCreate, ProjectListResponse, ProjectResponse, ProjectUpdate
 from src.repositories.project import ProjectRepository
 
 router = APIRouter()
@@ -17,10 +16,12 @@ router = APIRouter()
 
 @router.get("", response_model=ProjectListResponse)
 async def list_projects(
-    status_filter: Optional[str] = Query(None, alias="status", description="Filter by status: PUBLISHED, DRAFT, or omit for all"),
-    featured: Optional[bool] = Query(None, description="Filter by featured projects"),
+    status_filter: str | None = Query(
+        None, alias="status", description="Filter by status: PUBLISHED, DRAFT, or omit for all"
+    ),
+    featured: bool | None = Query(None, description="Filter by featured projects"),
     limit: int = Query(20, ge=1, le=100),
-    last_key: Optional[str] = Query(None, description="Pagination token from previous response"),
+    last_key: str | None = Query(None, description="Pagination token from previous response"),
     project_repo: ProjectRepository = Depends(get_project_repository),
 ):
     """List all projects. Public endpoint - returns published projects by default."""
@@ -40,6 +41,7 @@ async def list_projects(
     if last_key:
         try:
             import json
+
             last_evaluated_key = json.loads(last_key)
         except Exception:
             raise HTTPException(
@@ -52,7 +54,7 @@ async def list_projects(
         status=status_filter.upper() if status_filter else None,
         featured=featured,
         limit=limit,
-        last_evaluated_key=last_evaluated_key
+        last_evaluated_key=last_evaluated_key,
     )
 
     return result

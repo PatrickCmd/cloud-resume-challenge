@@ -6,11 +6,12 @@ Owner-only endpoints for viewing detailed analytics.
 """
 
 import uuid
-from typing import List, Dict, Any
-from fastapi import APIRouter, Depends, HTTPException, status, Query, Request
+from typing import Any
 
-from src.dependencies import require_owner_role, get_analytics_repository, get_blog_repository
-from src.models.analytics import PageView, DailyStats, AnalyticsOverview, BlogPostStats
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
+
+from src.dependencies import get_analytics_repository, get_blog_repository, require_owner_role
+from src.models.analytics import AnalyticsOverview, BlogPostStats, PageView
 from src.repositories.analytics import AnalyticsRepository
 from src.repositories.blog import BlogRepository
 
@@ -47,7 +48,7 @@ async def track_content_view(
     return {
         "message": "View tracked successfully",
         "sessionId": session_id,
-        "views": result.get("views", 0)
+        "views": result.get("views", 0),
     }
 
 
@@ -71,11 +72,7 @@ async def get_content_view_count(
 
     view_count = analytics_repo.get_view_count(content_type, content_id)
 
-    return {
-        "contentType": content_type,
-        "contentId": content_id,
-        "views": view_count
-    }
+    return {"contentType": content_type, "contentId": content_id, "views": view_count}
 
 
 @router.get("/views/total")
@@ -89,9 +86,7 @@ async def get_total_views(
     """
     total_views = analytics_repo.get_total_views()
 
-    return {
-        "totalViews": total_views
-    }
+    return {"totalViews": total_views}
 
 
 @router.get("/top-content")
@@ -99,7 +94,7 @@ async def get_top_content(
     limit: int = Query(5, ge=1, le=20, description="Number of items per type"),
     current_user: dict = Depends(require_owner_role),
     analytics_repo: AnalyticsRepository = Depends(get_analytics_repository),
-) -> Dict[str, List[Dict[str, Any]]]:
+) -> dict[str, list[dict[str, Any]]]:
     """
     Get top viewed content across all types.
 
@@ -127,11 +122,13 @@ async def get_analytics_overview(
     top_pages = []
     for content_type, items in top_content.items():
         for item in items:
-            top_pages.append(PageView(
-                page_path=f"/{content_type}/{item['contentId']}",
-                view_count=item['views'],
-                unique_visitors=0  # Not tracked separately yet
-            ))
+            top_pages.append(
+                PageView(
+                    page_path=f"/{content_type}/{item['contentId']}",
+                    view_count=item["views"],
+                    unique_visitors=0,  # Not tracked separately yet
+                )
+            )
 
     # Sort by view count
     top_pages.sort(key=lambda x: x.view_count, reverse=True)
@@ -141,13 +138,15 @@ async def get_analytics_overview(
         total_views=total_views,
         unique_visitors=0,  # Not tracked separately yet
         top_pages=top_pages,
-        recent_activity=[]  # Could be implemented later
+        recent_activity=[],  # Could be implemented later
     )
 
 
-@router.get("/pages", response_model=List[PageView])
+@router.get("/pages", response_model=list[PageView])
 async def get_page_analytics(
-    content_type: str = Query(..., description="Filter by content type: blog, project, or certification"),
+    content_type: str = Query(
+        ..., description="Filter by content type: blog, project, or certification"
+    ),
     current_user: dict = Depends(require_owner_role),
     analytics_repo: AnalyticsRepository = Depends(get_analytics_repository),
 ):
@@ -167,11 +166,13 @@ async def get_page_analytics(
 
     pages = []
     for content_id, view_count in view_stats.items():
-        pages.append(PageView(
-            page_path=f"/{content_type}/{content_id}",
-            view_count=view_count,
-            unique_visitors=0  # Not tracked separately yet
-        ))
+        pages.append(
+            PageView(
+                page_path=f"/{content_type}/{content_id}",
+                view_count=view_count,
+                unique_visitors=0,  # Not tracked separately yet
+            )
+        )
 
     # Sort by view count
     pages.sort(key=lambda x: x.view_count, reverse=True)
@@ -209,5 +210,5 @@ async def get_blog_post_stats(
         view_count=view_count,
         unique_visitors=0,  # Not tracked separately yet
         average_time_on_page=0.0,  # Not tracked yet
-        bounce_rate=0.0  # Not tracked yet
+        bounce_rate=0.0,  # Not tracked yet
     )

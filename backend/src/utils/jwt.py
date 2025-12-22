@@ -4,16 +4,16 @@ JWT token utilities.
 Provides functions for validating and decoding JWT tokens from Cognito.
 """
 
-from typing import Dict, Optional
-from jose import jwt, JWTError
-import requests
 from functools import lru_cache
+
+import requests
+from jose import JWTError, jwt
 
 from src.config import settings
 
 
 @lru_cache(maxsize=1)
-def get_cognito_public_keys() -> Dict:
+def get_cognito_public_keys() -> dict:
     """
     Fetch and cache Cognito public keys for JWT validation.
 
@@ -36,7 +36,7 @@ def get_cognito_public_keys() -> Dict:
         raise Exception(f"Failed to fetch Cognito public keys: {str(e)}")
 
 
-def decode_token(token: str) -> Optional[Dict]:
+def decode_token(token: str) -> dict | None:
     """
     Decode and validate a JWT token from Cognito.
 
@@ -90,7 +90,7 @@ def decode_token(token: str) -> Optional[Dict]:
         return None
 
 
-def extract_user_from_token(token: str) -> Optional[Dict]:
+def extract_user_from_token(token: str) -> dict | None:
     """
     Extract user information from JWT token.
 

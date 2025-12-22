@@ -6,12 +6,13 @@ Public endpoint for tracking, owner-only for viewing stats.
 """
 
 import uuid
-from datetime import datetime, timezone
-from typing import List, Dict, Any
-from fastapi import APIRouter, HTTPException, status, Request, Depends, Query
+from datetime import UTC, datetime
+from typing import Any
+
+from fastapi import APIRouter, Depends, Query, Request
 
 from src.dependencies import get_visitor_repository, require_owner_role
-from src.models.visitor import VisitorTrackRequest, VisitorCountResponse
+from src.models.visitor import VisitorCountResponse, VisitorTrackRequest
 from src.repositories.visitor import VisitorRepository
 
 router = APIRouter()
@@ -39,7 +40,7 @@ async def track_visitor(
     return {
         "message": "Visitor tracked successfully",
         "sessionId": session_id,
-        "count": result.get("count", 0)
+        "count": result.get("count", 0),
     }
 
 
@@ -54,10 +55,7 @@ async def get_visitor_count(
     """
     total_count = visitor_repo.get_total_count()
 
-    return VisitorCountResponse(
-        total_visitors=total_count,
-        last_updated=datetime.now(timezone.utc)
-    )
+    return VisitorCountResponse(total_visitors=total_count, last_updated=datetime.now(UTC))
 
 
 @router.get("/trends/daily")
@@ -65,7 +63,7 @@ async def get_daily_trends(
     days: int = Query(30, ge=1, le=365, description="Number of days to retrieve"),
     current_user: dict = Depends(require_owner_role),
     visitor_repo: VisitorRepository = Depends(get_visitor_repository),
-) -> List[Dict[str, Any]]:
+) -> list[dict[str, Any]]:
     """
     Get daily visitor trends.
 
@@ -80,7 +78,7 @@ async def get_monthly_trends(
     months: int = Query(6, ge=1, le=24, description="Number of months to retrieve"),
     current_user: dict = Depends(require_owner_role),
     visitor_repo: VisitorRepository = Depends(get_visitor_repository),
-) -> List[Dict[str, Any]]:
+) -> list[dict[str, Any]]:
     """
     Get monthly visitor trends.
 

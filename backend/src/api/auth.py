@@ -4,14 +4,15 @@ Authentication API endpoints.
 Handles user authentication, token refresh, and user profile management.
 """
 
-import boto3
-from botocore.exceptions import ClientError
-from fastapi import APIRouter, HTTPException, status, Depends
 from typing import Annotated
 
-from src.models.auth import LoginRequest, LoginResponse, RefreshTokenRequest, UserInfoResponse
+import boto3
+from botocore.exceptions import ClientError
+from fastapi import APIRouter, Depends, HTTPException, status
+
 from src.config import settings
 from src.dependencies import get_current_user
+from src.models.auth import LoginRequest, LoginResponse, RefreshTokenRequest, UserInfoResponse
 from src.utils.errors import UnauthorizedException, ValidationException
 
 router = APIRouter()
@@ -47,7 +48,7 @@ async def login(request: LoginRequest):
             AuthParameters={
                 "USERNAME": request.email,
                 "PASSWORD": request.password,
-            }
+            },
         )
 
         # Extract tokens from response
@@ -62,7 +63,7 @@ async def login(request: LoginRequest):
             id_token=auth_result["IdToken"],
             refresh_token=auth_result["RefreshToken"],
             token_type="Bearer",
-            expires_in=auth_result["ExpiresIn"]
+            expires_in=auth_result["ExpiresIn"],
         )
 
     except ClientError as e:
@@ -72,38 +73,31 @@ async def login(request: LoginRequest):
         # Following docs/AUTHENTICATION.md lines 454-458
         if error_code == "NotAuthorizedException":
             raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Invalid email or password"
+                status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid email or password"
             )
         elif error_code == "UserNotConfirmedException":
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Email not verified"
-            )
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Email not verified")
         elif error_code == "UserNotFoundException":
             raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Invalid email or password"
+                status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid email or password"
             )
         elif error_code == "InvalidParameterException":
             raise ValidationException("Invalid email or password format")
         elif error_code == "TooManyRequestsException":
             raise HTTPException(
                 status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-                detail="Too many requests, please try again later"
+                detail="Too many requests, please try again later",
             )
         else:
             # Log the actual error for debugging
             print(f"Cognito error: {error_code} - {str(e)}")
             raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Internal server error"
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Internal server error"
             )
     except Exception as e:
         print(f"Unexpected error during login: {str(e)}")
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Internal server error"
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Internal server error"
         )
 
 
@@ -128,7 +122,7 @@ async def refresh_token(request: RefreshTokenRequest):
             ClientId=settings.cognito_client_id,
             AuthParameters={
                 "REFRESH_TOKEN": request.refresh_token,
-            }
+            },
         )
 
         auth_result = response.get("AuthenticationResult")
@@ -144,7 +138,7 @@ async def refresh_token(request: RefreshTokenRequest):
             id_token=auth_result["IdToken"],
             refresh_token=refresh_token,
             token_type="Bearer",
-            expires_in=auth_result["ExpiresIn"]
+            expires_in=auth_result["ExpiresIn"],
         )
 
     except ClientError as e:
@@ -152,20 +146,17 @@ async def refresh_token(request: RefreshTokenRequest):
 
         if error_code == "NotAuthorizedException":
             raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Refresh token expired or invalid"
+                status_code=status.HTTP_401_UNAUTHORIZED, detail="Refresh token expired or invalid"
             )
         else:
             print(f"Cognito refresh error: {error_code} - {str(e)}")
             raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Internal server error"
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Internal server error"
             )
     except Exception as e:
         print(f"Unexpected error during token refresh: {str(e)}")
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Internal server error"
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Internal server error"
         )
 
 
@@ -191,8 +182,7 @@ async def logout(current_user: Annotated[dict, Depends(get_current_user)]):
 
         # Global sign out - invalidates all tokens for the user
         cognito.admin_user_global_sign_out(
-            UserPoolId=settings.cognito_user_pool_id,
-            Username=current_user["email"]
+            UserPoolId=settings.cognito_user_pool_id, Username=current_user["email"]
         )
 
         return {"message": "Logged out successfully"}
@@ -208,9 +198,7 @@ async def logout(current_user: Annotated[dict, Depends(get_current_user)]):
 
 
 @router.get("/me", response_model=UserInfoResponse)
-async def get_current_user_info(
-    current_user: Annotated[dict, Depends(get_current_user)]
-):
+async def get_current_user_info(current_user: Annotated[dict, Depends(get_current_user)]):
     """
     Get current authenticated user information.
 
@@ -227,5 +215,5 @@ async def get_current_user_info(
         email=current_user["email"],
         name=current_user.get("name", ""),
         role=current_user.get("role", ""),
-        email_verified=current_user.get("email_verified", False)
+        email_verified=current_user.get("email_verified", False),
     )

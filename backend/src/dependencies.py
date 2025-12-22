@@ -5,13 +5,14 @@ Provides reusable dependencies for authentication, authorization,
 database connections, and service layer initialization.
 """
 
-from typing import Annotated, Optional
+from typing import Annotated
+
 from fastapi import Depends, HTTPException, status
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from src.config import settings
-from src.utils.jwt import extract_user_from_token
 from src.utils.errors import ForbiddenException
+from src.utils.jwt import extract_user_from_token
 
 # Security scheme for JWT Bearer tokens
 security = HTTPBearer()
@@ -19,7 +20,7 @@ optional_security = HTTPBearer(auto_error=False)
 
 
 async def get_current_user(
-    credentials: Annotated[HTTPAuthorizationCredentials, Depends(security)]
+    credentials: Annotated[HTTPAuthorizationCredentials, Depends(security)],
 ) -> dict:
     """
     Dependency to extract and validate the current user from JWT token.
@@ -54,8 +55,8 @@ async def get_current_user(
 
 
 async def get_current_user_optional(
-    credentials: Annotated[Optional[HTTPAuthorizationCredentials], Depends(optional_security)]
-) -> Optional[dict]:
+    credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(optional_security)],
+) -> dict | None:
     """
     Optional authentication dependency.
 
@@ -79,9 +80,7 @@ async def get_current_user_optional(
     return user
 
 
-async def require_owner_role(
-    current_user: Annotated[dict, Depends(get_current_user)]
-) -> dict:
+async def require_owner_role(current_user: Annotated[dict, Depends(get_current_user)]) -> dict:
     """
     Dependency to require owner role for protected endpoints.
 
@@ -120,15 +119,15 @@ def get_dynamodb_resource():
     if settings.dynamodb_endpoint:
         # Local DynamoDB
         resource = boto3.resource(
-            'dynamodb',
+            "dynamodb",
             endpoint_url=settings.dynamodb_endpoint,
             region_name=settings.aws_region,
-            aws_access_key_id='test',
-            aws_secret_access_key='test'
+            aws_access_key_id="test",
+            aws_secret_access_key="test",
         )
     else:
         # AWS DynamoDB
-        resource = boto3.resource('dynamodb', region_name=settings.aws_region)
+        resource = boto3.resource("dynamodb", region_name=settings.aws_region)
 
     return resource
 
@@ -146,6 +145,7 @@ def get_dynamodb_table():
 
 # Repository Dependencies
 
+
 def get_blog_repository():
     """
     Dependency to get BlogRepository instance.
@@ -154,6 +154,7 @@ def get_blog_repository():
         BlogRepository instance
     """
     from src.repositories.blog import BlogRepository
+
     table = get_dynamodb_table()
     return BlogRepository(table)
 
@@ -166,6 +167,7 @@ def get_project_repository():
         ProjectRepository instance
     """
     from src.repositories.project import ProjectRepository
+
     table = get_dynamodb_table()
     return ProjectRepository(table)
 
@@ -178,6 +180,7 @@ def get_certification_repository():
         CertificationRepository instance
     """
     from src.repositories.certification import CertificationRepository
+
     table = get_dynamodb_table()
     return CertificationRepository(table)
 
@@ -190,6 +193,7 @@ def get_visitor_repository():
         VisitorRepository instance
     """
     from src.repositories.visitor import VisitorRepository
+
     table = get_dynamodb_table()
     return VisitorRepository(table)
 
@@ -202,5 +206,6 @@ def get_analytics_repository():
         AnalyticsRepository instance
     """
     from src.repositories.analytics import AnalyticsRepository
+
     table = get_dynamodb_table()
     return AnalyticsRepository(table)

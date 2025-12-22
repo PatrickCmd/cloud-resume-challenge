@@ -23,6 +23,7 @@ def test_string():
 @pytest.mark.asyncio
 async def test_async():
     """Test async functionality."""
+
     async def get_value():
         return 42
 

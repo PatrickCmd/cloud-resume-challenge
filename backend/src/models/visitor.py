@@ -6,28 +6,32 @@ Defines all Pydantic models for visitor tracking including:
 - Internal DynamoDB model
 """
 
-from pydantic import BaseModel, Field, ConfigDict
 from datetime import datetime
-from typing import Optional
 
+from pydantic import BaseModel, ConfigDict, Field
 
 # API Request Models
 
+
 class VisitorTrackRequest(BaseModel):
     """Visitor tracking request model."""
+
     page_path: str
     referrer: str = ""
 
 
 # API Response Models
 
+
 class VisitorCountResponse(BaseModel):
     """Visitor count response model."""
+
     total_visitors: int
     last_updated: datetime
 
 
 # Internal DynamoDB Model
+
 
 class VisitorLog(BaseModel):
     """Visitor log internal model for DynamoDB."""
@@ -46,9 +50,9 @@ class VisitorLog(BaseModel):
     # Attributes
     visitor_id: str = Field(..., description="Unique visitor session identifier")
     page_path: str = Field(..., description="Page path visited")
-    referrer: Optional[str] = Field(None, description="Referrer URL")
-    ip_address: Optional[str] = Field(None, description="Visitor IP address (anonymized)")
-    user_agent: Optional[str] = Field(None, description="User agent string")
+    referrer: str | None = Field(None, description="Referrer URL")
+    ip_address: str | None = Field(None, description="Visitor IP address (anonymized)")
+    user_agent: str | None = Field(None, description="User agent string")
     timestamp: datetime = Field(default_factory=datetime.utcnow, description="Visit timestamp")
 
     model_config = ConfigDict(
@@ -81,7 +85,9 @@ class VisitorCount(BaseModel):
 
     # Attributes
     total_visitors: int = Field(default=0, description="Total visitor count")
-    last_updated: datetime = Field(default_factory=datetime.utcnow, description="Last update timestamp")
+    last_updated: datetime = Field(
+        default_factory=datetime.utcnow, description="Last update timestamp"
+    )
 
     model_config = ConfigDict(
         json_schema_extra={

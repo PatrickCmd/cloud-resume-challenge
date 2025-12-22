@@ -5,16 +5,17 @@ Tests visitor tracking and analytics operations using moto to mock DynamoDB.
 """
 
 import os
-import pytest
 import uuid
-from datetime import datetime, timedelta
-from moto import mock_aws
+from datetime import datetime
+
 import boto3
+import pytest
+from moto import mock_aws
 
 # Set environment before imports
-os.environ['AWS_REGION'] = 'us-east-1'
-os.environ['AWS_ACCESS_KEY_ID'] = 'testing'
-os.environ['AWS_SECRET_ACCESS_KEY'] = 'testing'
+os.environ["AWS_REGION"] = "us-east-1"
+os.environ["AWS_ACCESS_KEY_ID"] = "testing"
+os.environ["AWS_SECRET_ACCESS_KEY"] = "testing"
 
 from src.repositories.visitor import VisitorRepository
 
@@ -24,21 +25,21 @@ def dynamodb_table():
     """Create a mock DynamoDB table for testing."""
     with mock_aws():
         # Create DynamoDB client
-        dynamodb = boto3.client('dynamodb', region_name='us-east-1')
+        dynamodb = boto3.client("dynamodb", region_name="us-east-1")
 
         # Create table
-        table_name = 'portfolio-api-table'
+        table_name = "portfolio-api-table"
         dynamodb.create_table(
             TableName=table_name,
             KeySchema=[
-                {'AttributeName': 'PK', 'KeyType': 'HASH'},
-                {'AttributeName': 'SK', 'KeyType': 'RANGE'}
+                {"AttributeName": "PK", "KeyType": "HASH"},
+                {"AttributeName": "SK", "KeyType": "RANGE"},
             ],
             AttributeDefinitions=[
-                {'AttributeName': 'PK', 'AttributeType': 'S'},
-                {'AttributeName': 'SK', 'AttributeType': 'S'}
+                {"AttributeName": "PK", "AttributeType": "S"},
+                {"AttributeName": "SK", "AttributeType": "S"},
             ],
-            BillingMode='PAY_PER_REQUEST'
+            BillingMode="PAY_PER_REQUEST",
         )
 
         yield table_name
@@ -59,10 +60,10 @@ class TestVisitorTracking:
 
         result = visitor_repo.track_visitor(session_id)
 
-        assert 'count' in result
-        assert 'sessionId' in result
-        assert result['sessionId'] == session_id
-        assert result['count'] >= 1
+        assert "count" in result
+        assert "sessionId" in result
+        assert result["sessionId"] == session_id
+        assert result["count"] >= 1
 
     def test_track_visitor_deduplication_same_day(self, visitor_repo):
         """Test that same visitor is not counted twice on same day."""
@@ -70,11 +71,11 @@ class TestVisitorTracking:
 
         # Track visitor first time
         result1 = visitor_repo.track_visitor(session_id)
-        count1 = result1['count']
+        count1 = result1["count"]
 
         # Track same visitor again (should be deduplicated)
         result2 = visitor_repo.track_visitor(session_id)
-        count2 = result2['count']
+        count2 = result2["count"]
 
         assert count2 == count1  # Count should not increase
 
@@ -84,10 +85,10 @@ class TestVisitorTracking:
         session2 = str(uuid.uuid4())
 
         result1 = visitor_repo.track_visitor(session1)
-        count1 = result1['count']
+        count1 = result1["count"]
 
         result2 = visitor_repo.track_visitor(session2)
-        count2 = result2['count']
+        count2 = result2["count"]
 
         assert count2 > count1  # Count should increase
 
@@ -98,14 +99,11 @@ class TestVisitorTracking:
         visitor_repo.track_visitor(session_id)
 
         # Verify session record exists
-        today = datetime.now().strftime('%Y-%m-%d')
-        session_item = visitor_repo.get_item(
-            pk=f'VISITOR#SESSION#{session_id}',
-            sk='TRACKED'
-        )
+        today = datetime.now().strftime("%Y-%m-%d")
+        session_item = visitor_repo.get_item(pk=f"VISITOR#SESSION#{session_id}", sk="TRACKED")
 
         assert session_item is not None
-        assert session_item['Data']['lastTrackedDate'] == today
+        assert session_item["Data"]["lastTrackedDate"] == today
 
     def test_track_visitor_updates_total_count(self, visitor_repo):
         """Test that tracking updates the total visitor count."""
@@ -158,7 +156,7 @@ class TestDailyTrends:
 
         assert len(trends) == 7
         # All days should have 0 visitors
-        assert all(trend['visitors'] == 0 for trend in trends)
+        assert all(trend["visitors"] == 0 for trend in trends)
 
     def test_get_daily_trends_with_data(self, visitor_repo):
         """Test getting daily trends with visitor data."""
@@ -172,14 +170,14 @@ class TestDailyTrends:
         assert len(trends) == 7
         # Today should have 3 visitors
         today_trend = trends[-1]  # Last item is most recent
-        assert today_trend['visitors'] == 3
+        assert today_trend["visitors"] == 3
 
     def test_daily_trends_ordered_chronologically(self, visitor_repo):
         """Test that daily trends are ordered from oldest to newest."""
         trends = visitor_repo.get_daily_trends(days=7)
 
         # Convert dates to datetime objects and verify order
-        dates = [datetime.strptime(trend['date'], '%Y-%m-%d') for trend in trends]
+        dates = [datetime.strptime(trend["date"], "%Y-%m-%d") for trend in trends]
         assert dates == sorted(dates)
 
     def test_daily_trends_includes_correct_dates(self, visitor_repo):
@@ -191,8 +189,8 @@ class TestDailyTrends:
         assert len(trends) == days
 
         # Check that the most recent date is today
-        today = datetime.now().strftime('%Y-%m-%d')
-        assert trends[-1]['date'] == today
+        today = datetime.now().strftime("%Y-%m-%d")
+        assert trends[-1]["date"] == today
 
 
 class TestMonthlyTrends:
@@ -204,7 +202,7 @@ class TestMonthlyTrends:
 
         assert len(trends) == 6
         # All months should have 0 visitors
-        assert all(trend['visitors'] == 0 for trend in trends)
+        assert all(trend["visitors"] == 0 for trend in trends)
 
     def test_get_monthly_trends_with_data(self, visitor_repo):
         """Test getting monthly trends with visitor data."""
@@ -217,20 +215,17 @@ class TestMonthlyTrends:
 
         assert len(trends) == 6
         # Current month should have visitors
-        current_month = datetime.now().strftime('%Y-%m')
-        current_month_trend = next(
-            (t for t in trends if t['month'] == current_month),
-            None
-        )
+        current_month = datetime.now().strftime("%Y-%m")
+        current_month_trend = next((t for t in trends if t["month"] == current_month), None)
         assert current_month_trend is not None
-        assert current_month_trend['visitors'] == 5
+        assert current_month_trend["visitors"] == 5
 
     def test_monthly_trends_ordered_chronologically(self, visitor_repo):
         """Test that monthly trends are ordered from oldest to newest."""
         trends = visitor_repo.get_monthly_trends(months=6)
 
         # Verify months are in chronological order
-        months = [trend['month'] for trend in trends]
+        months = [trend["month"] for trend in trends]
         assert months == sorted(months)
 
 
@@ -244,25 +239,19 @@ class TestSessionExpiry:
         session_id = str(uuid.uuid4())
         visitor_repo.track_visitor(session_id)
 
-        session_item = visitor_repo.get_item(
-            pk=f'VISITOR#SESSION#{session_id}',
-            sk='TRACKED'
-        )
+        session_item = visitor_repo.get_item(pk=f"VISITOR#SESSION#{session_id}", sk="TRACKED")
 
-        assert 'ExpiresAt' in session_item
-        assert isinstance(session_item['ExpiresAt'], (int, float, Decimal))
+        assert "ExpiresAt" in session_item
+        assert isinstance(session_item["ExpiresAt"], (int, float, Decimal))
 
     def test_session_expiry_is_future(self, visitor_repo):
         """Test that session expiry is set to a future timestamp."""
         session_id = str(uuid.uuid4())
         visitor_repo.track_visitor(session_id)
 
-        session_item = visitor_repo.get_item(
-            pk=f'VISITOR#SESSION#{session_id}',
-            sk='TRACKED'
-        )
+        session_item = visitor_repo.get_item(pk=f"VISITOR#SESSION#{session_id}", sk="TRACKED")
 
-        expiry = session_item['ExpiresAt']
+        expiry = session_item["ExpiresAt"]
         now = int(datetime.now().timestamp())
 
         assert expiry > now  # Expiry should be in the future
@@ -276,30 +265,24 @@ class TestDataStructure:
         session_id = str(uuid.uuid4())
         visitor_repo.track_visitor(session_id)
 
-        today = datetime.now().strftime('%Y-%m-%d')
-        daily_item = visitor_repo.get_item(
-            pk=f'VISITOR#DAILY#{today}',
-            sk='COUNT'
-        )
+        today = datetime.now().strftime("%Y-%m-%d")
+        daily_item = visitor_repo.get_item(pk=f"VISITOR#DAILY#{today}", sk="COUNT")
 
         assert daily_item is not None
-        assert 'Data' in daily_item
-        assert 'date' in daily_item['Data']
-        assert 'count' in daily_item['Data']
-        assert daily_item['EntityType'] == 'VISITOR_DAILY'
+        assert "Data" in daily_item
+        assert "date" in daily_item["Data"]
+        assert "count" in daily_item["Data"]
+        assert daily_item["EntityType"] == "VISITOR_DAILY"
 
     def test_total_count_structure(self, visitor_repo):
         """Test that total count record has correct structure."""
         session_id = str(uuid.uuid4())
         visitor_repo.track_visitor(session_id)
 
-        total_item = visitor_repo.get_item(
-            pk='VISITOR#TOTAL',
-            sk='COUNT'
-        )
+        total_item = visitor_repo.get_item(pk="VISITOR#TOTAL", sk="COUNT")
 
         assert total_item is not None
-        assert 'Data' in total_item
-        assert 'totalCount' in total_item['Data']
-        assert 'lastUpdated' in total_item['Data']
-        assert total_item['EntityType'] == 'VISITOR_TOTAL'
+        assert "Data" in total_item
+        assert "totalCount" in total_item["Data"]
+        assert "lastUpdated" in total_item["Data"]
+        assert total_item["EntityType"] == "VISITOR_TOTAL"

@@ -5,11 +5,15 @@ Manages professional certifications and achievements.
 Public endpoints for reading, owner-only for write operations.
 """
 
-from typing import Optional
-from fastapi import APIRouter, Depends, HTTPException, status, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 
-from src.dependencies import require_owner_role, get_certification_repository
-from src.models.certification import CertificationCreate, CertificationUpdate, CertificationResponse, CertificationListResponse
+from src.dependencies import get_certification_repository, require_owner_role
+from src.models.certification import (
+    CertificationCreate,
+    CertificationListResponse,
+    CertificationResponse,
+    CertificationUpdate,
+)
 from src.repositories.certification import CertificationRepository
 
 router = APIRouter()
@@ -17,11 +21,13 @@ router = APIRouter()
 
 @router.get("", response_model=CertificationListResponse)
 async def list_certifications(
-    status_filter: Optional[str] = Query(None, alias="status", description="Filter by status: PUBLISHED, DRAFT, or omit for all"),
-    cert_type: Optional[str] = Query(None, description="Filter by type: certification or course"),
-    featured: Optional[bool] = Query(None, description="Filter by featured certifications"),
+    status_filter: str | None = Query(
+        None, alias="status", description="Filter by status: PUBLISHED, DRAFT, or omit for all"
+    ),
+    cert_type: str | None = Query(None, description="Filter by type: certification or course"),
+    featured: bool | None = Query(None, description="Filter by featured certifications"),
     limit: int = Query(20, ge=1, le=100),
-    last_key: Optional[str] = Query(None, description="Pagination token from previous response"),
+    last_key: str | None = Query(None, description="Pagination token from previous response"),
     cert_repo: CertificationRepository = Depends(get_certification_repository),
 ):
     """List all certifications. Public endpoint - returns published certifications by default."""
@@ -48,6 +54,7 @@ async def list_certifications(
     if last_key:
         try:
             import json
+
             last_evaluated_key = json.loads(last_key)
         except Exception:
             raise HTTPException(
@@ -61,7 +68,7 @@ async def list_certifications(
         cert_type=cert_type,
         featured=featured,
         limit=limit,
-        last_evaluated_key=last_evaluated_key
+        last_evaluated_key=last_evaluated_key,
     )
 
     return result

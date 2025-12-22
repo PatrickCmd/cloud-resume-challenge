@@ -4,9 +4,10 @@ DynamoDB utilities.
 Provides helper functions for DynamoDB operations.
 """
 
-import boto3
-from typing import Dict, Any, Optional
 from datetime import datetime
+from typing import Any
+
+import boto3
 
 from src.config import settings
 
@@ -61,7 +62,7 @@ def deserialize_datetime(dt_str: str) -> datetime:
     return datetime.fromisoformat(dt_str)
 
 
-def build_update_expression(updates: Dict[str, Any]) -> tuple:
+def build_update_expression(updates: dict[str, Any]) -> tuple:
     """
     Build DynamoDB update expression from dictionary.
 
@@ -95,9 +96,9 @@ def paginate_query(
     table,
     key_condition_expression,
     limit: int = 20,
-    last_evaluated_key: Optional[Dict] = None,
-    **kwargs
-) -> Dict:
+    last_evaluated_key: dict | None = None,
+    **kwargs,
+) -> dict:
     """
     Execute a paginated DynamoDB query.
 
@@ -111,11 +112,7 @@ def paginate_query(
     Returns:
         Dictionary with items and pagination info
     """
-    query_params = {
-        "KeyConditionExpression": key_condition_expression,
-        "Limit": limit,
-        **kwargs
-    }
+    query_params = {"KeyConditionExpression": key_condition_expression, "Limit": limit, **kwargs}
 
     if last_evaluated_key:
         query_params["ExclusiveStartKey"] = last_evaluated_key
