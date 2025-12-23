@@ -490,6 +490,7 @@ EOF
 **Documentation**:
 - [docs/AUTH_TESTING.md](docs/AUTH_TESTING.md) - Comprehensive testing documentation for authentication
 - [docs/TESTING_API.md](docs/TESTING_API.md) - Guide for testing the deployed API on AWS
+- [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) - Troubleshooting guide for SAM, API Gateway, Lambda, Route53, and CloudFront
 
 ### Test Summary
 
