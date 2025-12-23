@@ -144,6 +144,10 @@ cython_debug/
 .aws/
 aws-exports.js
 
+# AWS SAM
+.aws-sam/
+samconfig.toml
+
 # Terraform
 *.tfstate
 *.tfstate.*

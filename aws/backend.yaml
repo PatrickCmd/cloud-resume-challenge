@@ -1,0 +1,362 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  Portfolio Backend API
+
+  SAM Template for deploying FastAPI backend with DynamoDB, Lambda, and API Gateway
+  Custom domain: api.patrickcmd.dev
+
+Parameters:
+  Environment:
+    Type: String
+    Default: production
+    AllowedValues:
+      - development
+      - staging
+      - production
+    Description: Environment name
+
+  CognitoUserPoolId:
+    Type: String
+    Description: Cognito User Pool ID for JWT authentication
+
+  CognitoClientId:
+    Type: String
+    Description: Cognito App Client ID
+
+  CustomDomainName:
+    Type: String
+    Default: api.patrickcmd.dev
+    Description: Custom domain name for API Gateway
+
+  HostedZoneId:
+    Type: String
+    Description: Route53 Hosted Zone ID for patrickcmd.dev
+
+  CertificateArn:
+    Type: String
+    Description: ACM Certificate ARN for api.patrickcmd.dev (must be in us-east-1)
+
+  FrontendOrigins:
+    Type: String
+    Default: "https://patrickcmd.dev,https://www.patrickcmd.dev"
+    Description: Comma-separated string of allowed CORS origins
+
+Globals:
+  Function:
+    Timeout: 30
+    MemorySize: 512
+    Runtime: python3.12
+    Environment:
+      Variables:
+        ENVIRONMENT: !Ref Environment
+        DYNAMODB_TABLE_NAME: !Ref PortfolioTable
+        COGNITO_USER_POOL_ID: !Ref CognitoUserPoolId
+        COGNITO_CLIENT_ID: !Ref CognitoClientId
+        CORS_ORIGINS: !Ref FrontendOrigins
+    Tracing: Active
+
+Resources:
+  # DynamoDB Table - Single-table design
+  PortfolioTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub ${Environment}-portfolio-api-table
+      BillingMode: PAY_PER_REQUEST
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
+      SSESpecification:
+        SSEEnabled: true
+      StreamSpecification:
+        StreamViewType: NEW_AND_OLD_IMAGES
+      TimeToLiveSpecification:
+        AttributeName: ExpiresAt
+        Enabled: true
+      AttributeDefinitions:
+        - AttributeName: PK
+          AttributeType: S
+        - AttributeName: SK
+          AttributeType: S
+        - AttributeName: GSI1PK
+          AttributeType: S
+        - AttributeName: GSI1SK
+          AttributeType: S
+      KeySchema:
+        - AttributeName: PK
+          KeyType: HASH
+        - AttributeName: SK
+          KeyType: RANGE
+      GlobalSecondaryIndexes:
+        - IndexName: GSI1
+          KeySchema:
+            - AttributeName: GSI1PK
+              KeyType: HASH
+            - AttributeName: GSI1SK
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Application
+          Value: PortfolioAPI
+
+  # Lambda Function for FastAPI Application
+  PortfolioApiFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub ${Environment}-portfolio-api
+      CodeUri: ../backend/
+      Handler: src.main.handler
+      Description: Portfolio API - FastAPI backend with Mangum
+      Architectures:
+        - x86_64
+      Environment:
+        Variables:
+          LOG_LEVEL: INFO
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref PortfolioTable
+        - Statement:
+            - Sid: CloudWatchLogsPolicy
+              Effect: Allow
+              Action:
+                - logs:CreateLogGroup
+                - logs:CreateLogStream
+                - logs:PutLogEvents
+              Resource: !Sub arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/${Environment}-portfolio-api:*
+      Events:
+        # Root endpoint
+        RootApi:
+          Type: Api
+          Properties:
+            RestApiId: !Ref PortfolioApiGateway
+            Path: /
+            Method: GET
+            Auth:
+              Authorizer: NONE
+        # Health check
+        HealthApi:
+          Type: Api
+          Properties:
+            RestApiId: !Ref PortfolioApiGateway
+            Path: /health
+            Method: GET
+            Auth:
+              Authorizer: NONE
+        # API Documentation (development only)
+        DocsApi:
+          Type: Api
+          Properties:
+            RestApiId: !Ref PortfolioApiGateway
+            Path: /docs
+            Method: GET
+            Auth:
+              Authorizer: NONE
+        RedocApi:
+          Type: Api
+          Properties:
+            RestApiId: !Ref PortfolioApiGateway
+            Path: /redoc
+            Method: GET
+            Auth:
+              Authorizer: NONE
+        OpenApiApi:
+          Type: Api
+          Properties:
+            RestApiId: !Ref PortfolioApiGateway
+            Path: /openapi.json
+            Method: GET
+            Auth:
+              Authorizer: NONE
+        # Catch all for API routes (authenticated by default)
+        ApiProxy:
+          Type: Api
+          Properties:
+            RestApiId: !Ref PortfolioApiGateway
+            Path: /{proxy+}
+            Method: ANY
+      Tags:
+        Environment: !Ref Environment
+        Application: PortfolioAPI
+
+  # API Gateway REST API
+  PortfolioApiGateway:
+    Type: AWS::Serverless::Api
+    Properties:
+      Name: !Sub ${Environment}-portfolio-api
+      StageName: !Ref Environment
+      TracingEnabled: true
+      Cors:
+        AllowMethods: "'GET,POST,PUT,PATCH,DELETE,OPTIONS'"
+        AllowHeaders: "'Content-Type,Authorization,X-Amz-Date,X-Api-Key,X-Amz-Security-Token'"
+        AllowOrigin: !Sub "'${FrontendOrigins}'"
+        AllowCredentials: true
+        MaxAge: "'600'"
+      Auth:
+        DefaultAuthorizer: CognitoAuthorizer
+        Authorizers:
+          CognitoAuthorizer:
+            UserPoolArn: !Sub arn:aws:cognito-idp:${AWS::Region}:${AWS::AccountId}:userpool/${CognitoUserPoolId}
+            AuthorizationScopes:
+              - openid
+              - email
+              - profile
+        AddDefaultAuthorizerToCorsPreflight: false
+      MethodSettings:
+        - ResourcePath: "/*"
+          HttpMethod: "*"
+          LoggingLevel: INFO
+          DataTraceEnabled: true
+          MetricsEnabled: true
+      AccessLogSetting:
+        DestinationArn: !GetAtt ApiGatewayLogGroup.Arn
+        Format: '{"requestId":"$context.requestId","ip":"$context.identity.sourceIp","caller":"$context.identity.caller","user":"$context.identity.user","requestTime":"$context.requestTime","httpMethod":"$context.httpMethod","resourcePath":"$context.resourcePath","status":"$context.status","protocol":"$context.protocol","responseLength":"$context.responseLength"}'
+      Tags:
+        Environment: !Ref Environment
+        Application: PortfolioAPI
+
+  # CloudWatch Log Group for API Gateway
+  ApiGatewayLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /aws/apigateway/${Environment}-portfolio-api
+      RetentionInDays: 30
+
+  # CloudWatch Log Group for Lambda Function
+  LambdaLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /aws/lambda/${Environment}-portfolio-api
+      RetentionInDays: 30
+
+  # Custom Domain Configuration
+  ApiCustomDomain:
+    Type: AWS::ApiGateway::DomainName
+    Properties:
+      DomainName: !Ref CustomDomainName
+      CertificateArn: !Ref CertificateArn
+      SecurityPolicy: TLS_1_2
+      EndpointConfiguration:
+        Types:
+          - EDGE
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Application
+          Value: PortfolioAPI
+
+  # Base Path Mapping
+  ApiBasePathMapping:
+    Type: AWS::ApiGateway::BasePathMapping
+    DependsOn:
+      - PortfolioApiGateway
+      - PortfolioApiGatewayStage
+      - ApiCustomDomain
+    Properties:
+      DomainName: !Ref ApiCustomDomain
+      RestApiId: !Ref PortfolioApiGateway
+      Stage: !Ref Environment
+
+  # Route53 Record for Custom Domain
+  ApiDnsRecord:
+    Type: AWS::Route53::RecordSet
+    Properties:
+      HostedZoneId: !Ref HostedZoneId
+      Name: !Ref CustomDomainName
+      Type: A
+      AliasTarget:
+        DNSName: !GetAtt ApiCustomDomain.DistributionDomainName
+        HostedZoneId: !GetAtt ApiCustomDomain.DistributionHostedZoneId
+        EvaluateTargetHealth: false
+
+  # Application Insights for monitoring
+  ApplicationResourceGroup:
+    Type: AWS::ResourceGroups::Group
+    Properties:
+      Name: !Sub ${Environment}-portfolio-api-resources
+      ResourceQuery:
+        Type: TAG_FILTERS_1_0
+        Query:
+          ResourceTypeFilters:
+            - AWS::AllSupported
+          TagFilters:
+            - Key: Application
+              Values:
+                - PortfolioAPI
+            - Key: Environment
+              Values:
+                - !Ref Environment
+
+Outputs:
+  # API Gateway Outputs
+  ApiUrl:
+    Description: API Gateway endpoint URL
+    Value: !Sub https://${PortfolioApiGateway}.execute-api.${AWS::Region}.amazonaws.com/${Environment}/
+    Export:
+      Name: !Sub ${Environment}-PortfolioApiUrl
+
+  CustomDomainUrl:
+    Description: Custom domain URL for API
+    Value: !Sub https://${CustomDomainName}/
+    Export:
+      Name: !Sub ${Environment}-PortfolioApiCustomDomain
+
+  # Lambda Outputs
+  PortfolioApiFunctionArn:
+    Description: Portfolio API Lambda Function ARN
+    Value: !GetAtt PortfolioApiFunction.Arn
+    Export:
+      Name: !Sub ${Environment}-PortfolioApiFunctionArn
+
+  PortfolioApiFunctionName:
+    Description: Portfolio API Lambda Function Name
+    Value: !Ref PortfolioApiFunction
+    Export:
+      Name: !Sub ${Environment}-PortfolioApiFunctionName
+
+  # DynamoDB Outputs
+  PortfolioTableName:
+    Description: DynamoDB Table Name
+    Value: !Ref PortfolioTable
+    Export:
+      Name: !Sub ${Environment}-PortfolioTableName
+
+  PortfolioTableArn:
+    Description: DynamoDB Table ARN
+    Value: !GetAtt PortfolioTable.Arn
+    Export:
+      Name: !Sub ${Environment}-PortfolioTableArn
+
+  PortfolioTableStreamArn:
+    Description: DynamoDB Table Stream ARN
+    Value: !GetAtt PortfolioTable.StreamArn
+    Export:
+      Name: !Sub ${Environment}-PortfolioTableStreamArn
+
+  # API Gateway Outputs
+  ApiGatewayId:
+    Description: API Gateway REST API ID
+    Value: !Ref PortfolioApiGateway
+    Export:
+      Name: !Sub ${Environment}-PortfolioApiGatewayId
+
+  # Custom Domain Outputs
+  CustomDomainDistribution:
+    Description: CloudFront distribution domain name for custom domain
+    Value: !GetAtt ApiCustomDomain.DistributionDomainName
+    Export:
+      Name: !Sub ${Environment}-ApiCustomDomainDistribution
+
+  # Log Groups
+  ApiGatewayLogGroupName:
+    Description: API Gateway CloudWatch Log Group
+    Value: !Ref ApiGatewayLogGroup
+    Export:
+      Name: !Sub ${Environment}-ApiGatewayLogGroup
+
+  LambdaLogGroupName:
+    Description: Lambda CloudWatch Log Group
+    Value: !Ref LambdaLogGroup
+    Export:
+      Name: !Sub ${Environment}-LambdaLogGroup

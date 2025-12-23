@@ -157,6 +157,216 @@ export AWS_REGION=us-west-2
 
 ---
 
+### `backend-sam-deploy`
+
+Bash wrapper script for deploying the backend API infrastructure using AWS SAM and Ansible.
+
+#### Features
+
+- ✅ User-friendly command-line interface
+- ✅ Automatic prerequisite checking (SAM CLI, Ansible, AWS CLI, uv)
+- ✅ Color-coded output for better readability
+- ✅ Multiple deployment modes (validate, build, deploy, info)
+- ✅ Dry-run mode for testing
+- ✅ Variable override support
+- ✅ Comprehensive error handling
+- ✅ Helpful troubleshooting tips on failure
+
+#### Usage
+
+```bash
+# Full deployment (validate + build + deploy)
+./bin/backend-sam-deploy
+
+# Show help
+./bin/backend-sam-deploy --help
+
+# Deploy with verbose output
+./bin/backend-sam-deploy --verbose
+
+# Very verbose (debug mode)
+./bin/backend-sam-deploy -vvv
+
+# Only validate SAM template
+./bin/backend-sam-deploy --validate
+
+# Only build SAM application
+./bin/backend-sam-deploy --build
+
+# Only deploy stack (skip build)
+./bin/backend-sam-deploy --deploy
+
+# Only show stack information
+./bin/backend-sam-deploy --info
+
+# Dry run (check mode)
+./bin/backend-sam-deploy --check
+
+# Deploy to different environment
+./bin/backend-sam-deploy --env staging --domain api-staging.patrickcmd.dev
+
+# Override AWS profile
+./bin/backend-sam-deploy --profile myprofile
+```
+
+#### Infrastructure Deployed
+
+The script deploys:
+- **DynamoDB Table**: Single-table design for all content types
+- **Lambda Function**: FastAPI application with Mangum adapter
+- **API Gateway**: REST API with Cognito JWT authorizer
+- **Custom Domain**: `api.patrickcmd.dev` with ACM certificate
+- **CloudWatch Logs**: Centralized logging for Lambda and API Gateway
+
+#### Options
+
+| Option | Description |
+|--------|-------------|
+| `-h, --help` | Show help message |
+| `-v, --verbose` | Run with verbose output |
+| `-vv` | Run with more verbose output |
+| `-vvv` | Run with debug output |
+| `--validate` | Only validate SAM template |
+| `--build` | Only build SAM application |
+| `--deploy` | Only deploy stack |
+| `--info` | Only show stack information |
+| `--check` | Dry run mode |
+| `--env ENV` | Override environment (development/staging/production) |
+| `--profile PROFILE` | Override AWS profile |
+| `--domain NAME` | Override custom domain name |
+
+#### Prerequisites
+
+Before running, ensure you have:
+
+1. **AWS SAM CLI** installed
+   ```bash
+   # macOS
+   brew install aws-sam-cli
+
+   # Verify
+   sam --version
+   ```
+
+2. **Ansible** installed
+   ```bash
+   pip install ansible
+   ```
+
+3. **AWS CLI** configured
+   ```bash
+   aws configure
+   ```
+
+4. **Python 3.12+** and **uv** installed
+   ```bash
+   curl -LsSf https://astral.sh/uv/install.sh | sh
+   ```
+
+5. **Docker** running (for SAM build)
+   ```bash
+   docker ps
+   ```
+
+6. **Vault configured** with backend variables
+   - See: `playbooks/BACKEND_VAULT_CONFIG.md`
+
+7. **ACM Certificate** for custom domain (in us-east-1)
+   ```bash
+   aws acm list-certificates --region us-east-1
+   ```
+
+#### Examples
+
+##### Full Deployment
+```bash
+./bin/backend-sam-deploy
+```
+
+##### Validate Template Only
+```bash
+./bin/backend-sam-deploy --validate
+```
+
+##### Build and Deploy Separately
+```bash
+# First build
+./bin/backend-sam-deploy --build
+
+# Then deploy
+./bin/backend-sam-deploy --deploy
+```
+
+##### Deploy to Staging
+```bash
+./bin/backend-sam-deploy \
+  --env staging \
+  --domain api-staging.patrickcmd.dev
+```
+
+##### Dry Run
+```bash
+./bin/backend-sam-deploy --check
+```
+
+#### Post-Deployment
+
+After successful deployment:
+
+```bash
+# Test health endpoint
+curl https://api.patrickcmd.dev/health
+
+# View API documentation (development only)
+https://api.patrickcmd.dev/docs
+
+# Monitor Lambda logs
+aws logs tail /aws/lambda/production-portfolio-api --follow
+
+# View stack outputs
+cat aws/outputs/backend-stack-outputs.env
+```
+
+#### Troubleshooting
+
+If deployment fails:
+
+1. **Check SAM build errors**:
+   ```bash
+   cd aws && sam build --template backend.yaml
+   ```
+
+2. **Validate template**:
+   ```bash
+   sam validate --template aws/backend.yaml
+   ```
+
+3. **Check CloudFormation events**:
+   ```bash
+   aws cloudformation describe-stack-events \
+     --stack-name production-portfolio-backend-api \
+     --max-items 20
+   ```
+
+4. **View Lambda logs**:
+   ```bash
+   aws logs tail /aws/lambda/production-portfolio-api --follow
+   ```
+
+5. **Delete failed stack**:
+   ```bash
+   sam delete --stack-name production-portfolio-backend-api
+   ```
+
+#### Related Documentation
+
+- [Backend Deployment Guide](../playbooks/BACKEND_DEPLOYMENT.md) - Complete deployment documentation
+- [Vault Configuration](../playbooks/BACKEND_VAULT_CONFIG.md) - Configuration guide
+- [SAM Template](../backend.yaml) - Infrastructure as Code
+- [Backend README](../../backend/README.md) - Application documentation
+
+---
+
 ### `frontend-deploy`
 
 Bash wrapper script for deploying the frontend S3 static website infrastructure using Ansible.

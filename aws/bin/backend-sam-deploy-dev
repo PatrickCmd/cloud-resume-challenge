@@ -1,0 +1,75 @@
+#!/usr/bin/env bash
+#
+# Backend SAM Deployment Script - Development Environment
+# Deploys backend with API docs enabled and relaxed security
+#
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m' # No Color
+
+print_info() {
+    echo -e "${BLUE}ℹ${NC} $1"
+}
+
+print_success() {
+    echo -e "${GREEN}✓${NC} $1"
+}
+
+print_error() {
+    echo -e "${RED}✗${NC} $1" >&2
+}
+
+print_warning() {
+    echo -e "${YELLOW}⚠${NC} $1"
+}
+
+echo "═══════════════════════════════════════════════════════════════════"
+echo "║   Cloud Resume Challenge - Backend DEV Deployment             ║"
+echo "═══════════════════════════════════════════════════════════════════"
+echo ""
+
+print_warning "This deploys a DEVELOPMENT environment with:"
+print_warning "  • API documentation enabled (/docs and /redoc)"
+print_warning "  • Detailed error messages"
+print_warning "  • Verbose logging"
+echo ""
+
+read -p "Continue with development deployment? (y/n) " -n 1 -r
+echo
+if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+    print_info "Deployment cancelled"
+    exit 0
+fi
+
+cd "$PROJECT_ROOT/aws/playbooks"
+
+# Override environment to development
+export ANSIBLE_FORCE_COLOR=true
+
+print_info "Deploying with DEVELOPMENT environment override..."
+
+ansible-playbook backend-sam-deploy.yml \
+    --vault-password-file ~/.vault_pass.txt \
+    --extra-vars "override_environment=development override_stack_name=dev-portfolio-backend-api override_domain=api-dev.patrickcmd.dev" \
+    "$@"
+
+if [ $? -eq 0 ]; then
+    print_success "Development backend deployment completed!"
+    echo ""
+    print_info "API Documentation URLs:"
+    print_info "  • Swagger UI: https://api-dev.patrickcmd.dev/docs"
+    print_info "  • ReDoc: https://api-dev.patrickcmd.dev/redoc"
+    print_info "  • OpenAPI JSON: https://api-dev.patrickcmd.dev/openapi.json"
+else
+    print_error "Development deployment failed!"
+    exit 1
+fi

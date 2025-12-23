@@ -513,12 +513,32 @@ Comprehensive documentation is available for all components:
   - Testing and mock server setup
   - Interactive Swagger UI documentation
 - **[OpenAPI Specification](openapi.yml)** - Machine-readable API spec (OpenAPI 3.0.3)
+- **[Backend Documentation Index](backend/docs/README.md)** - Complete backend documentation guide
+  - 13 comprehensive documentation files
+  - Setup, testing, deployment guides
+  - DynamoDB design and authentication documentation
+- **[Backend Deployment Guide](aws/playbooks/BACKEND_DEPLOYMENT.md)** - Deploy backend to AWS with SAM
+  - Prerequisites and setup
+  - SAM build and deployment process
+  - Testing deployed API
+  - Troubleshooting guide
+- **[SAM Build Process](aws/BUILD_AND_DEPLOY_PROCESS.md)** - How SAM builds and deploys Lambda
+  - Build process explained
+  - Mangum ASGI adapter
+  - Environment variables and configuration
+  - Cold/warm start optimization
 - **[Backend Local Testing](backend/docs/LOCAL_TESTING.md)** - Local development guide
   - Setup options (AWS DynamoDB vs Local DynamoDB)
   - Multiple testing methods (cURL, HTTPie, Swagger UI, Python)
   - Complete endpoint documentation (public vs protected)
   - Authentication and JWT token usage
   - Development workflow and troubleshooting
+- **[Testing Deployed API](backend/docs/TESTING_API.md)** - Test deployed API on AWS
+  - Authentication setup with Cognito
+  - cURL commands for all 34 endpoints
+  - Postman and AWS Console testing
+  - Enabling API documentation (/docs, /redoc)
+  - Complete endpoint reference
 
 **Scripts & Tools**:
 - **[Deployment Scripts](aws/bin/README.md)** - Script usage and examples (2200+ lines)
@@ -534,6 +554,10 @@ Comprehensive documentation is available for all components:
   - cognito-show-config - Display Cognito configuration (env/JSON)
   - cognito-change-password - Change password with validation
   - cognito-manage - Comprehensive user and pool management
+  - backend-setup - Backend deployment prerequisites setup
+  - backend-sam-deploy - Deploy backend with SAM (production)
+  - backend-sam-deploy-dev - Deploy backend with API docs (development)
+  - test-api - API testing helper with authentication and endpoint testing
 
 **Troubleshooting**:
 - **[Debugging Guide](aws/playbooks/README.md#troubleshooting)** - 15 documented issues with solutions
@@ -565,13 +589,17 @@ cloud-resume-challenge/
 │
 ├── aws/                               # AWS Infrastructure
 │   ├── frontend.yaml                  # CloudFormation template (S3 + CloudFront)
+│   ├── backend.yaml                   # SAM template (Lambda + API Gateway + DynamoDB)
 │   ├── CLOUDFRONT-SETUP.md            # CloudFront deployment guide (500+ lines)
+│   ├── BUILD_AND_DEPLOY_PROCESS.md    # SAM build and deployment process
 │   │
 │   ├── playbooks/                     # Ansible automation
 │   │   ├── frontend-deploy.yml        # Infrastructure deployment
 │   │   ├── s3-upload.yml              # Build & upload frontend
 │   │   ├── cloudfront-invalidate.yml  # Cache invalidation
 │   │   ├── setup-cognito.yml          # Cognito User Pool setup
+│   │   ├── backend-sam-deploy.yml     # Backend SAM build and deployment
+│   │   ├── BACKEND_DEPLOYMENT.md      # Backend deployment guide
 │   │   ├── requirements.txt           # Python dependencies
 │   │   ├── requirements.yml           # Ansible collections
 │   │   ├── setup.sh                   # Automated setup script
@@ -580,7 +608,7 @@ cloud-resume-challenge/
 │   │   ├── QUICKSTART.md              # 5-minute setup guide
 │   │   ├── CLOUDFORMATION_CONFIG.md   # CFN deep dive (400+ lines)
 │   │   └── vaults/                    # Encrypted configuration
-│   │       ├── config.yml             # Encrypted vault (includes cognito_config)
+│   │       ├── config.yml             # Encrypted vault (includes backend_config)
 │   │       ├── config.example.yml     # Example configuration
 │   │       └── README.md              # Vault guide (500+ lines)
 │   │
@@ -597,6 +625,10 @@ cloud-resume-challenge/
 │   │   ├── cognito-show-config        # Display Cognito configuration
 │   │   ├── cognito-change-password    # Change user password (first login)
 │   │   ├── cognito-manage             # Comprehensive Cognito management tool
+│   │   ├── backend-setup              # Backend deployment prerequisites setup
+│   │   ├── backend-sam-deploy         # Deploy backend with SAM (production)
+│   │   ├── backend-sam-deploy-dev     # Deploy backend with API docs (development)
+│   │   ├── test-api                   # API testing helper script
 │   │   └── README.md                  # Scripts documentation (2200+ lines)
 │   │
 │   ├── outputs/                       # CloudFormation & Cognito outputs
@@ -625,7 +657,13 @@ cloud-resume-challenge/
 │   │   ├── unit/                      # Unit tests (211 tests)
 │   │   └── conftest.py                # Pytest configuration and fixtures
 │   ├── docs/                          # Backend documentation
-│   │   └── LOCAL_TESTING.md           # Local development and testing guide
+│   │   ├── README.md                  # Documentation index (comprehensive)
+│   │   ├── QUICKSTART.md              # 5-minute setup guide
+│   │   ├── LOCAL_TESTING.md           # Local development and testing guide
+│   │   ├── TESTING_API.md             # Testing deployed API on AWS
+│   │   ├── DYNAMODB-DESIGN.md         # Single-table design documentation
+│   │   ├── AUTHENTICATION.md          # Cognito JWT authentication guide
+│   │   └── ... (13 total documentation files)
 │   ├── pyproject.toml                 # Python project configuration (uv)
 │   ├── docker-compose.yml             # Local DynamoDB setup
 │   └── README.md                      # Backend setup instructions
@@ -748,19 +786,31 @@ cloud-resume-challenge/
 - [x] Docker Compose for local DynamoDB
 - [x] Environment configuration management
 
-### 🚧 In Progress / Planned
-
 **Backend Infrastructure & Deployment**:
-- [ ] DynamoDB table CloudFormation template
-- [ ] Lambda function packaging and deployment
-- [ ] API Gateway REST API with Lambda integration
-- [ ] API Gateway Cognito JWT Authorizer configuration
-- [ ] Lambda environment variables configuration
-- [ ] Lambda IAM roles and permissions
-- [ ] CloudWatch logs for Lambda functions
-- [ ] API Gateway stage and deployment
-- [ ] Custom domain for API Gateway
-- [ ] API Gateway usage plans and API keys (optional)
+- [x] AWS SAM (Serverless Application Model) template creation
+- [x] DynamoDB table CloudFormation template with single-table design
+- [x] Lambda function packaging and deployment with Python 3.12
+- [x] Mangum ASGI adapter for FastAPI on Lambda
+- [x] API Gateway REST API with Lambda proxy integration
+- [x] API Gateway Cognito JWT Authorizer configuration
+- [x] Lambda environment variables configuration (table name, Cognito, CORS)
+- [x] Lambda IAM roles and permissions (DynamoDB, CloudWatch, Cognito)
+- [x] CloudWatch logs for Lambda functions and API Gateway
+- [x] API Gateway account settings for CloudWatch Logs
+- [x] API Gateway stage and deployment (production)
+- [x] Custom domain for API Gateway (api.patrickcmd.dev)
+- [x] Wildcard SSL certificate consolidation (*.patrickcmd.dev)
+- [x] Route53 DNS configuration for custom domain
+- [x] CORS configuration for frontend origins
+- [x] Ansible playbook for SAM build and deployment automation
+- [x] Backend setup script for interactive configuration
+- [x] Backend deployment scripts (production and development)
+- [x] API testing CLI helper script (aws/bin/test-api)
+- [x] Comprehensive API testing documentation (backend/docs/TESTING_API.md)
+- [x] Backend documentation organization and index (backend/docs/README.md)
+- [x] SAM build and deployment process documentation (aws/BUILD_AND_DEPLOY_PROCESS.md)
+
+### 🚧 In Progress / Planned
 
 **DevOps**:
 - [ ] CI/CD pipeline with GitHub Actions
@@ -794,6 +844,7 @@ cloud-resume-challenge/
 - **Mangum** - AWS Lambda adapter for ASGI applications
 
 ### Infrastructure as Code
+- **AWS SAM (Serverless Application Model)** - Serverless infrastructure framework
 - **AWS CloudFormation** - Infrastructure definition
 - **Ansible** - Deployment automation
 - **Ansible Vault** - Secure credential management
@@ -818,14 +869,20 @@ cloud-resume-challenge/
   - Custom user attributes for role-based access
   - Token management (ID, Access, Refresh tokens)
   - Email verification and account recovery
-
-### AWS Services (In Progress)
 - **DynamoDB** - NoSQL database for application data (single-table design)
   - Visitor tracking and analytics
   - Blog posts, projects, certifications content
   - View counts and page analytics
-- **Lambda** - Serverless FastAPI functions (Mangum adapter)
-- **API Gateway** - RESTful API with Cognito JWT Authorizer integration
+  - GSI for efficient querying
+- **Lambda** - Serverless FastAPI backend (Python 3.12 with Mangum adapter)
+  - Production function: production-portfolio-api
+  - Environment variables for configuration
+  - IAM execution role with DynamoDB and CloudWatch access
+- **API Gateway** - RESTful API with custom domain (api.patrickcmd.dev)
+  - Cognito JWT Authorizer integration
+  - CORS configuration for frontend origins
+  - CloudWatch logging enabled
+  - 34 endpoints across 6 modules
 
 ### DevOps & Automation
 - **Ansible** 9.13.0 - Configuration management

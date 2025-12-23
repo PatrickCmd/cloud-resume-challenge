@@ -487,7 +487,9 @@ EOF
 
 ## Testing
 
-**Documentation**: See [docs/AUTH_TESTING.md](docs/AUTH_TESTING.md) for comprehensive testing documentation
+**Documentation**:
+- [docs/AUTH_TESTING.md](docs/AUTH_TESTING.md) - Comprehensive testing documentation for authentication
+- [docs/TESTING_API.md](docs/TESTING_API.md) - Guide for testing the deployed API on AWS
 
 ### Test Summary
 

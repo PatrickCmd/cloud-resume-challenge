@@ -72,6 +72,37 @@ cognito_config:
   password_require_symbols: true
   password_temporary_validity_days: 7
 
+# Backend API Configuration (for backend-sam-deploy.yml playbook)
+backend_config:
+  # SAM Configuration
+  sam_template_path: "../backend.yaml"
+  stack_name: production-portfolio-backend-api  # Stack name for backend API
+  sam_s3_bucket: YOUR_SAM_DEPLOYMENT_BUCKET     # S3 bucket for SAM deployment artifacts
+  # Example: patrickcmd-dev-sam-deployments
+  # Create with: aws s3 mb s3://your-bucket-name --region us-east-1
+
+  # Environment Configuration
+  environment: production  # Options: development, staging, production
+
+  # Cognito Configuration (references cognito_config above)
+  # Note: User Pool and App Client must be created first via setup-cognito playbook
+  cognito_user_pool_id: "us-east-1_XXXXXXXXX"  # Your Cognito User Pool ID
+  cognito_client_id: "xxxxxxxxxxxxxxxxxxxxxxxxxx"  # Your Cognito App Client ID
+  # Get these values with: ./bin/cognito-show-config
+
+  # Custom Domain Configuration
+  custom_domain_name: api.YOUR_DOMAIN  # API subdomain (e.g., api.patrickcmd.dev)
+  hosted_zone_id: ZXXXXXXXXXXXXX       # Route53 Hosted Zone ID for YOUR_DOMAIN
+  # Get with: aws route53 list-hosted-zones --query "HostedZones[?Name=='YOUR_DOMAIN.'].Id" --output text
+
+  certificate_arn: YOUR_ACM_CERTIFICATE_ARN  # ACM certificate ARN (must be in us-east-1)
+  # Example: arn:aws:acm:us-east-1:123456789012:certificate/xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+  # Create with: aws acm request-certificate --domain-name api.YOUR_DOMAIN --validation-method DNS --region us-east-1
+
+  # CORS Configuration (allowed frontend origins)
+  frontend_origins: "https://YOUR_DOMAIN,https://www.YOUR_DOMAIN"
+  # Should match domain_config.domain_name above
+
 # Sensitive AWS Credentials (Optional - prefer AWS CLI profiles)
 # Only use if not using AWS CLI profiles
 # Uncomment and add your credentials if needed

@@ -7,7 +7,7 @@ Uses Pydantic Settings for validation and type safety.
 
 import os
 
-from pydantic import ConfigDict
+from pydantic import ConfigDict, field_validator
 from pydantic_settings import BaseSettings
 
 
@@ -34,12 +34,17 @@ class Settings(BaseSettings):
     )  # For local DynamoDB (http://localhost:8000)
 
     # CORS Configuration
-    cors_origins: list[str] = [
-        "http://localhost:3000",
-        "http://localhost:5173",
-        "https://patrickcmd.dev",
-        "https://www.patrickcmd.dev",
-    ]
+    cors_origins: str | list[str] = "http://localhost:3000,http://localhost:5173,https://patrickcmd.dev,https://www.patrickcmd.dev"
+
+    @field_validator("cors_origins", mode="before")
+    @classmethod
+    def parse_cors_origins(cls, v):
+        """Parse CORS origins from comma-separated string or list."""
+        if isinstance(v, list):
+            return v
+        if isinstance(v, str):
+            return [origin.strip() for origin in v.split(",")]
+        return v
 
     # JWT Configuration
     jwt_algorithm: str = "RS256"

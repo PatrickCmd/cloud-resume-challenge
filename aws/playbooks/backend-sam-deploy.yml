@@ -1,0 +1,242 @@
+---
+# Ansible Playbook for deploying the Backend API using AWS SAM
+# This playbook deploys a serverless FastAPI backend with DynamoDB, Lambda, and API Gateway
+# Part of the Cloud Resume Challenge - Backend Infrastructure Deployment
+#
+# Usage with Ansible Vault:
+#   ansible-playbook backend-sam-deploy.yml --ask-vault-pass
+#   ansible-playbook backend-sam-deploy.yml --vault-password-file ~/.vault_pass.txt
+
+- name: Deploy Backend API with AWS SAM
+  hosts: localhost
+  gather_facts: false
+
+  vars_files:
+    - vaults/config.yml
+
+  vars:
+    # AWS Configuration (loaded from vault)
+    aws_region: "{{ aws_config.region }}"
+    aws_profile: "{{ aws_config.profile }}"
+
+    # SAM Configuration (loaded from vault)
+    sam_template_path: "{{ backend_config.sam_template_path }}"
+    sam_stack_name: "{{ override_stack_name | default(backend_config.stack_name) }}"
+    sam_s3_bucket: "{{ backend_config.sam_s3_bucket }}"
+
+    # Backend Configuration (loaded from vault, with override support)
+    app_environment: "{{ override_environment | default(backend_config.environment) }}"
+    cognito_user_pool_id: "{{ backend_config.cognito_user_pool_id }}"
+    cognito_client_id: "{{ backend_config.cognito_client_id }}"
+    custom_domain_name: "{{ override_domain | default(backend_config.custom_domain_name) }}"
+    hosted_zone_id: "{{ backend_config.hosted_zone_id }}"
+    certificate_arn: "{{ backend_config.certificate_arn }}"
+    frontend_origins: "{{ backend_config.frontend_origins }}"
+
+    # Backend directory path (relative to playbook directory)
+    backend_dir: "../../backend"
+
+  tasks:
+    - name: Display deployment information
+      ansible.builtin.debug:
+        msg:
+          - "============================================"
+          - "Deploying Backend API with AWS SAM"
+          - "============================================"
+          - "Stack Name: {{ sam_stack_name }}"
+          - "Region: {{ aws_region }}"
+          - "Profile: {{ aws_profile }}"
+          - "Environment: {{ app_environment }}"
+          - "Custom Domain: {{ custom_domain_name }}"
+          - "SAM Bucket: {{ sam_s3_bucket }}"
+          - "============================================"
+
+    - name: Check if SAM CLI is installed
+      ansible.builtin.command: sam --version
+      register: sam_version
+      changed_when: false
+      failed_when: sam_version.rc != 0
+
+    - name: Display SAM CLI version
+      ansible.builtin.debug:
+        msg: "SAM CLI version: {{ sam_version.stdout }}"
+
+    - name: Validate SAM template
+      ansible.builtin.command:
+        cmd: sam validate --template {{ sam_template_path }} --region {{ aws_region }} --profile {{ aws_profile }}
+        chdir: "{{ playbook_dir }}"
+      register: sam_validate
+      changed_when: false
+      failed_when: sam_validate.rc != 0
+      tags:
+        - validate
+
+    - name: Display validation result
+      ansible.builtin.debug:
+        msg: "SAM template validation: {{ sam_validate.stdout }}"
+      tags:
+        - validate
+
+    - name: Check if backend dependencies are installed
+      ansible.builtin.stat:
+        path: "{{ backend_dir }}/.venv"
+      register: venv_stat
+
+    - name: Install backend dependencies with uv
+      ansible.builtin.command:
+        cmd: uv sync
+        chdir: "{{ backend_dir }}"
+      when: not venv_stat.stat.exists
+      register: uv_sync
+      changed_when: "'Installed' in uv_sync.stdout"
+      tags:
+        - build
+
+    - name: Build SAM application
+      ansible.builtin.command:
+        cmd: >
+          sam build
+          --template {{ sam_template_path }}
+          --use-container
+          --region {{ aws_region }}
+          --profile {{ aws_profile }}
+        chdir: "{{ playbook_dir }}"
+      register: sam_build
+      changed_when: "'Build Succeeded' in sam_build.stdout"
+      failed_when: sam_build.rc != 0
+      tags:
+        - build
+
+    - name: Display build result
+      ansible.builtin.debug:
+        msg: "{{ sam_build.stdout_lines }}"
+      tags:
+        - build
+
+    - name: Deploy SAM application
+      ansible.builtin.command:
+        cmd: >
+          sam deploy
+          --template-file .aws-sam/build/template.yaml
+          --stack-name {{ sam_stack_name }}
+          --s3-bucket {{ sam_s3_bucket }}
+          --s3-prefix {{ sam_stack_name }}
+          --region {{ aws_region }}
+          --profile {{ aws_profile }}
+          --capabilities CAPABILITY_IAM CAPABILITY_NAMED_IAM
+          --parameter-overrides
+          Environment={{ app_environment }}
+          CognitoUserPoolId={{ cognito_user_pool_id }}
+          CognitoClientId={{ cognito_client_id }}
+          CustomDomainName={{ custom_domain_name }}
+          HostedZoneId={{ hosted_zone_id }}
+          CertificateArn={{ certificate_arn }}
+          FrontendOrigins={{ frontend_origins }}
+          --no-fail-on-empty-changeset
+          --no-confirm-changeset
+        chdir: "{{ playbook_dir }}"
+      register: sam_deploy
+      changed_when: "'Successfully created/updated stack' in sam_deploy.stdout"
+      failed_when: sam_deploy.rc != 0
+      tags:
+        - deploy
+
+    - name: Display deployment result
+      ansible.builtin.debug:
+        msg: "{{ sam_deploy.stdout_lines }}"
+      tags:
+        - deploy
+
+    - name: Get CloudFormation stack outputs
+      amazon.aws.cloudformation_info:
+        stack_name: "{{ sam_stack_name }}"
+        stack_resources: true
+        region: "{{ aws_region }}"
+        profile: "{{ aws_profile }}"
+      register: stack_outputs
+      tags:
+        - info
+
+    - name: Display stack outputs
+      ansible.builtin.debug:
+        msg:
+          - "============================================"
+          - "Stack Deployment Complete!"
+          - "============================================"
+          - "Stack Name: {{ sam_stack_name }}"
+          - "Stack Status: {{ stack_outputs.cloudformation[sam_stack_name].stack_description.stack_status }}"
+          - ""
+          - "API Endpoints:"
+          - "  - API Gateway URL: {{ stack_outputs.cloudformation[sam_stack_name].stack_outputs.ApiUrl | default('N/A') }}"
+          - "  - Custom Domain URL: {{ stack_outputs.cloudformation[sam_stack_name].stack_outputs.CustomDomainUrl | default('N/A') }}"
+          - ""
+          - "Lambda Function:"
+          - "  - Function Name: {{ stack_outputs.cloudformation[sam_stack_name].stack_outputs.PortfolioApiFunctionName | default('N/A') }}"
+          - "  - Function ARN: {{ stack_outputs.cloudformation[sam_stack_name].stack_outputs.PortfolioApiFunctionArn | default('N/A') }}"
+          - ""
+          - "DynamoDB Table:"
+          - "  - Table Name: {{ stack_outputs.cloudformation[sam_stack_name].stack_outputs.PortfolioTableName | default('N/A') }}"
+          - "  - Table ARN: {{ stack_outputs.cloudformation[sam_stack_name].stack_outputs.PortfolioTableArn | default('N/A') }}"
+          - ""
+          - "API Gateway:"
+          - "  - API ID: {{ stack_outputs.cloudformation[sam_stack_name].stack_outputs.ApiGatewayId | default('N/A') }}"
+          - "  - CloudFront Distribution: {{ stack_outputs.cloudformation[sam_stack_name].stack_outputs.CustomDomainDistribution | default('N/A') }}"
+          - ""
+          - "CloudWatch Logs:"
+          - "  - API Gateway Logs: {{ stack_outputs.cloudformation[sam_stack_name].stack_outputs.ApiGatewayLogGroupName | default('N/A') }}"
+          - "  - Lambda Logs: {{ stack_outputs.cloudformation[sam_stack_name].stack_outputs.LambdaLogGroupName | default('N/A') }}"
+          - ""
+          - "Next Steps:"
+          - "  1. Test the API: curl https://{{ custom_domain_name }}/health"
+          - "  2. View API docs: https://{{ custom_domain_name }}/docs (if development environment)"
+          - "  3. Check Lambda logs: aws logs tail /aws/lambda/{{ app_environment }}-portfolio-api --follow"
+          - "  4. Monitor API Gateway logs: aws logs tail /aws/apigateway/{{ app_environment }}-portfolio-api --follow"
+          - "============================================"
+      tags:
+        - info
+
+    - name: Save stack outputs to file
+      ansible.builtin.copy:
+        content: |
+          # Backend Stack Outputs
+          # Generated: {{ now(utc=true).isoformat() }}
+
+          # Stack Information
+          STACK_NAME={{ sam_stack_name }}
+          STACK_STATUS={{ stack_outputs.cloudformation[sam_stack_name].stack_description.stack_status }}
+          ENVIRONMENT={{ app_environment }}
+
+          # API Endpoints
+          API_GATEWAY_URL={{ stack_outputs.cloudformation[sam_stack_name].stack_outputs.ApiUrl | default('') }}
+          CUSTOM_DOMAIN_URL={{ stack_outputs.cloudformation[sam_stack_name].stack_outputs.CustomDomainUrl | default('') }}
+
+          # Lambda Function
+          LAMBDA_FUNCTION_NAME={{ stack_outputs.cloudformation[sam_stack_name].stack_outputs.PortfolioApiFunctionName | default('') }}
+          LAMBDA_FUNCTION_ARN={{ stack_outputs.cloudformation[sam_stack_name].stack_outputs.PortfolioApiFunctionArn | default('') }}
+
+          # DynamoDB Table
+          DYNAMODB_TABLE_NAME={{ stack_outputs.cloudformation[sam_stack_name].stack_outputs.PortfolioTableName | default('') }}
+          DYNAMODB_TABLE_ARN={{ stack_outputs.cloudformation[sam_stack_name].stack_outputs.PortfolioTableArn | default('') }}
+          DYNAMODB_TABLE_STREAM_ARN={{ stack_outputs.cloudformation[sam_stack_name].stack_outputs.PortfolioTableStreamArn | default('') }}
+
+          # API Gateway
+          API_GATEWAY_ID={{ stack_outputs.cloudformation[sam_stack_name].stack_outputs.ApiGatewayId | default('') }}
+          CUSTOM_DOMAIN_DISTRIBUTION={{ stack_outputs.cloudformation[sam_stack_name].stack_outputs.CustomDomainDistribution | default('') }}
+
+          # CloudWatch Logs
+          API_GATEWAY_LOG_GROUP={{ stack_outputs.cloudformation[sam_stack_name].stack_outputs.ApiGatewayLogGroupName | default('') }}
+          LAMBDA_LOG_GROUP={{ stack_outputs.cloudformation[sam_stack_name].stack_outputs.LambdaLogGroupName | default('') }}
+        dest: ../outputs/backend-stack-outputs.env
+        mode: '0644'
+      tags:
+        - info
+
+    - name: Display success message
+      ansible.builtin.debug:
+        msg:
+          - "============================================"
+          - "Backend API deployment completed successfully!"
+          - "Stack outputs saved to: ../outputs/backend-stack-outputs.env"
+          - "============================================"
+      tags:
+        - info
