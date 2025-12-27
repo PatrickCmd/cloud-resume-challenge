@@ -91,7 +91,8 @@ async def create_project(
     project_repo: ProjectRepository = Depends(get_project_repository),
 ):
     """Create a new project. Requires owner authentication."""
-    project_data = project.model_dump()
+    # Use mode='json' to convert Pydantic types (HttpUrl) to JSON-serializable types (str)
+    project_data = project.model_dump(mode='json')
     created_project = project_repo.create(project_data)
 
     if not created_project:
@@ -111,7 +112,8 @@ async def update_project(
     project_repo: ProjectRepository = Depends(get_project_repository),
 ):
     """Update an existing project. Requires owner authentication."""
-    project_data = project.model_dump(exclude_unset=True)
+    # Use mode='json' to convert Pydantic types (HttpUrl) to JSON-serializable types (str)
+    project_data = project.model_dump(exclude_unset=True, mode='json')
 
     if not project_data:
         raise HTTPException(

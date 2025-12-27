@@ -6,7 +6,7 @@ Tests visitor tracking and analytics operations using moto to mock DynamoDB.
 
 import os
 import uuid
-from datetime import datetime
+from datetime import UTC, datetime
 
 import boto3
 import pytest
@@ -99,7 +99,7 @@ class TestVisitorTracking:
         visitor_repo.track_visitor(session_id)
 
         # Verify session record exists
-        today = datetime.now().strftime("%Y-%m-%d")
+        today = datetime.now(UTC).strftime("%Y-%m-%d")
         session_item = visitor_repo.get_item(pk=f"VISITOR#SESSION#{session_id}", sk="TRACKED")
 
         assert session_item is not None
@@ -189,7 +189,7 @@ class TestDailyTrends:
         assert len(trends) == days
 
         # Check that the most recent date is today
-        today = datetime.now().strftime("%Y-%m-%d")
+        today = datetime.now(UTC).strftime("%Y-%m-%d")
         assert trends[-1]["date"] == today
 
 
@@ -215,7 +215,7 @@ class TestMonthlyTrends:
 
         assert len(trends) == 6
         # Current month should have visitors
-        current_month = datetime.now().strftime("%Y-%m")
+        current_month = datetime.now(UTC).strftime("%Y-%m")
         current_month_trend = next((t for t in trends if t["month"] == current_month), None)
         assert current_month_trend is not None
         assert current_month_trend["visitors"] == 5
@@ -252,7 +252,7 @@ class TestSessionExpiry:
         session_item = visitor_repo.get_item(pk=f"VISITOR#SESSION#{session_id}", sk="TRACKED")
 
         expiry = session_item["ExpiresAt"]
-        now = int(datetime.now().timestamp())
+        now = int(datetime.now(UTC).timestamp())
 
         assert expiry > now  # Expiry should be in the future
 
@@ -265,7 +265,7 @@ class TestDataStructure:
         session_id = str(uuid.uuid4())
         visitor_repo.track_visitor(session_id)
 
-        today = datetime.now().strftime("%Y-%m-%d")
+        today = datetime.now(UTC).strftime("%Y-%m-%d")
         daily_item = visitor_repo.get_item(pk=f"VISITOR#DAILY#{today}", sk="COUNT")
 
         assert daily_item is not None

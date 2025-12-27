@@ -105,7 +105,8 @@ async def create_certification(
     cert_repo: CertificationRepository = Depends(get_certification_repository),
 ):
     """Create a new certification. Requires owner authentication."""
-    cert_data = cert.model_dump()
+    # Use mode='json' to convert Pydantic types (HttpUrl) to JSON-serializable types (str)
+    cert_data = cert.model_dump(mode='json')
     created_cert = cert_repo.create(cert_data)
 
     if not created_cert:
@@ -125,7 +126,8 @@ async def update_certification(
     cert_repo: CertificationRepository = Depends(get_certification_repository),
 ):
     """Update an existing certification. Requires owner authentication."""
-    cert_data = cert.model_dump(exclude_unset=True)
+    # Use mode='json' to convert Pydantic types (HttpUrl) to JSON-serializable types (str)
+    cert_data = cert.model_dump(exclude_unset=True, mode='json')
 
     if not cert_data:
         raise HTTPException(

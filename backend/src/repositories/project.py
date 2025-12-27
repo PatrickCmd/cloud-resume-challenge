@@ -32,6 +32,27 @@ class ProjectRepository(BaseRepository):
         status = data.get("status", "DRAFT")
         created_at = data.get("createdAt") or datetime.now(UTC).isoformat()
 
+        # Build Data dict, excluding None values (DynamoDB doesn't accept None directly)
+        data_dict = {
+            "id": project_id,
+            "name": data.get("name", ""),
+            "description": data.get("description", ""),
+            "longDescription": data.get("longDescription", ""),
+            "tech": data.get("tech", []),
+            "company": data.get("company", ""),
+            "featured": data.get("featured", False),
+            "createdAt": created_at,
+            "updatedAt": data.get("updatedAt") or datetime.now(UTC).isoformat(),
+        }
+
+        # Add URL fields only if they have values
+        if data.get("githubUrl"):
+            data_dict["githubUrl"] = data["githubUrl"]
+        if data.get("liveUrl"):
+            data_dict["liveUrl"] = data["liveUrl"]
+        if data.get("imageUrl"):
+            data_dict["imageUrl"] = data["imageUrl"]
+
         item = {
             "PK": f"PROJECT#{project_id}",
             "SK": "METADATA",
@@ -39,20 +60,7 @@ class ProjectRepository(BaseRepository):
             "GSI1SK": f"PROJECT#{created_at}",
             "EntityType": "PROJECT",
             "Status": status,
-            "Data": {
-                "id": project_id,
-                "name": data.get("name", ""),
-                "description": data.get("description", ""),
-                "longDescription": data.get("longDescription", ""),
-                "tech": data.get("tech", []),
-                "company": data.get("company", ""),
-                "featured": data.get("featured", False),
-                "githubUrl": data.get("githubUrl"),
-                "liveUrl": data.get("liveUrl"),
-                "imageUrl": data.get("imageUrl"),
-                "createdAt": created_at,
-                "updatedAt": data.get("updatedAt") or datetime.now(UTC).isoformat(),
-            },
+            "Data": data_dict,
         }
         return item
 
@@ -65,6 +73,11 @@ class ProjectRepository(BaseRepository):
         result = {**item["Data"]}
         if "Status" in item:
             result["status"] = item["Status"]
+
+        # Ensure optional URL fields are present (even if None) for Pydantic validation
+        result.setdefault("githubUrl", None)
+        result.setdefault("liveUrl", None)
+        result.setdefault("imageUrl", None)
 
         return result
 

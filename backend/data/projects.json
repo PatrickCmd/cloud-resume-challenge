@@ -1,0 +1,131 @@
+[
+  {
+    "name": "Cloud Resume Challenge - Serverless Portfolio",
+    "description": "Full-stack serverless portfolio built with AWS SAM, FastAPI, React, and DynamoDB featuring CI/CD, authentication, and analytics.",
+    "longDescription": "## Overview\n\nA production-ready serverless portfolio application showcasing cloud engineering skills through the Cloud Resume Challenge.\n\n## Architecture\n\n- **Frontend**: React + TypeScript deployed to S3/CloudFront\n- **Backend**: FastAPI on AWS Lambda with API Gateway\n- **Database**: DynamoDB single-table design\n- **Authentication**: Amazon Cognito with JWT\n- **Infrastructure**: AWS SAM (CloudFormation)\n- **CI/CD**: GitHub Actions with automated testing\n\n## Key Features\n\n### Backend\n- RESTful API with 34 endpoints (blogs, projects, certifications, analytics)\n- Amazon Cognito authentication with owner-only access\n- DynamoDB single-table design with 18 access patterns\n- JWT validation at API Gateway level\n- Comprehensive test suite (58+ tests)\n- CloudWatch logging and monitoring\n\n### Frontend\n- Responsive design with Tailwind CSS\n- Dark mode support\n- Blog with markdown rendering\n- Project showcase\n- Visitor analytics dashboard\n- Contact form integration\n\n### Infrastructure\n- Automated deployment with Ansible playbooks\n- Separate production and development environments\n- Custom domains with ACM certificates\n- Route 53 DNS management\n- Encrypted configuration with Ansible Vault\n\n## Technical Challenges Solved\n\n1. **CORS Configuration**: Implemented field validators for Pydantic Settings\n2. **API Gateway CloudFront Integration**: Automated DNS record creation\n3. **Lambda Cold Starts**: Optimized package size and memory allocation\n4. **DynamoDB Access Patterns**: Designed efficient GSI queries\n5. **Testing Strategy**: Comprehensive unit, integration, and E2E tests\n\n## Deployment Process\n\n```bash\n# Build and deploy backend\n./aws/bin/backend-sam-deploy\n\n# Deploy frontend\n./aws/bin/frontend-deploy\n```\n\n## Monitoring & Observability\n\n- CloudWatch Logs for Lambda and API Gateway\n- Visitor tracking with DynamoDB\n- Analytics dashboard for content views\n- Custom metrics for API performance\n\n## Cost Optimization\n\n- DynamoDB on-demand pricing: ~$2.50/month\n- Lambda requests: ~$0.20/month\n- API Gateway: ~$3.50/month\n- S3 + CloudFront: ~$1.00/month\n- **Total**: ~$7.20/month for 10k requests\n\n## Documentation\n\nExtensive documentation covering:\n- Authentication implementation (26KB)\n- DynamoDB design patterns (49KB)\n- Troubleshooting guide (500+ lines)\n- API testing guide (12KB)\n- Local development setup\n\n## What I Learned\n\n- Serverless architecture patterns\n- AWS SAM infrastructure as code\n- DynamoDB single-table design\n- Cognito authentication flows\n- CI/CD with GitHub Actions\n- Cost optimization strategies",
+    "tech": [
+      "AWS Lambda",
+      "FastAPI",
+      "Python",
+      "DynamoDB",
+      "Cognito",
+      "API Gateway",
+      "SAM",
+      "React",
+      "TypeScript",
+      "CloudFront",
+      "S3",
+      "Route 53",
+      "Ansible"
+    ],
+    "company": "Personal Project",
+    "featured": true,
+    "githubUrl": "https://github.com/PatrickCmd/cloud-resume-challenge",
+    "liveUrl": "https://patrickcmd.dev",
+    "imageUrl": null
+  },
+  {
+    "name": "MTN Rwanda Agriculture Platform",
+    "description": "Django REST API powering cooperative and farmer onboarding workflows with USSD integration for collection and loan management.",
+    "longDescription": "## Project Overview\n\nA comprehensive agriculture platform built for MTN Rwanda in partnership with HAMWE EA to digitize farmer cooperatives and agricultural value chains.\n\n## Features\n\n### Cooperative Management\n- Digital onboarding for farmer cooperatives\n- Member registration and verification\n- Role-based access control (admin, cooperative leader, farmer)\n- Document management and compliance tracking\n\n### USSD Integration\n- Mobile-first access via USSD menus\n- Support for feature phones (no smartphone required)\n- Multi-language support (Kinyarwanda, English, French)\n- Real-time balance and transaction queries\n\n### Collection Management\n- Crop collection tracking\n- Quality grading and verification\n- Payment calculation and disbursement\n- Historical collection reports\n\n### Loan Management\n- Loan application workflows\n- Automated eligibility checks based on collection history\n- Repayment scheduling\n- SMS notifications for loan status\n\n## Technical Implementation\n\n### Backend Architecture\n- **Framework**: Django 3.2 with Django REST Framework\n- **Database**: PostgreSQL with spatial extensions\n- **Caching**: Redis for session management\n- **Task Queue**: Celery for asynchronous processing\n- **API Documentation**: Swagger/OpenAPI\n\n### Integration Points\n- MTN Mobile Money API for payments\n- USSD gateway integration\n- SMS gateway for notifications\n- Government farmer registry API\n\n### Security\n- JWT authentication for API access\n- Row-level security for cooperative data isolation\n- Encrypted sensitive data (PII)\n- Audit logging for all transactions\n\n## Deployment\n\n- **Infrastructure**: AWS EC2 with Auto Scaling\n- **Database**: RDS PostgreSQL with Multi-AZ\n- **Load Balancer**: Application Load Balancer\n- **Monitoring**: CloudWatch + ELK stack\n- **CI/CD**: Jenkins pipeline\n\n## Impact\n\n- **10,000+ farmers** onboarded in first 6 months\n- **50+ cooperatives** using the platform\n- **$500k+** in collections tracked\n- **95% USSD uptime** maintained\n\n## Challenges & Solutions\n\n1. **Challenge**: Low smartphone penetration\n   - **Solution**: Built USSD interface for feature phones\n\n2. **Challenge**: Intermittent connectivity in rural areas\n   - **Solution**: Offline-first mobile app with sync\n\n3. **Challenge**: Complex cooperative hierarchies\n   - **Solution**: Flexible role-based permission system\n\n4. **Challenge**: Integration with legacy systems\n   - **Solution**: Built adapter layer with data transformation\n\n## Technologies Used\n\n- Python, Django, Django REST Framework\n- PostgreSQL, Redis, Celery\n- Docker, Kubernetes\n- AWS (EC2, RDS, S3)\n- USSD Gateway Integration",
+    "tech": [
+      "Python",
+      "Django",
+      "PostgreSQL",
+      "Redis",
+      "Celery",
+      "Docker",
+      "AWS"
+    ],
+    "company": "HAMWE EA",
+    "featured": true,
+    "githubUrl": null,
+    "liveUrl": null,
+    "imageUrl": null
+  },
+  {
+    "name": "Blockbrite Payment Gateway",
+    "description": "Backend modules for a payment gateway with banking transaction API integrations.",
+    "longDescription": "## Project Overview\n\nPayment gateway backend system developed for BoldGains to process and manage financial transactions across multiple banks.\n\n## Features\n\n### Payment Processing\n- Multi-currency transaction support\n- Real-time payment authorization\n- Automated reconciliation\n- Refund and chargeback handling\n\n### Bank Integrations\n- Multiple bank API integrations\n- Standardized transaction interface\n- Fallback routing for high availability\n- Transaction status monitoring\n\n### Security\n- PCI DSS compliance\n- End-to-end encryption\n- Tokenization for card data\n- Fraud detection rules engine\n\n### Reporting\n- Transaction reports and analytics\n- Settlement reconciliation\n- Merchant dashboards\n- Compliance audit trails\n\n## Technical Stack\n\n- **Framework**: Django REST Framework\n- **Database**: PostgreSQL\n- **Message Queue**: RabbitMQ\n- **Cache**: Redis\n- **Monitoring**: Prometheus + Grafana\n\n## Architecture Highlights\n\n- Microservices architecture for scalability\n- Event-driven design for transaction processing\n- Circuit breaker pattern for external API calls\n- Distributed tracing with OpenTelemetry",
+    "tech": [
+      "Python",
+      "Django",
+      "PostgreSQL",
+      "RabbitMQ",
+      "Redis"
+    ],
+    "company": "BoldGains",
+    "featured": true,
+    "githubUrl": null,
+    "liveUrl": null,
+    "imageUrl": null
+  },
+  {
+    "name": "Sunbird AI Platform",
+    "description": "Backend systems, infrastructure automation, and ML-enabled services for production AI systems.",
+    "longDescription": "## Project Overview\n\nProduction AI platform for Sunbird AI providing machine learning services for NLP, speech recognition, and data analytics.\n\n## Responsibilities\n\n### Backend Development\n- FastAPI microservices for ML model serving\n- RESTful APIs for client integrations\n- WebSocket support for real-time inference\n- Batch processing pipelines\n\n### Infrastructure Automation\n- AWS infrastructure as code (Terraform)\n- Kubernetes cluster management\n- CI/CD pipelines (GitHub Actions)\n- Auto-scaling and load balancing\n\n### ML Model Deployment\n- Model serving with TorchServe\n- A/B testing framework\n- Model versioning and rollback\n- Performance monitoring\n\n### Observability\n- Distributed tracing (Jaeger)\n- Metrics collection (Prometheus)\n- Log aggregation (ELK stack)\n- Custom dashboards (Grafana)\n\n## Technical Stack\n\n- **Backend**: FastAPI, Python 3.11\n- **ML Serving**: TorchServe, ONNX Runtime\n- **Infrastructure**: AWS (ECS, Lambda, S3, RDS)\n- **Orchestration**: Kubernetes, Docker\n- **Monitoring**: Prometheus, Grafana, ELK\n\n## Impact\n\n- Reduced inference latency by 60%\n- Scaled to handle 1M+ requests/day\n- Achieved 99.9% uptime SLA\n- Automated deployment reduced release time by 80%",
+    "tech": [
+      "Python",
+      "FastAPI",
+      "AWS",
+      "Kubernetes",
+      "Docker",
+      "Terraform"
+    ],
+    "company": "Sunbird AI",
+    "featured": true,
+    "githubUrl": null,
+    "liveUrl": null,
+    "imageUrl": null
+  },
+  {
+    "name": "IT Certification Extranet",
+    "description": "RESTful APIs for the IT certification system with SMS notifications and invoice generation.",
+    "longDescription": "## Project Overview\n\nIT Certification management system for NITA-U (National Information Technology Authority - Uganda) to manage certification applications and issuance.\n\n## Features\n\n### Certification Workflow\n- Online certification applications\n- Document upload and verification\n- Multi-stage approval process\n- Certificate generation and download\n\n### Notifications\n- SMS notifications for application status\n- Email notifications with attachments\n- Reminder notifications for renewals\n- Bulk notification campaigns\n\n### Financial Management\n- Automated invoice generation\n- Payment tracking and reconciliation\n- Revenue reporting\n- Integration with payment gateways\n\n### Certificate Verification\n- Public verification portal\n- QR code verification\n- API for partner verification\n- Verification audit trail\n\n## Technical Implementation\n\n- **Framework**: Django REST Framework\n- **Database**: PostgreSQL\n- **PDF Generation**: ReportLab\n- **SMS Gateway**: Africa's Talking API\n- **Task Queue**: Celery with Redis\n\n## Deployment\n\n- **Hosting**: On-premise servers\n- **Web Server**: Nginx + Gunicorn\n- **Database**: PostgreSQL with replication\n- **Monitoring**: Nagios",
+    "tech": [
+      "Python",
+      "Django",
+      "PostgreSQL",
+      "Redis",
+      "Celery"
+    ],
+    "company": "NITA-U IT",
+    "featured": false,
+    "githubUrl": null,
+    "liveUrl": null,
+    "imageUrl": null
+  },
+  {
+    "name": "Hardware Inventory System",
+    "description": "Internal inventory system for hardware reservations, quality checks, and automated testing processes.",
+    "longDescription": "## Project Overview\n\nInternal inventory management system for Tarana Wireless to track hardware assets, reservations, and quality testing.\n\n## Features\n\n### Inventory Management\n- Real-time asset tracking\n- Serial number tracking\n- Location management\n- Stock level alerts\n\n### Reservation System\n- Hardware reservation workflow\n- Conflict detection\n- Automated notifications\n- Reservation history\n\n### Quality Assurance\n- Quality check workflows\n- Test result tracking\n- Failure analysis\n- RMA processing\n\n### Automation\n- Integration with testing frameworks\n- Automated test scheduling\n- Result aggregation\n- Report generation\n\n## Technical Stack\n\n- **Framework**: Flask\n- **Database**: PostgreSQL\n- **Task Queue**: Celery\n- **Testing Integration**: pytest hooks\n- **API**: RESTful with Flask-RESTful",
+    "tech": [
+      "Python",
+      "Flask",
+      "PostgreSQL",
+      "Celery"
+    ],
+    "company": "Tarana Wireless",
+    "featured": false,
+    "githubUrl": null,
+    "liveUrl": null,
+    "imageUrl": null
+  },
+  {
+    "name": "Music Analytics Pipeline",
+    "description": "Data scraping and PostgreSQL pipelines for music analytics with SQL-based data exports.",
+    "longDescription": "## Project Overview\n\nMusic industry analytics platform for Chartmetric providing insights on artist performance, streaming data, and social media metrics.\n\n## Features\n\n### Data Collection\n- Web scraping from music platforms\n- API integrations (Spotify, Apple Music, YouTube)\n- Social media data aggregation\n- Real-time data ingestion\n\n### ETL Pipelines\n- Data transformation and normalization\n- Deduplication and quality checks\n- Incremental updates\n- Historical data backfill\n\n### Analytics\n- Artist performance metrics\n- Trending analysis\n- Competitive benchmarking\n- Audience demographics\n\n### Data Export\n- SQL-based export system\n- Custom report generation\n- API for partner integrations\n- Scheduled data delivery\n\n## Technical Stack\n\n- **Language**: Python 3.8\n- **Database**: PostgreSQL with TimescaleDB\n- **Scraping**: Scrapy, BeautifulSoup\n- **ETL**: Apache Airflow\n- **Data Processing**: Pandas, NumPy\n\n## Performance\n\n- Processes 10M+ data points daily\n- Sub-second query performance\n- 99.5% data accuracy\n- 24/7 data pipeline uptime",
+    "tech": [
+      "Python",
+      "PostgreSQL",
+      "Scrapy",
+      "Airflow",
+      "Pandas"
+    ],
+    "company": "Chartmetric",
+    "featured": false,
+    "githubUrl": null,
+    "liveUrl": null,
+    "imageUrl": null
+  }
+]

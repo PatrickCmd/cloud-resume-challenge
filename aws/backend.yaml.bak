@@ -133,6 +133,8 @@ Resources:
             RestApiId: !Ref PortfolioApiGateway
             Path: /
             Method: GET
+            Auth:
+              Authorizer: NONE
         # Health check
         HealthApi:
           Type: Api
@@ -140,6 +142,8 @@ Resources:
             RestApiId: !Ref PortfolioApiGateway
             Path: /health
             Method: GET
+            Auth:
+              Authorizer: NONE
         # API Documentation (development only)
         DocsApi:
           Type: Api
@@ -147,18 +151,24 @@ Resources:
             RestApiId: !Ref PortfolioApiGateway
             Path: /docs
             Method: GET
+            Auth:
+              Authorizer: NONE
         RedocApi:
           Type: Api
           Properties:
             RestApiId: !Ref PortfolioApiGateway
             Path: /redoc
             Method: GET
+            Auth:
+              Authorizer: NONE
         OpenApiApi:
           Type: Api
           Properties:
             RestApiId: !Ref PortfolioApiGateway
             Path: /openapi.json
             Method: GET
+            Auth:
+              Authorizer: NONE
         # Authentication endpoints (no auth required)
         AuthLoginApi:
           Type: Api
@@ -166,24 +176,32 @@ Resources:
             RestApiId: !Ref PortfolioApiGateway
             Path: /auth/login
             Method: POST
+            Auth:
+              Authorizer: NONE
         AuthRefreshApi:
           Type: Api
           Properties:
             RestApiId: !Ref PortfolioApiGateway
             Path: /auth/refresh
             Method: POST
+            Auth:
+              Authorizer: NONE
         AuthMeApi:
           Type: Api
           Properties:
             RestApiId: !Ref PortfolioApiGateway
             Path: /auth/me
             Method: GET
+            Auth:
+              Authorizer: NONE
         AuthLogoutApi:
           Type: Api
           Properties:
             RestApiId: !Ref PortfolioApiGateway
             Path: /auth/logout
             Method: POST
+            Auth:
+              Authorizer: NONE
         # Catch all for API routes (FastAPI handles authentication)
         ApiProxy:
           Type: Api

@@ -775,16 +775,22 @@ cloud-resume-challenge/
 - [x] API endpoints integrated with repositories (34 endpoints across 6 modules)
 - [x] JWT authentication with Cognito integration
 - [x] Role-based authorization (owner vs public access)
-- [x] Pydantic data models with validation
+- [x] Pydantic data models with validation (HttpUrl serialization fixes)
 - [x] Error handling and HTTP status codes
 - [x] CORS middleware configuration
 - [x] Comprehensive unit tests (211 tests, 100% passing)
+- [x] UTC timezone handling for consistent test behavior
 - [x] Test fixtures and mocking infrastructure
 - [x] Dependency injection for testability
 - [x] Local development environment setup
 - [x] Local testing documentation (backend/docs/LOCAL_TESTING.md)
 - [x] Docker Compose for local DynamoDB
 - [x] Environment configuration management
+- [x] E2E testing framework (133+ tests against deployed APIs)
+- [x] Automatic test data cleanup (development environment)
+- [x] Makefile automation for E2E tests
+- [x] Environment-specific E2E testing (production/development)
+- [x] OpenAPI endpoint security (disabled in production)
 
 **Backend Infrastructure & Deployment**:
 - [x] AWS SAM (Serverless Application Model) template creation
@@ -809,6 +815,18 @@ cloud-resume-challenge/
 - [x] Comprehensive API testing documentation (backend/docs/TESTING_API.md)
 - [x] Backend documentation organization and index (backend/docs/README.md)
 - [x] SAM build and deployment process documentation (aws/BUILD_AND_DEPLOY_PROCESS.md)
+- [x] Production API deployed and fully tested (api.patrickcmd.dev)
+- [x] Development API deployed for testing (api-dev.patrickcmd.dev)
+
+**Recent Improvements & Fixes**:
+- [x] Fixed Pydantic HttpUrl serialization issues with boto3 DynamoDB
+- [x] Implemented automatic E2E test data cleanup for development environment
+- [x] Fixed timezone-dependent unit test failures (UTC standardization)
+- [x] Added Makefile targets for simplified E2E test execution
+- [x] Disabled OpenAPI documentation endpoints in production for security
+- [x] Documented all fixes in backend/docs/PYDANTIC_HTTPURL_FIX.md
+- [x] Organized documentation in backend/docs/ folder
+- [x] Updated .env.example with comprehensive E2E test configuration
 
 ### 🚧 In Progress / Planned
 
@@ -1079,6 +1097,50 @@ Complete deployment documentation is available in:
 ```
 CloudFront (HTTPS) → S3 Bucket → patrickcmd.dev
 ```
+
+## Testing
+
+The backend API has comprehensive test coverage with both unit and E2E tests:
+
+### Test Summary
+
+| Test Type | Count | Coverage | Environment |
+|-----------|-------|----------|-------------|
+| **Unit Tests** | 211 | All endpoints, repositories, utilities | Local (mocked AWS) |
+| **E2E Tests** | 133+ | Complete API flows | Deployed (real AWS) |
+| **Total** | **344+** | **100% passing** | Mixed |
+
+### Running Tests
+
+**Unit Tests** (fast, local, no AWS required):
+```bash
+cd backend
+make test          # Run all unit tests
+make coverage      # Run with coverage report
+```
+
+**E2E Tests** (against deployed APIs):
+```bash
+cd backend
+make e2e-dev       # Development environment
+make e2e-prod      # Production environment (use cautiously)
+make e2e-auth      # Authentication tests only
+make e2e-blogs     # Blog endpoints only
+make e2e-projects  # Project endpoints only
+make e2e-certs     # Certification endpoints only
+```
+
+### E2E Test Features
+
+- ✅ **Automatic cleanup**: Deletes test data after completion (development only)
+- ✅ **Environment isolation**: Separate configs for production/development
+- ✅ **Real AWS services**: Tests against actual Lambda, DynamoDB, Cognito
+- ✅ **Session tracking**: Tracks created items for selective cleanup
+- ✅ **Safety first**: Cleanup only in development to protect production data
+
+See [backend/tests/e2e_deployed/README.md](backend/tests/e2e_deployed/README.md) for detailed E2E testing documentation.
+
+---
 
 ## API Documentation Quick Start
 

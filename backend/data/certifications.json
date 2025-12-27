@@ -1,0 +1,122 @@
+[
+  {
+    "name": "AWS Certified Solutions Architect – Associate",
+    "issuer": "Amazon Web Services (AWS)",
+    "icon": "☁️",
+    "type": "certification",
+    "featured": true,
+    "description": "Validates expertise in designing distributed systems on AWS with a focus on scalability, reliability, and cost optimization.",
+    "credentialUrl": null,
+    "dateEarned": "2023-06-15"
+  },
+  {
+    "name": "AWS Certified Cloud Practitioner",
+    "issuer": "Amazon Web Services (AWS)",
+    "icon": "☁️",
+    "type": "certification",
+    "featured": true,
+    "description": "Foundational understanding of AWS Cloud concepts, services, and terminology. Demonstrates knowledge of AWS architectural principles and value proposition.",
+    "credentialUrl": null,
+    "dateEarned": "2023-01-20"
+  },
+  {
+    "name": "AWS Cloud Project Bootcamp (Teal Squad)",
+    "issuer": "AWS",
+    "icon": "🏆",
+    "type": "certification",
+    "featured": false,
+    "description": "Hands-on bootcamp for building real-world AWS projects with focus on serverless architectures, containerization, and cloud-native development.",
+    "credentialUrl": null,
+    "dateEarned": "2023-03-10"
+  },
+  {
+    "name": "Applied Data Science Lab",
+    "issuer": "WorldQuant University",
+    "icon": "📊",
+    "type": "course",
+    "featured": false,
+    "description": "Practical data science skills using Python and machine learning. Covers exploratory data analysis, feature engineering, and model deployment.",
+    "credentialUrl": null,
+    "dateEarned": "2022-12-01"
+  },
+  {
+    "name": "GitHub Copilot Fundamentals",
+    "issuer": "GitHub",
+    "icon": "🤖",
+    "type": "course",
+    "featured": false,
+    "description": "Understanding AI-powered code completion with GitHub Copilot. Learn best practices for prompt engineering and productivity enhancement.",
+    "credentialUrl": null,
+    "dateEarned": "2024-02-15"
+  },
+  {
+    "name": "[PCEP-30-01] PCEP – Certified Entry-Level Python Programmer",
+    "issuer": "Python Institute",
+    "icon": "🐍",
+    "type": "certification",
+    "featured": false,
+    "description": "Entry-level certification for Python programming fundamentals. Validates knowledge of syntax, semantics, and core Python libraries.",
+    "credentialUrl": null,
+    "dateEarned": "2022-08-20"
+  },
+  {
+    "name": "Python Data Structures",
+    "issuer": "Coursera",
+    "icon": "📚",
+    "type": "course",
+    "featured": false,
+    "description": "Deep dive into Python data structures and algorithms. Covers lists, dictionaries, tuples, sets, and algorithm complexity analysis.",
+    "credentialUrl": null,
+    "dateEarned": "2022-05-10"
+  },
+  {
+    "name": "Programming for Everybody (Getting Started with Python)",
+    "issuer": "Coursera",
+    "icon": "💻",
+    "type": "course",
+    "featured": false,
+    "description": "Introduction to programming concepts using Python. Fundamental programming constructs including variables, expressions, and control flow.",
+    "credentialUrl": null,
+    "dateEarned": "2022-03-15"
+  },
+  {
+    "name": "Front-End Web UI Frameworks and Tools: Bootstrap 4",
+    "issuer": "Coursera",
+    "icon": "🎨",
+    "type": "course",
+    "featured": false,
+    "description": "Building responsive web interfaces with modern frameworks. Covers Bootstrap 4, responsive design, and mobile-first development.",
+    "credentialUrl": null,
+    "dateEarned": "2022-07-20"
+  },
+  {
+    "name": "Docker Essentials: A Developer Introduction",
+    "issuer": "IBM/Coursera",
+    "icon": "🐳",
+    "type": "course",
+    "featured": false,
+    "description": "Containerization with Docker for application deployment. Covers Docker commands, Dockerfiles, multi-stage builds, and container orchestration basics.",
+    "credentialUrl": null,
+    "dateEarned": "2022-09-12"
+  },
+  {
+    "name": "Kubernetes Basics",
+    "issuer": "Linux Foundation",
+    "icon": "⎈",
+    "type": "course",
+    "featured": false,
+    "description": "Container orchestration with Kubernetes. Fundamentals of pods, deployments, services, and scaling applications in production.",
+    "credentialUrl": null,
+    "dateEarned": "2023-04-05"
+  },
+  {
+    "name": "Terraform for Beginners",
+    "issuer": "HashiCorp Learn",
+    "icon": "🏗️",
+    "type": "course",
+    "featured": false,
+    "description": "Infrastructure as Code with Terraform. Learn to provision and manage cloud infrastructure across AWS, Azure, and GCP.",
+    "credentialUrl": null,
+    "dateEarned": "2023-08-18"
+  }
+]

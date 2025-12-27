@@ -22,6 +22,24 @@ class CertificationRepository(BaseRepository):
         cert_type = data.get("type", "certification")
         date_earned = data.get("dateEarned") or datetime.now(UTC).isoformat()
 
+        # Build Data dict, excluding None values for credentialUrl
+        data_dict = {
+            "id": cert_id,
+            "name": data.get("name", ""),
+            "issuer": data.get("issuer", ""),
+            "icon": data.get("icon", ""),
+            "type": cert_type,
+            "featured": data.get("featured", False),
+            "description": data.get("description", ""),
+            "dateEarned": date_earned,
+            "createdAt": data.get("createdAt") or datetime.now(UTC).isoformat(),
+            "updatedAt": data.get("updatedAt") or datetime.now(UTC).isoformat(),
+        }
+
+        # Add credentialUrl only if it has a value
+        if data.get("credentialUrl"):
+            data_dict["credentialUrl"] = data["credentialUrl"]
+
         item = {
             "PK": f"CERT#{cert_id}",
             "SK": "METADATA",
@@ -29,19 +47,7 @@ class CertificationRepository(BaseRepository):
             "GSI1SK": f"CERT#{date_earned}",
             "EntityType": "CERTIFICATION",
             "Status": status,
-            "Data": {
-                "id": cert_id,
-                "name": data.get("name", ""),
-                "issuer": data.get("issuer", ""),
-                "icon": data.get("icon", ""),
-                "type": cert_type,
-                "featured": data.get("featured", False),
-                "description": data.get("description", ""),
-                "credentialUrl": data.get("credentialUrl"),
-                "dateEarned": date_earned,
-                "createdAt": data.get("createdAt") or datetime.now(UTC).isoformat(),
-                "updatedAt": data.get("updatedAt") or datetime.now(UTC).isoformat(),
-            },
+            "Data": data_dict,
         }
         return item
 
@@ -54,6 +60,9 @@ class CertificationRepository(BaseRepository):
         result = {**item["Data"]}
         if "Status" in item:
             result["status"] = item["Status"]
+
+        # Ensure optional credentialUrl field is present (even if None) for Pydantic validation
+        result.setdefault("credentialUrl", None)
 
         return result
 

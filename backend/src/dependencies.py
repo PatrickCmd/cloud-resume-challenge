@@ -155,8 +155,7 @@ def get_blog_repository():
     """
     from src.repositories.blog import BlogRepository
 
-    table = get_dynamodb_table()
-    return BlogRepository(table)
+    return BlogRepository(settings.dynamodb_table_name)
 
 
 def get_project_repository():
@@ -168,8 +167,7 @@ def get_project_repository():
     """
     from src.repositories.project import ProjectRepository
 
-    table = get_dynamodb_table()
-    return ProjectRepository(table)
+    return ProjectRepository(settings.dynamodb_table_name)
 
 
 def get_certification_repository():
@@ -181,8 +179,7 @@ def get_certification_repository():
     """
     from src.repositories.certification import CertificationRepository
 
-    table = get_dynamodb_table()
-    return CertificationRepository(table)
+    return CertificationRepository(settings.dynamodb_table_name)
 
 
 def get_visitor_repository():
@@ -194,8 +191,7 @@ def get_visitor_repository():
     """
     from src.repositories.visitor import VisitorRepository
 
-    table = get_dynamodb_table()
-    return VisitorRepository(table)
+    return VisitorRepository(settings.dynamodb_table_name)
 
 
 def get_analytics_repository():
@@ -207,5 +203,4 @@ def get_analytics_repository():
     """
     from src.repositories.analytics import AnalyticsRepository
 
-    table = get_dynamodb_table()
-    return AnalyticsRepository(table)
+    return AnalyticsRepository(settings.dynamodb_table_name)

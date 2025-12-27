@@ -1,4 +1,4 @@
-.PHONY: help lint format check test coverage clean install dev-server
+.PHONY: help lint format check test coverage clean install dev-server e2e-dev e2e-prod e2e-auth e2e-health e2e-certs e2e-projects e2e-blogs
 
 help:
 	@echo "Available commands:"
@@ -6,10 +6,21 @@ help:
 	@echo "  make lint          - Run all linters (ruff, mypy)"
 	@echo "  make format        - Format code with black and isort"
 	@echo "  make check         - Run linters without fixing"
-	@echo "  make test          - Run all tests"
+	@echo "  make test          - Run unit tests"
 	@echo "  make coverage      - Run tests with coverage report"
 	@echo "  make dev-server    - Start development server"
 	@echo "  make clean         - Remove generated files"
+	@echo ""
+	@echo "E2E Tests (Development):"
+	@echo "  make e2e-dev       - Run all E2E tests against development environment"
+	@echo "  make e2e-auth      - Run authentication E2E tests (development)"
+	@echo "  make e2e-health    - Run health check E2E tests (development)"
+	@echo "  make e2e-certs     - Run certifications E2E tests (development)"
+	@echo "  make e2e-projects  - Run projects E2E tests (development)"
+	@echo "  make e2e-blogs     - Run blogs E2E tests (development)"
+	@echo ""
+	@echo "E2E Tests (Production):"
+	@echo "  make e2e-prod      - Run all E2E tests against production environment"
 
 # Install dependencies
 install:
@@ -63,3 +74,26 @@ clean:
 	find . -type f -name ".coverage" -delete 2>/dev/null || true
 	find . -type f -name "*.pyc" -delete 2>/dev/null || true
 	@echo "Cleaned up generated files"
+
+# E2E Tests - Development Environment
+e2e-dev:
+	./scripts/run_e2e_tests.sh --env development -v
+
+e2e-auth:
+	./scripts/run_e2e_tests.sh --env development --test test_auth_e2e.py -v
+
+e2e-health:
+	./scripts/run_e2e_tests.sh --env development --test test_health_e2e.py -v
+
+e2e-certs:
+	./scripts/run_e2e_tests.sh --env development --test test_certifications_e2e.py -v
+
+e2e-projects:
+	./scripts/run_e2e_tests.sh --env development --test test_projects_e2e.py -v
+
+e2e-blogs:
+	./scripts/run_e2e_tests.sh --env development --test test_blogs_e2e.py -v
+
+# E2E Tests - Production Environment
+e2e-prod:
+	./scripts/run_e2e_tests.sh --env production -v

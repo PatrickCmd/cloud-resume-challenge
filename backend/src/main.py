@@ -21,6 +21,7 @@ app = FastAPI(
     version=settings.version,
     docs_url="/docs" if settings.environment == "development" else None,
     redoc_url="/redoc" if settings.environment == "development" else None,
+    openapi_url="/openapi.json" if settings.environment == "development" else None,
 )
 
 # Configure CORS
