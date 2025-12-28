@@ -1,12 +1,12 @@
 import { useState, useEffect } from "react";
-import { Award, Plus, ExternalLink, BarChart3 } from "lucide-react";
+import { Award, Plus, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { CertificationEditor } from "./CertificationEditor";
 import { CertificationDetail } from "./CertificationDetail";
 import { useAuth } from "@/contexts/AuthContext";
-import { mockAnalyticsService } from "@/services/mockAnalyticsService";
+import { useTrackView, useViewCount } from "@/hooks/useVisitorAnalytics";
 import {
   useCertifications,
   useCreateCertification,
@@ -28,9 +28,11 @@ export function CertificationsTab({ triggerCreate, onCreateHandled }: Certificat
   const [mode, setMode] = useState<ViewMode>("list");
   const [selectedCert, setSelectedCert] = useState<CertificationNormalized | null>(null);
   const [filter, setFilter] = useState<"published" | "drafts">("published");
-  const [viewCounts, setViewCounts] = useState<Map<string, number>>(new Map());
-  const [currentViewCount, setCurrentViewCount] = useState(0);
   const { isOwner } = useAuth();
+
+  // Analytics hooks
+  const trackView = useTrackView();
+  const { data: currentViewCount } = useViewCount('certification', selectedCert?.id || '', !!selectedCert);
 
   // Fetch certifications using React Query
   // Owners need both published and draft certifications, non-owners only see published
@@ -58,19 +60,6 @@ export function CertificationsTab({ triggerCreate, onCreateHandled }: Certificat
       onCreateHandled?.();
     }
   }, [triggerCreate, isOwner, onCreateHandled]);
-
-  // Load view counts
-  useEffect(() => {
-    const loadViewCounts = async () => {
-      try {
-        const views = await mockAnalyticsService.getAllViewStats('certification');
-        setViewCounts(views);
-      } catch (error) {
-        console.error('Failed to load view counts:', error);
-      }
-    };
-    loadViewCounts();
-  }, []);
 
   const handleCreate = async (data: Omit<CertificationNormalized, "id" | "createdAt" | "updatedAt" | "status">) => {
     try {
@@ -193,14 +182,13 @@ export function CertificationsTab({ triggerCreate, onCreateHandled }: Certificat
     }
   };
 
-  const viewCertification = async (id: string) => {
+  const viewCertification = (id: string) => {
     const cert = certifications.find(c => c.id === id);
     if (cert) {
       setSelectedCert(cert);
       setMode("view");
-      const views = await mockAnalyticsService.trackView(id, 'certification');
-      setCurrentViewCount(views);
-      setViewCounts(prev => new Map(prev).set(id, views));
+      // Track the view
+      trackView.mutate({ contentType: 'certification', contentId: id });
     }
   };
 
@@ -231,7 +219,7 @@ export function CertificationsTab({ triggerCreate, onCreateHandled }: Certificat
     return (
       <CertificationDetail
         certification={selectedCert}
-        viewCount={currentViewCount}
+        viewCount={currentViewCount || 0}
         onBack={() => { setMode("list"); setSelectedCert(null); }}
         onEdit={isOwner ? () => setMode("edit") : undefined}
         onPublish={isOwner ? handlePublish : undefined}
@@ -295,12 +283,6 @@ export function CertificationsTab({ triggerCreate, onCreateHandled }: Certificat
                       {cert.featured && (
                         <span className="inline-flex items-center gap-1 px-2 py-1 bg-primary/10 text-primary text-xs font-medium rounded">
                           ✓ Featured
-                        </span>
-                      )}
-                      {viewCounts.get(cert.id) !== undefined && (
-                        <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
-                          <BarChart3 className="w-3 h-3" />
-                          {viewCounts.get(cert.id)} views
                         </span>
                       )}
                     </div>

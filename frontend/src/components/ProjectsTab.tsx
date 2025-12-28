@@ -1,12 +1,12 @@
 import { useState, useEffect } from "react";
-import { FolderGit2, Star, Plus, ExternalLink, Circle, BarChart3 } from "lucide-react";
+import { FolderGit2, Star, Plus, ExternalLink, Circle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ProjectEditor } from "./ProjectEditor";
 import { ProjectDetail } from "./ProjectDetail";
 import { useAuth } from "@/contexts/AuthContext";
-import { mockAnalyticsService } from "@/services/mockAnalyticsService";
+import { useTrackView, useViewCount } from "@/hooks/useVisitorAnalytics";
 import {
   useProjects,
   useCreateProject,
@@ -40,9 +40,11 @@ export function ProjectsTab({ triggerCreate, onCreateHandled }: ProjectsTabProps
   const [mode, setMode] = useState<ViewMode>("list");
   const [selectedProject, setSelectedProject] = useState<ProjectNormalized | null>(null);
   const [filter, setFilter] = useState<"published" | "drafts">("published");
-  const [viewCounts, setViewCounts] = useState<Map<string, number>>(new Map());
-  const [currentViewCount, setCurrentViewCount] = useState(0);
   const { isOwner } = useAuth();
+
+  // Analytics hooks
+  const trackView = useTrackView();
+  const { data: currentViewCount } = useViewCount('project', selectedProject?.id || '', !!selectedProject);
 
   // Fetch projects using React Query
   // Owners need both published and draft projects, non-owners only see published
@@ -70,19 +72,6 @@ export function ProjectsTab({ triggerCreate, onCreateHandled }: ProjectsTabProps
       onCreateHandled?.();
     }
   }, [triggerCreate, isOwner, onCreateHandled]);
-
-  // Load view counts
-  useEffect(() => {
-    const loadViewCounts = async () => {
-      try {
-        const views = await mockAnalyticsService.getAllViewStats('project');
-        setViewCounts(views);
-      } catch (error) {
-        console.error('Failed to load view counts:', error);
-      }
-    };
-    loadViewCounts();
-  }, []);
 
   const handleCreate = async (data: Omit<ProjectNormalized, "id" | "createdAt" | "updatedAt" | "status">) => {
     try {
@@ -209,14 +198,13 @@ export function ProjectsTab({ triggerCreate, onCreateHandled }: ProjectsTabProps
     }
   };
 
-  const viewProject = async (id: string) => {
+  const viewProject = (id: string) => {
     const project = projects.find(p => p.id === id);
     if (project) {
       setSelectedProject(project);
       setMode("view");
-      const views = await mockAnalyticsService.trackView(id, 'project');
-      setCurrentViewCount(views);
-      setViewCounts(prev => new Map(prev).set(id, views));
+      // Track the view
+      trackView.mutate({ contentType: 'project', contentId: id });
     }
   };
 
@@ -247,7 +235,7 @@ export function ProjectsTab({ triggerCreate, onCreateHandled }: ProjectsTabProps
     return (
       <ProjectDetail
         project={selectedProject}
-        viewCount={currentViewCount}
+        viewCount={currentViewCount || 0}
         onBack={() => { setMode("list"); setSelectedProject(null); }}
         onEdit={isOwner ? () => setMode("edit") : undefined}
         onPublish={isOwner ? handlePublish : undefined}
@@ -317,12 +305,6 @@ export function ProjectsTab({ triggerCreate, onCreateHandled }: ProjectsTabProps
                 </div>
                 <div className="flex items-center justify-between text-xs text-muted-foreground">
                   <span className="font-mono">@ {project.company}</span>
-                  {viewCounts.get(project.id) !== undefined && (
-                    <span className="flex items-center gap-1">
-                      <BarChart3 className="w-3 h-3" />
-                      {viewCounts.get(project.id)}
-                    </span>
-                  )}
                 </div>
               </div>
             ))}

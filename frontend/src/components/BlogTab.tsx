@@ -7,7 +7,7 @@ import { BlogEditor } from "./BlogEditor";
 import { MarkdownRenderer } from "./MarkdownRenderer";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
-import { mockAnalyticsService } from "@/services/mockAnalyticsService";
+import { useTrackView, useViewCount } from "@/hooks/useVisitorAnalytics";
 import {
   useBlogPosts,
   useCreateBlogPost,
@@ -30,10 +30,12 @@ export function BlogTab({ triggerCreate, onCreateHandled }: BlogTabProps) {
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>("list");
   const [showDrafts, setShowDrafts] = useState(false);
-  const [viewCounts, setViewCounts] = useState<Map<string, number>>(new Map());
-  const [currentViewCount, setCurrentViewCount] = useState(0);
   const { toast } = useToast();
   const { isOwner } = useAuth();
+
+  // Analytics hooks
+  const trackView = useTrackView();
+  const { data: currentViewCount } = useViewCount('blog', selectedPost?.id || '', !!selectedPost);
 
   // Fetch posts using React Query
   // Owners need both published and draft posts, non-owners only see published
@@ -61,26 +63,11 @@ export function BlogTab({ triggerCreate, onCreateHandled }: BlogTabProps) {
     }
   }, [triggerCreate, isOwner, onCreateHandled]);
 
-  // Load view counts
-  useEffect(() => {
-    const loadViewCounts = async () => {
-      try {
-        const views = await mockAnalyticsService.getAllViewStats('blog');
-        setViewCounts(views);
-      } catch (error) {
-        console.error('Failed to load view counts:', error);
-      }
-    };
-    loadViewCounts();
-  }, []);
-
-  const trackAndViewPost = async (post: BlogPostNormalized) => {
+  const trackAndViewPost = (post: BlogPostNormalized) => {
     setSelectedPost(post);
     setViewMode("view");
-    const views = await mockAnalyticsService.trackView(post.id, 'blog');
-    setCurrentViewCount(views);
-    // Update the view counts map
-    setViewCounts(prev => new Map(prev).set(post.id, views));
+    // Track the view
+    trackView.mutate({ contentType: 'blog', contentId: post.id });
   };
 
   const categories = [...new Set(posts.map((p) => p.category))];
@@ -193,7 +180,7 @@ export function BlogTab({ triggerCreate, onCreateHandled }: BlogTabProps) {
             </span>
             <span className="flex items-center gap-1">
               <BarChart3 className="w-4 h-4" />
-              {currentViewCount} views
+              {currentViewCount || 0} views
             </span>
           </div>
         </header>
@@ -338,12 +325,6 @@ export function BlogTab({ triggerCreate, onCreateHandled }: BlogTabProps) {
                       <Clock className="w-3 h-3" />
                       {post.readTime}
                     </span>
-                    {viewCounts.get(post.id) !== undefined && (
-                      <span className="text-xs text-muted-foreground flex items-center gap-1">
-                        <BarChart3 className="w-3 h-3" />
-                        {viewCounts.get(post.id)}
-                      </span>
-                    )}
                   </div>
                   <h3 className="text-lg font-semibold text-foreground group-hover:text-primary transition-colors mb-2">
                     {post.title}
