@@ -56,6 +56,10 @@ Globals:
         CORS_ORIGINS: !Ref FrontendOrigins
     Tracing: Active
 
+Conditions:
+  IsDevelopment: !Equals [!Ref Environment, development]
+  IsProduction: !Equals [!Ref Environment, production]
+
 Resources:
   # DynamoDB Table - Single-table design
   PortfolioTable:
@@ -205,8 +209,17 @@ Resources:
       Cors:
         AllowMethods: "'GET,POST,PUT,PATCH,DELETE,OPTIONS'"
         AllowHeaders: "'Content-Type,Authorization,X-Amz-Date,X-Api-Key,X-Amz-Security-Token'"
-        AllowOrigin: !Sub "'${FrontendOrigins}'"
-        AllowCredentials: true
+        # API Gateway CORS only supports single origin or wildcard
+        # For development, use wildcard; for production, use specific domain
+        # Note: FastAPI CORSMiddleware in Lambda provides the actual CORS validation
+        AllowOrigin: !If
+          - IsDevelopment
+          - "'*'"
+          - !Sub "'${FrontendOrigins}'"
+        AllowCredentials: !If
+          - IsDevelopment
+          - false  # Can't use credentials with wildcard
+          - true
         MaxAge: "'600'"
       # Authentication is handled by FastAPI at the application layer
       # No default authorizer - all routes are open at API Gateway level
