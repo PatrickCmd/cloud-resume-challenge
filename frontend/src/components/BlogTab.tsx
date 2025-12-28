@@ -2,12 +2,20 @@ import { useState, useEffect } from "react";
 import { Calendar, Clock, Tag, ArrowLeft, BookOpen, Search, Plus, Edit2, Trash2, Eye, BarChart3 } from "lucide-react";
 import { Input } from "./ui/input";
 import { Button } from "./ui/button";
-import { mockBlogDB, BlogPostDraft } from "@/services/mockBlogDatabase";
+import { BlogPostNormalized } from "@/types/blog";
 import { BlogEditor } from "./BlogEditor";
 import { MarkdownRenderer } from "./MarkdownRenderer";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { mockAnalyticsService } from "@/services/mockAnalyticsService";
+import {
+  useBlogPosts,
+  useCreateBlogPost,
+  useUpdateBlogPost,
+  useDeleteBlogPost,
+  usePublishBlogPost,
+  useUnpublishBlogPost,
+} from "@/hooks/useBlogPosts";
 
 type ViewMode = "list" | "view" | "create" | "edit";
 
@@ -17,17 +25,23 @@ interface BlogTabProps {
 }
 
 export function BlogTab({ triggerCreate, onCreateHandled }: BlogTabProps) {
-  const [posts, setPosts] = useState<BlogPostDraft[]>([]);
-  const [selectedPost, setSelectedPost] = useState<BlogPostDraft | null>(null);
+  const [selectedPost, setSelectedPost] = useState<BlogPostNormalized | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>("list");
   const [showDrafts, setShowDrafts] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
   const [viewCounts, setViewCounts] = useState<Map<string, number>>(new Map());
   const [currentViewCount, setCurrentViewCount] = useState(0);
   const { toast } = useToast();
   const { isOwner } = useAuth();
+
+  // Fetch posts using React Query
+  const { data: posts = [], isLoading } = useBlogPosts();
+  const createMutation = useCreateBlogPost();
+  const updateMutation = useUpdateBlogPost();
+  const deleteMutation = useDeleteBlogPost();
+  const publishMutation = usePublishBlogPost();
+  const unpublishMutation = useUnpublishBlogPost();
 
   useEffect(() => {
     if (triggerCreate && isOwner) {
@@ -36,25 +50,20 @@ export function BlogTab({ triggerCreate, onCreateHandled }: BlogTabProps) {
     }
   }, [triggerCreate, isOwner, onCreateHandled]);
 
-  const loadPosts = async () => {
-    setIsLoading(true);
-    try {
-      const [allPosts, views] = await Promise.all([
-        mockBlogDB.getAllPosts(),
-        mockAnalyticsService.getAllViewStats('blog')
-      ]);
-      setPosts(allPosts);
-      setViewCounts(views);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
+  // Load view counts
   useEffect(() => {
-    loadPosts();
+    const loadViewCounts = async () => {
+      try {
+        const views = await mockAnalyticsService.getAllViewStats('blog');
+        setViewCounts(views);
+      } catch (error) {
+        console.error('Failed to load view counts:', error);
+      }
+    };
+    loadViewCounts();
   }, []);
 
-  const trackAndViewPost = async (post: BlogPostDraft) => {
+  const trackAndViewPost = async (post: BlogPostNormalized) => {
     setSelectedPost(post);
     setViewMode("view");
     const views = await mockAnalyticsService.trackView(post.id, 'blog');
@@ -75,59 +84,60 @@ export function BlogTab({ triggerCreate, onCreateHandled }: BlogTabProps) {
     return matchesSearch && matchesCategory && matchesStatus;
   });
 
-  const handleCreatePost = async (postData: Omit<BlogPostDraft, "id" | "slug" | "publishedAt" | "readTime" | "status" | "createdAt" | "updatedAt">) => {
-    const newPost = await mockBlogDB.createPost(postData);
-    await loadPosts();
-    setSelectedPost(newPost);
-    setViewMode("edit");
-    toast({
-      title: "Draft saved",
-      description: "Your article has been saved as a draft.",
-    });
+  const handleCreatePost = async (postData: Omit<BlogPostNormalized, "id" | "slug" | "publishedAt" | "readTime" | "status" | "createdAt" | "updatedAt">) => {
+    try {
+      const newPost = await createMutation.mutateAsync({
+        title: postData.title,
+        content: postData.content,
+        excerpt: postData.excerpt,
+        category: postData.category,
+        tags: postData.tags,
+      });
+      setSelectedPost(newPost);
+      setViewMode("edit");
+    } catch (error) {
+      console.error('Failed to create post:', error);
+    }
   };
 
-  const handleUpdatePost = async (postData: Omit<BlogPostDraft, "id" | "slug" | "publishedAt" | "readTime" | "status" | "createdAt" | "updatedAt">) => {
+  const handleUpdatePost = async (postData: Omit<BlogPostNormalized, "id" | "slug" | "publishedAt" | "readTime" | "status" | "createdAt" | "updatedAt">) => {
     if (!selectedPost) return;
-    await mockBlogDB.updatePost(selectedPost.id, postData);
-    await loadPosts();
-    const updated = await mockBlogDB.getPostById(selectedPost.id);
-    if (updated) setSelectedPost(updated);
-    toast({
-      title: "Changes saved",
-      description: "Your article has been updated.",
-    });
+    try {
+      const updated = await updateMutation.mutateAsync({
+        id: selectedPost.id,
+        data: {
+          title: postData.title,
+          content: postData.content,
+          excerpt: postData.excerpt,
+          category: postData.category,
+          tags: postData.tags,
+        },
+      });
+      if (updated) setSelectedPost(updated);
+    } catch (error) {
+      console.error('Failed to update post:', error);
+    }
   };
 
   const handlePublish = async () => {
     if (!selectedPost) return;
-    await mockBlogDB.publishPost(selectedPost.id);
-    await loadPosts();
-    setViewMode("list");
-    setSelectedPost(null);
-    setShowDrafts(false);
-    toast({
-      title: "Article published",
-      description: "Your article is now visible to everyone.",
-    });
+    try {
+      await publishMutation.mutateAsync(selectedPost.id);
+      setViewMode("list");
+      setSelectedPost(null);
+      setShowDrafts(false);
+    } catch (error) {
+      console.error('Failed to publish post:', error);
+    }
   };
 
-  const handleUnpublish = async (post: BlogPostDraft) => {
-    await mockBlogDB.unpublishPost(post.id);
-    await loadPosts();
-    toast({
-      title: "Article unpublished",
-      description: "Your article has been moved to drafts.",
-    });
-  };
-
-  const handleDelete = async (post: BlogPostDraft) => {
+  const handleDelete = async (post: BlogPostNormalized) => {
     if (!confirm("Are you sure you want to delete this article?")) return;
-    await mockBlogDB.deletePost(post.id);
-    await loadPosts();
-    toast({
-      title: "Article deleted",
-      description: "The article has been permanently removed.",
-    });
+    try {
+      await deleteMutation.mutateAsync(post.id);
+    } catch (error) {
+      console.error('Failed to delete post:', error);
+    }
   };
 
   // View single post
