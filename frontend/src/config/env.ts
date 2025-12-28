@@ -10,7 +10,6 @@
 export const env = {
   // API Configuration
   apiBaseUrl: import.meta.env.VITE_API_BASE_URL || 'https://api.patrickcmd.dev',
-  apiVersion: import.meta.env.VITE_API_VERSION || 'v1',
   useMockApi: import.meta.env.VITE_USE_MOCK_API === 'true',
 
   // Feature Flags
@@ -22,7 +21,8 @@ export const env = {
 
   // Computed values
   get apiUrl() {
-    return `${this.apiBaseUrl}/${this.apiVersion}`;
+    // Backend API doesn't use versioned paths, so just return base URL
+    return this.apiBaseUrl;
   },
 
   get isDevelopment() {
