@@ -837,9 +837,20 @@ cloud-resume-challenge/
 - [x] Auth service layer (real API + mock for development)
 - [x] React AuthContext for authentication state management
 - [x] Environment configuration for API endpoints
-- [x] Frontend integration tests (26 tests, 100% passing)
-  - 14 authService tests (login, logout, getCurrentUser, isOwner, refreshToken)
-  - 12 AuthContext tests (context initialization, login/logout flows, error handling)
+- [x] Frontend integration tests (90 tests, 100% passing)
+  - Authentication: 26 tests (authService + AuthContext)
+  - Blog Service: 28 tests (blogService API integration)
+  - Blog Hooks: 16 tests (React Query hooks with cache management)
+  - Total: 90 integration tests
+- [x] Blog frontend-backend integration (Phase 2 complete)
+  - Type-safe blog service with Axios HTTP client
+  - React Query hooks for data fetching, caching, and mutations
+  - Separate queries for published and draft posts
+  - CRUD operations (create, read, update, delete)
+  - Publish/unpublish workflow for draft management
+  - Dynamic blog count in tab navigation
+  - Status normalization (backend UPPERCASE → frontend lowercase)
+  - Owner-only access controls for admin features
 - [x] Vitest + Testing Library test infrastructure
 - [x] Test utilities, fixtures, and mock helpers
 - [x] Comprehensive testing documentation (docs/TESTING.md)
@@ -1127,8 +1138,8 @@ Comprehensive test coverage across both frontend and backend with unit, integrat
 |-----------|-----------|-------|----------|-------------|
 | **Backend** | Unit Tests | 211 | All endpoints, repositories, utilities | Local (mocked AWS) |
 | **Backend** | E2E Tests | 133+ | Complete API flows | Deployed (real AWS) |
-| **Frontend** | Integration Tests | 26 | Auth service & context | Local (mocked API) |
-| **Total** | | **370+** | **100% passing** | Mixed |
+| **Frontend** | Integration Tests | 90 | Auth + Blog services & hooks | Local (mocked API) |
+| **Total** | | **434+** | **100% passing** | Mixed |
 
 ### Running Tests
 

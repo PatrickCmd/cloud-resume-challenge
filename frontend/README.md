@@ -186,6 +186,15 @@ This frontend integrates with a serverless FastAPI backend deployed on AWS.
 - **Auth Context** - React context for authentication state
 - **Protected Routes** - Owner-only access to admin features
 
+### Blog Integration
+
+- **Blog Service** - Type-safe blog API integration with Axios
+- **React Query Hooks** - Data fetching, caching, and mutations
+- **CRUD Operations** - Create, read, update, delete blog posts
+- **Publish/Unpublish** - Workflow for managing draft and published posts
+- **Status Management** - Separate queries for published and draft posts
+- **Dynamic Counts** - Real-time blog count in tab navigation
+
 ### Environment Configuration
 
 Configure API endpoints in `.env` files:
@@ -216,9 +225,15 @@ Comprehensive testing infrastructure with Vitest and Testing Library.
 
 ### Test Coverage
 
-- **26 tests** across authentication services and contexts
+- **90 tests** across authentication, blog services, and React Query hooks
 - **100% passing** - All integration tests verified
 - **Coverage**: Run `make test-coverage` to generate reports
+
+**Test Breakdown**:
+- Authentication: 26 tests (authService + AuthContext)
+- Blog Service: 28 tests (blogService.test.ts)
+- Blog Hooks: 16 tests (useBlogPosts.test.tsx)
+- Total: 90 integration tests
 
 ### Running Tests
 
@@ -241,7 +256,10 @@ make test-coverage
 ```
 src/
 ├── services/__tests__/
-│   └── authService.test.ts      # 14 tests - Auth API integration
+│   ├── authService.test.ts      # 14 tests - Auth API integration
+│   └── blogService.test.ts      # 28 tests - Blog API integration
+├── hooks/__tests__/
+│   └── useBlogPosts.test.tsx    # 16 tests - React Query hooks
 ├── contexts/__tests__/
 │   └── AuthContext.test.tsx     # 12 tests - React context hooks
 └── test/
