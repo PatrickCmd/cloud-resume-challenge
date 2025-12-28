@@ -828,6 +828,25 @@ cloud-resume-challenge/
 - [x] Organized documentation in backend/docs/ folder
 - [x] Updated .env.example with comprehensive E2E test configuration
 
+**Frontend-Backend Integration**:
+- [x] Frontend authentication integration with AWS Cognito
+- [x] Axios API client with JWT token management
+  - Automatic token injection in Authorization headers
+  - Automatic token refresh on 401 errors
+  - Request/response interceptors for error handling
+- [x] Auth service layer (real API + mock for development)
+- [x] React AuthContext for authentication state management
+- [x] Environment configuration for API endpoints
+- [x] Frontend integration tests (26 tests, 100% passing)
+  - 14 authService tests (login, logout, getCurrentUser, isOwner, refreshToken)
+  - 12 AuthContext tests (context initialization, login/logout flows, error handling)
+- [x] Vitest + Testing Library test infrastructure
+- [x] Test utilities, fixtures, and mock helpers
+- [x] Comprehensive testing documentation (docs/TESTING.md)
+- [x] Makefile test automation (test, test-run, test-ui, test-coverage)
+- [x] Fixed CORS configuration issues (API Gateway wildcard for development)
+- [x] Removed API versioning (/v1) from frontend to match backend implementation
+
 ### 🚧 In Progress / Planned
 
 **DevOps**:
@@ -1100,26 +1119,27 @@ CloudFront (HTTPS) → S3 Bucket → patrickcmd.dev
 
 ## Testing
 
-The backend API has comprehensive test coverage with both unit and E2E tests:
+Comprehensive test coverage across both frontend and backend with unit, integration, and E2E tests:
 
 ### Test Summary
 
-| Test Type | Count | Coverage | Environment |
-|-----------|-------|----------|-------------|
-| **Unit Tests** | 211 | All endpoints, repositories, utilities | Local (mocked AWS) |
-| **E2E Tests** | 133+ | Complete API flows | Deployed (real AWS) |
-| **Total** | **344+** | **100% passing** | Mixed |
+| Component | Test Type | Count | Coverage | Environment |
+|-----------|-----------|-------|----------|-------------|
+| **Backend** | Unit Tests | 211 | All endpoints, repositories, utilities | Local (mocked AWS) |
+| **Backend** | E2E Tests | 133+ | Complete API flows | Deployed (real AWS) |
+| **Frontend** | Integration Tests | 26 | Auth service & context | Local (mocked API) |
+| **Total** | | **370+** | **100% passing** | Mixed |
 
 ### Running Tests
 
-**Unit Tests** (fast, local, no AWS required):
+**Backend Unit Tests** (fast, local, no AWS required):
 ```bash
 cd backend
 make test          # Run all unit tests
 make coverage      # Run with coverage report
 ```
 
-**E2E Tests** (against deployed APIs):
+**Backend E2E Tests** (against deployed APIs):
 ```bash
 cd backend
 make e2e-dev       # Development environment
@@ -1130,7 +1150,16 @@ make e2e-projects  # Project endpoints only
 make e2e-certs     # Certification endpoints only
 ```
 
-### E2E Test Features
+**Frontend Integration Tests** (fast, local, mocked API):
+```bash
+cd frontend
+make test          # Run in watch mode
+make test-run      # Run once (CI/CD)
+make test-ui       # Visual UI
+make test-coverage # Generate coverage report
+```
+
+### Backend E2E Test Features
 
 - ✅ **Automatic cleanup**: Deletes test data after completion (development only)
 - ✅ **Environment isolation**: Separate configs for production/development
@@ -1139,6 +1168,17 @@ make e2e-certs     # Certification endpoints only
 - ✅ **Safety first**: Cleanup only in development to protect production data
 
 See [backend/tests/e2e_deployed/README.md](backend/tests/e2e_deployed/README.md) for detailed E2E testing documentation.
+
+### Frontend Integration Test Features
+
+- ✅ **Vitest**: Fast unit test framework with native ESM support
+- ✅ **Testing Library**: React component testing with user-event simulation
+- ✅ **Mocked API**: Tests authentication flow without backend dependency
+- ✅ **Test utilities**: Custom render, mock JWT creation, auth state helpers
+- ✅ **Coverage reporting**: HTML and JSON coverage reports
+- ✅ **Visual UI**: Browser-based test interface with Vitest UI
+
+See [frontend/docs/TESTING.md](frontend/docs/TESTING.md) for detailed frontend testing documentation (600+ lines).
 
 ---
 

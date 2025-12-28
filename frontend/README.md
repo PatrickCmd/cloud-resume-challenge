@@ -115,15 +115,19 @@ This serves the built files from `dist/` directory.
 A Makefile is provided for convenience. Run `make help` to see all available commands:
 
 ```sh
-make help          # Show all available commands
-make install       # Install project dependencies
-make dev           # Start development server
-make build         # Build for production
-make build-dev     # Build in development mode
-make preview       # Preview production build
-make lint          # Run ESLint checks
-make clean         # Remove node_modules and build artifacts
-make stop          # Stop running dev servers on port 5173
+make help            # Show all available commands
+make install         # Install project dependencies
+make dev             # Start development server
+make build           # Build for production
+make build-dev       # Build in development mode
+make preview         # Preview production build
+make lint            # Run ESLint checks
+make test            # Run tests in watch mode
+make test-run        # Run all tests once (CI mode)
+make test-ui         # Run tests with visual UI
+make test-coverage   # Run tests with coverage report
+make clean           # Remove node_modules and build artifacts
+make stop            # Stop running dev servers on port 5173
 ```
 
 ### Using npm directly
@@ -133,23 +137,126 @@ make stop          # Stop running dev servers on port 5173
 - `npm run build:dev` - Build in development mode
 - `npm run preview` - Preview production build locally
 - `npm run lint` - Run ESLint to check code quality
+- `npm test` - Run tests in watch mode
+- `npm run test:run` - Run all tests once (for CI/CD)
+- `npm run test:ui` - Run tests with visual UI
+- `npm run test:coverage` - Generate coverage report
 
 ## Project Structure
 
 ```
 frontend/
 ├── src/
-│   ├── components/     # Reusable React components
-│   ├── pages/          # Page components
-│   ├── hooks/          # Custom React hooks
-│   ├── lib/            # Utility functions
-│   └── main.tsx        # Application entry point
-├── public/             # Static assets
-├── docs/               # Documentation
-├── dist/               # Production build output (generated)
-├── Makefile            # Build automation
-└── package.json        # Dependencies and scripts
+│   ├── components/       # Reusable React components
+│   ├── pages/            # Page components
+│   ├── hooks/            # Custom React hooks
+│   ├── lib/              # Utility functions
+│   │   └── apiClient.ts  # Axios HTTP client with JWT interceptors
+│   ├── services/         # API service layer
+│   │   ├── authService.ts      # Real Cognito authentication
+│   │   └── mockAuthService.ts  # Mock authentication (development)
+│   ├── contexts/         # React contexts
+│   │   └── AuthContext.tsx     # Authentication state management
+│   ├── config/           # Configuration
+│   │   └── env.ts        # Environment variables
+│   ├── types/            # TypeScript types
+│   │   └── api.ts        # API request/response types
+│   ├── test/             # Test utilities
+│   │   ├── setup.ts      # Global test setup
+│   │   └── utils.tsx     # Test helpers and fixtures
+│   └── main.tsx          # Application entry point
+├── public/               # Static assets
+├── docs/                 # Documentation
+│   └── TESTING.md        # Testing guide (comprehensive)
+├── dist/                 # Production build output (generated)
+├── coverage/             # Test coverage reports (generated)
+├── vitest.config.ts      # Vitest test configuration
+├── Makefile              # Build automation
+└── package.json          # Dependencies and scripts
 ```
+
+## API Integration
+
+This frontend integrates with a serverless FastAPI backend deployed on AWS.
+
+### Authentication
+
+- **Amazon Cognito** - User authentication with JWT tokens
+- **Auth Service** - Real API integration with token management
+- **Auth Context** - React context for authentication state
+- **Protected Routes** - Owner-only access to admin features
+
+### Environment Configuration
+
+Configure API endpoints in `.env` files:
+
+```bash
+# Production (.env.production)
+VITE_API_BASE_URL=https://api.patrickcmd.dev
+VITE_USE_MOCK_API=false
+
+# Development (.env.development)
+VITE_API_BASE_URL=https://api-dev.patrickcmd.dev
+VITE_USE_MOCK_API=false  # or true for mock data
+```
+
+### API Client
+
+The application uses Axios with automatic:
+- JWT token injection in Authorization headers
+- Token refresh on 401 errors
+- Error handling and formatting
+- Request/response interceptors
+
+See [src/lib/apiClient.ts](src/lib/apiClient.ts) for implementation.
+
+## Testing
+
+Comprehensive testing infrastructure with Vitest and Testing Library.
+
+### Test Coverage
+
+- **26 tests** across authentication services and contexts
+- **100% passing** - All integration tests verified
+- **Coverage**: Run `make test-coverage` to generate reports
+
+### Running Tests
+
+```bash
+# Watch mode (auto-rerun on changes)
+make test
+
+# Run once (for CI/CD)
+make test-run
+
+# Visual UI (browser-based)
+make test-ui
+
+# Coverage report
+make test-coverage
+```
+
+### Test Structure
+
+```
+src/
+├── services/__tests__/
+│   └── authService.test.ts      # 14 tests - Auth API integration
+├── contexts/__tests__/
+│   └── AuthContext.test.tsx     # 12 tests - React context hooks
+└── test/
+    ├── setup.ts                  # Global test configuration
+    └── utils.tsx                 # Test helpers and fixtures
+```
+
+### Test Documentation
+
+See [docs/TESTING.md](docs/TESTING.md) for:
+- Complete testing guide (600+ lines)
+- Test structure and organization
+- Best practices and patterns
+- Examples and troubleshooting
+- CI/CD integration
 
 ## Development
 

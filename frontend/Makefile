@@ -1,17 +1,21 @@
-.PHONY: help install dev build build-dev preview lint clean start stop
+.PHONY: help install dev build build-dev preview lint test test-run test-ui test-coverage clean start stop
 
 # Default target
 help:
 	@echo "Available commands:"
-	@echo "  make install     - Install project dependencies"
-	@echo "  make dev         - Start development server"
-	@echo "  make build       - Build for production"
-	@echo "  make build-dev   - Build in development mode"
-	@echo "  make preview     - Preview production build"
-	@echo "  make lint        - Run ESLint checks"
-	@echo "  make clean       - Remove node_modules and build artifacts"
-	@echo "  make start       - Alias for 'make dev'"
-	@echo "  make stop        - Stop any running dev servers"
+	@echo "  make install       - Install project dependencies"
+	@echo "  make dev           - Start development server"
+	@echo "  make build         - Build for production"
+	@echo "  make build-dev     - Build in development mode"
+	@echo "  make preview       - Preview production build"
+	@echo "  make lint          - Run ESLint checks"
+	@echo "  make test          - Run tests in watch mode"
+	@echo "  make test-run      - Run all tests once (CI mode)"
+	@echo "  make test-ui       - Run tests with visual UI"
+	@echo "  make test-coverage - Run tests with coverage report"
+	@echo "  make clean         - Remove node_modules and build artifacts"
+	@echo "  make start         - Alias for 'make dev'"
+	@echo "  make stop          - Stop any running dev servers"
 
 # Install dependencies
 install:
@@ -48,10 +52,35 @@ lint:
 	@echo "Running ESLint..."
 	npm run lint
 
+# Run tests in watch mode
+test:
+	@echo "Running tests in watch mode..."
+	@echo "Tests will automatically re-run when files change"
+	npm test
+
+# Run all tests once (for CI/CD)
+test-run:
+	@echo "Running all tests once..."
+	npm run test:run
+
+# Run tests with visual UI
+test-ui:
+	@echo "Starting Vitest UI..."
+	@echo "Opening browser-based test interface"
+	npm run test:ui
+
+# Run tests with coverage report
+test-coverage:
+	@echo "Running tests with coverage..."
+	npm run test:coverage
+	@echo ""
+	@echo "Coverage report generated in coverage/"
+	@echo "Open coverage/index.html to view detailed report"
+
 # Clean build artifacts and dependencies
 clean:
 	@echo "Cleaning build artifacts and dependencies..."
-	rm -rf node_modules dist .vite
+	rm -rf node_modules dist .vite coverage
 	@echo "Clean complete!"
 
 # Stop running dev servers (kills processes on port 5173)
