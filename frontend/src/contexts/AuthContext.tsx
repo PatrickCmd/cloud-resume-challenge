@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
-import { mockAuthService, User } from "@/services/mockAuthService";
+import { authService } from "@/services/authService";
+import { User } from "@/services/mockAuthService";
 
 interface AuthContextType {
   user: User | null;
@@ -17,26 +18,61 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     // Check for existing session on mount
-    mockAuthService.getCurrentUser().then((currentUser) => {
-      setUser(currentUser);
-      setIsLoading(false);
-    });
+    const initAuth = async () => {
+      try {
+        const currentUser = await authService.getCurrentUser();
+        setUser(currentUser);
+      } catch (error) {
+        console.error('Failed to get current user:', error);
+        setUser(null);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    initAuth();
+
+    // Listen for unauthorized events (from apiClient)
+    const handleUnauthorized = () => {
+      setUser(null);
+    };
+
+    window.addEventListener('auth:unauthorized', handleUnauthorized);
+
+    return () => {
+      window.removeEventListener('auth:unauthorized', handleUnauthorized);
+    };
   }, []);
 
   const login = async (email: string, password: string): Promise<{ error: string | null }> => {
-    const result = await mockAuthService.login(email, password);
-    if (result.user) {
-      setUser(result.user);
+    try {
+      setIsLoading(true);
+      const result = await authService.login(email, password);
+
+      if (result.user) {
+        setUser(result.user);
+      }
+
+      return { error: result.error };
+    } catch (error) {
+      console.error('Login error:', error);
+      return { error: 'An unexpected error occurred during login' };
+    } finally {
+      setIsLoading(false);
     }
-    return { error: result.error };
   };
 
   const logout = async () => {
-    await mockAuthService.logout();
-    setUser(null);
+    try {
+      await authService.logout();
+    } catch (error) {
+      console.error('Logout error:', error);
+    } finally {
+      setUser(null);
+    }
   };
 
-  const isOwner = mockAuthService.isOwner(user);
+  const isOwner = authService.isOwner(user);
 
   return (
     <AuthContext.Provider value={{ user, isLoading, isOwner, login, logout }}>
