@@ -44,12 +44,13 @@ const mockedProjectService = vi.mocked(projectService);
 // Test data
 const mockProject: ProjectNormalized = {
   id: 'test-project-123',
-  title: 'Test Project',
+  name: 'Test Project',
   description: 'This is a test project',
   tech: ['Python', 'FastAPI', 'React'],
-  link: 'https://example.com',
-  github: 'https://github.com/test/repo',
-  image: 'https://example.com/image.png',
+  company: 'Test Company',
+  githubUrl: 'https://github.com/test/repo',
+  liveUrl: 'https://example.com',
+  imageUrl: 'https://example.com/image.png',
   featured: true,
   status: 'published',
   createdAt: '2025-01-15T10:00:00Z',
@@ -216,7 +217,7 @@ describe('Project React Query Hooks', () => {
       const { result } = renderHook(() => useCreateProject(), { wrapper });
 
       const createData: ProjectCreate = {
-        title: 'New Project',
+        name: 'New Project',
         description: 'Project description',
         tech: ['Python'],
       };
@@ -243,7 +244,7 @@ describe('Project React Query Hooks', () => {
       // Create new project
       const { result: createResult } = renderHook(() => useCreateProject(), { wrapper });
       await createResult.current.mutateAsync({
-        title: 'New',
+        name: 'New',
         description: 'Description',
         tech: ['Python'],
       });
@@ -259,7 +260,7 @@ describe('Project React Query Hooks', () => {
     it('should update project successfully', async () => {
       const updatedProject: ProjectNormalized = {
         ...mockProject,
-        title: 'Updated Title',
+        name: 'Updated Title',
       };
 
       mockedProjectService.updateProject.mockResolvedValue(updatedProject);
@@ -268,11 +269,11 @@ describe('Project React Query Hooks', () => {
 
       await result.current.mutateAsync({
         id: 'test-project-123',
-        data: { title: 'Updated Title' },
+        data: { name: 'Updated Title' },
       });
 
       expect(mockedProjectService.updateProject).toHaveBeenCalledWith('test-project-123', {
-        title: 'Updated Title',
+        name: 'Updated Title',
       });
 
       await waitFor(() => {
@@ -364,14 +365,14 @@ describe('Project React Query Hooks', () => {
     it('should handle mutation errors gracefully', async () => {
       mockedProjectService.createProject.mockRejectedValue({
         message: 'Validation error',
-        detail: 'Title is required',
+        detail: 'Name is required',
       });
 
       const { result } = renderHook(() => useCreateProject(), { wrapper });
 
       await expect(
         result.current.mutateAsync({
-          title: '',
+          name: '',
           description: '',
           tech: [],
         })

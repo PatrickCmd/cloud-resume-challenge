@@ -837,11 +837,13 @@ cloud-resume-challenge/
 - [x] Auth service layer (real API + mock for development)
 - [x] React AuthContext for authentication state management
 - [x] Environment configuration for API endpoints
-- [x] Frontend integration tests (90 tests, 100% passing)
+- [x] Frontend integration tests (101 tests, 100% passing)
   - Authentication: 26 tests (authService + AuthContext)
   - Blog Service: 28 tests (blogService API integration)
   - Blog Hooks: 16 tests (React Query hooks with cache management)
-  - Total: 90 integration tests
+  - Project Service: 21 tests (projectService API integration)
+  - Project Hooks: 16 tests (React Query hooks with cache management)
+  - Total: 101 integration tests
 - [x] Blog frontend-backend integration (Phase 2 complete)
   - Type-safe blog service with Axios HTTP client
   - React Query hooks for data fetching, caching, and mutations
@@ -851,6 +853,14 @@ cloud-resume-challenge/
   - Dynamic blog count in tab navigation
   - Status normalization (backend UPPERCASE → frontend lowercase)
   - Owner-only access controls for admin features
+- [x] Projects API integration (Phase 3 - API layer complete)
+  - Type-safe project service matching backend schema (name, company, longDescription)
+  - React Query hooks for data fetching, caching, and mutations
+  - Separate queries for published and draft projects
+  - CRUD operations with full test coverage (37 tests)
+  - Publish/unpublish workflow for draft management
+  - Featured project filtering support
+  - Status normalization (backend UPPERCASE → frontend lowercase)
 - [x] Vitest + Testing Library test infrastructure
 - [x] Test utilities, fixtures, and mock helpers
 - [x] Comprehensive testing documentation (docs/TESTING.md)

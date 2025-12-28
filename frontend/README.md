@@ -195,6 +195,15 @@ This frontend integrates with a serverless FastAPI backend deployed on AWS.
 - **Status Management** - Separate queries for published and draft posts
 - **Dynamic Counts** - Real-time blog count in tab navigation
 
+### Projects Integration
+
+- **Project Service** - Type-safe project API integration with Axios
+- **React Query Hooks** - Data fetching, caching, and mutations for projects
+- **CRUD Operations** - Create, read, update, delete project entries
+- **Publish/Unpublish** - Draft and published project workflow
+- **Featured Projects** - Support for featured project filtering
+- **Status Management** - Separate queries for published and draft projects
+
 ### Environment Configuration
 
 Configure API endpoints in `.env` files:
@@ -225,7 +234,7 @@ Comprehensive testing infrastructure with Vitest and Testing Library.
 
 ### Test Coverage
 
-- **90 tests** across authentication, blog services, and React Query hooks
+- **101 tests** across authentication, blog services, project services, and React Query hooks
 - **100% passing** - All integration tests verified
 - **Coverage**: Run `make test-coverage` to generate reports
 
@@ -233,7 +242,9 @@ Comprehensive testing infrastructure with Vitest and Testing Library.
 - Authentication: 26 tests (authService + AuthContext)
 - Blog Service: 28 tests (blogService.test.ts)
 - Blog Hooks: 16 tests (useBlogPosts.test.tsx)
-- Total: 90 integration tests
+- Project Service: 21 tests (projectService.test.ts)
+- Project Hooks: 16 tests (useProjects.test.tsx)
+- Total: 101 integration tests
 
 ### Running Tests
 
@@ -256,12 +267,14 @@ make test-coverage
 ```
 src/
 ├── services/__tests__/
-│   ├── authService.test.ts      # 14 tests - Auth API integration
-│   └── blogService.test.ts      # 28 tests - Blog API integration
+│   ├── authService.test.ts         # 14 tests - Auth API integration
+│   ├── blogService.test.ts         # 28 tests - Blog API integration
+│   └── projectService.test.ts      # 21 tests - Project API integration
 ├── hooks/__tests__/
-│   └── useBlogPosts.test.tsx    # 16 tests - React Query hooks
+│   ├── useBlogPosts.test.tsx       # 16 tests - Blog React Query hooks
+│   └── useProjects.test.tsx        # 16 tests - Project React Query hooks
 ├── contexts/__tests__/
-│   └── AuthContext.test.tsx     # 12 tests - React context hooks
+│   └── AuthContext.test.tsx        # 12 tests - React context hooks
 └── test/
     ├── setup.ts                  # Global test configuration
     └── utils.tsx                 # Test helpers and fixtures
