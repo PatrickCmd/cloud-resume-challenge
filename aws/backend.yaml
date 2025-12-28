@@ -39,8 +39,8 @@ Parameters:
 
   FrontendOrigins:
     Type: String
-    Default: "https://patrickcmd.dev,https://www.patrickcmd.dev"
-    Description: Comma-separated string of allowed CORS origins
+    Default: "http://localhost:3000,http://localhost:5173,https://patrickcmd.dev,https://www.patrickcmd.dev"
+    Description: Comma-separated string of allowed CORS origins (supports both development and production)
 
 Globals:
   Function:
@@ -206,21 +206,11 @@ Resources:
       Name: !Sub ${Environment}-portfolio-api
       StageName: !Ref Environment
       TracingEnabled: true
-      Cors:
-        AllowMethods: "'GET,POST,PUT,PATCH,DELETE,OPTIONS'"
-        AllowHeaders: "'Content-Type,Authorization,X-Amz-Date,X-Api-Key,X-Amz-Security-Token'"
-        # API Gateway CORS only supports single origin or wildcard
-        # For development, use wildcard; for production, use specific domain
-        # Note: FastAPI CORSMiddleware in Lambda provides the actual CORS validation
-        AllowOrigin: !If
-          - IsDevelopment
-          - "'*'"
-          - !Sub "'${FrontendOrigins}'"
-        AllowCredentials: !If
-          - IsDevelopment
-          - false  # Can't use credentials with wildcard
-          - true
-        MaxAge: "'600'"
+      # CORS is handled entirely by FastAPI CORSMiddleware in Lambda
+      # API Gateway CORS disabled to prevent header conflicts (multiple origins issue)
+      # FastAPI middleware properly supports multiple origins by echoing back the matched origin
+      # Development: supports localhost:3000, localhost:5173
+      # Production: supports patrickcmd.dev, www.patrickcmd.dev
       # Authentication is handled by FastAPI at the application layer
       # No default authorizer - all routes are open at API Gateway level
       # FastAPI dependencies handle authentication (get_current_user, require_owner_role)
