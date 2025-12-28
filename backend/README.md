@@ -742,25 +742,47 @@ PortfolioApiFunction:
 - [x] Makefile test automation
 
 ### ✅ Phase 5: Frontend-Backend Integration (Completed)
-- [x] Blog API integration with real backend
+- [x] Blog API integration with real backend (Phase 2)
   - Type-safe blog service with Axios HTTP client
   - React Query hooks for data fetching and caching
   - Separate queries for published and draft posts
   - Dynamic blog count in tab navigation
   - Status normalization (backend UPPERCASE → frontend lowercase)
-- [x] Frontend integration tests (64 tests, 100% passing)
-  - blogService.test.ts (28 tests) - Service layer integration tests
-  - useBlogPosts.test.tsx (16 tests) - React Query hooks tests
+- [x] Projects API integration (Phase 3)
+  - Type-safe project service with Axios HTTP client
+  - React Query hooks for data fetching, caching, and mutations
+  - Separate queries for published and draft projects
+  - CRUD operations with full test coverage (37 tests)
+  - Publish/unpublish workflow for draft management
+  - Featured project filtering support
+  - Dynamic project count in tab navigation
+- [x] Certifications API integration (Phase 4)
+  - Type-safe certification service with Axios HTTP client
+  - React Query hooks for data fetching, caching, and mutations
+  - Separate queries for published and draft certifications
+  - CRUD operations with full test coverage (40 tests)
+  - Publish/unpublish workflow for draft management
+  - Type filtering (certification/course) support
+  - Dynamic certification count in tab navigation
+  - Expiry date field support (no description field)
+- [x] Frontend integration tests (141 tests, 100% passing)
+  - Authentication: 26 tests (authService + AuthContext)
+  - Blog Service: 28 tests (blogService API integration)
+  - Blog Hooks: 16 tests (React Query hooks tests)
+  - Project Service: 21 tests (projectService API integration)
+  - Project Hooks: 16 tests (React Query hooks tests)
+  - Certification Service: 23 tests (certificationService API integration)
+  - Certification Hooks: 17 tests (React Query hooks tests)
   - Comprehensive CRUD operation coverage
   - Cache invalidation and mutation testing
-- [x] Blog CRUD operations in frontend
-  - Create, read, update, delete blog posts
-  - Publish/unpublish workflow
-  - Draft and published post management
+- [x] All content CRUD operations in frontend
+  - Create, read, update, delete for blogs, projects, and certifications
+  - Publish/unpublish workflow for all content types
+  - Draft and published content management
   - Owner-only access controls
+  - Dynamic counts in tab navigation
 
 ### 🚧 Phase 6: Enhancement & Optimization (In Progress)
-- [ ] Replace remaining frontend mock data services (projects, certifications)
 - [ ] Add real-time analytics dashboard
 - [ ] Performance optimization and caching
 - [ ] Set up CloudWatch alarms and monitoring dashboards

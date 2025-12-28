@@ -204,6 +204,16 @@ This frontend integrates with a serverless FastAPI backend deployed on AWS.
 - **Featured Projects** - Support for featured project filtering
 - **Status Management** - Separate queries for published and draft projects
 
+### Certifications Integration
+
+- **Certification Service** - Type-safe certification API integration with Axios
+- **React Query Hooks** - Data fetching, caching, and mutations for certifications
+- **CRUD Operations** - Create, read, update, delete certification entries
+- **Publish/Unpublish** - Draft and published certification workflow
+- **Type Filtering** - Support for certification vs course type filtering
+- **Status Management** - Separate queries for published and draft certifications
+- **Expiry Dates** - Support for certification expiry date tracking
+
 ### Environment Configuration
 
 Configure API endpoints in `.env` files:
@@ -234,7 +244,7 @@ Comprehensive testing infrastructure with Vitest and Testing Library.
 
 ### Test Coverage
 
-- **101 tests** across authentication, blog services, project services, and React Query hooks
+- **141 tests** across authentication, blog, project, and certification services and React Query hooks
 - **100% passing** - All integration tests verified
 - **Coverage**: Run `make test-coverage` to generate reports
 
@@ -244,7 +254,9 @@ Comprehensive testing infrastructure with Vitest and Testing Library.
 - Blog Hooks: 16 tests (useBlogPosts.test.tsx)
 - Project Service: 21 tests (projectService.test.ts)
 - Project Hooks: 16 tests (useProjects.test.tsx)
-- Total: 101 integration tests
+- Certification Service: 23 tests (certificationService.test.ts)
+- Certification Hooks: 17 tests (useCertifications.test.tsx)
+- Total: 141 integration tests
 
 ### Running Tests
 
@@ -267,17 +279,19 @@ make test-coverage
 ```
 src/
 ├── services/__tests__/
-│   ├── authService.test.ts         # 14 tests - Auth API integration
-│   ├── blogService.test.ts         # 28 tests - Blog API integration
-│   └── projectService.test.ts      # 21 tests - Project API integration
+│   ├── authService.test.ts              # 14 tests - Auth API integration
+│   ├── blogService.test.ts              # 28 tests - Blog API integration
+│   ├── projectService.test.ts           # 21 tests - Project API integration
+│   └── certificationService.test.ts     # 23 tests - Certification API integration
 ├── hooks/__tests__/
-│   ├── useBlogPosts.test.tsx       # 16 tests - Blog React Query hooks
-│   └── useProjects.test.tsx        # 16 tests - Project React Query hooks
+│   ├── useBlogPosts.test.tsx            # 16 tests - Blog React Query hooks
+│   ├── useProjects.test.tsx             # 16 tests - Project React Query hooks
+│   └── useCertifications.test.tsx       # 17 tests - Certification React Query hooks
 ├── contexts/__tests__/
-│   └── AuthContext.test.tsx        # 12 tests - React context hooks
+│   └── AuthContext.test.tsx             # 12 tests - React context hooks
 └── test/
-    ├── setup.ts                  # Global test configuration
-    └── utils.tsx                 # Test helpers and fixtures
+    ├── setup.ts                       # Global test configuration
+    └── utils.tsx                      # Test helpers and fixtures
 ```
 
 ### Test Documentation

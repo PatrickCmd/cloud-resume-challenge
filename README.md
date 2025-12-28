@@ -837,13 +837,15 @@ cloud-resume-challenge/
 - [x] Auth service layer (real API + mock for development)
 - [x] React AuthContext for authentication state management
 - [x] Environment configuration for API endpoints
-- [x] Frontend integration tests (101 tests, 100% passing)
+- [x] Frontend integration tests (141 tests, 100% passing)
   - Authentication: 26 tests (authService + AuthContext)
   - Blog Service: 28 tests (blogService API integration)
   - Blog Hooks: 16 tests (React Query hooks with cache management)
   - Project Service: 21 tests (projectService API integration)
   - Project Hooks: 16 tests (React Query hooks with cache management)
-  - Total: 101 integration tests
+  - Certification Service: 23 tests (certificationService API integration)
+  - Certification Hooks: 17 tests (React Query hooks with cache management)
+  - Total: 141 integration tests
 - [x] Blog frontend-backend integration (Phase 2 complete)
   - Type-safe blog service with Axios HTTP client
   - React Query hooks for data fetching, caching, and mutations
@@ -853,14 +855,25 @@ cloud-resume-challenge/
   - Dynamic blog count in tab navigation
   - Status normalization (backend UPPERCASE → frontend lowercase)
   - Owner-only access controls for admin features
-- [x] Projects API integration (Phase 3 - API layer complete)
+- [x] Projects API integration (Phase 3 complete)
   - Type-safe project service matching backend schema (name, company, longDescription)
   - React Query hooks for data fetching, caching, and mutations
   - Separate queries for published and draft projects
   - CRUD operations with full test coverage (37 tests)
   - Publish/unpublish workflow for draft management
   - Featured project filtering support
+  - Dynamic project count in tab navigation
   - Status normalization (backend UPPERCASE → frontend lowercase)
+- [x] Certifications API integration (Phase 4 complete)
+  - Type-safe certification service matching backend schema (name, issuer, type, dateEarned, expiry_date)
+  - React Query hooks for data fetching, caching, and mutations
+  - Separate queries for published and draft certifications
+  - CRUD operations with full test coverage (40 tests)
+  - Publish/unpublish workflow for draft management
+  - Type filtering support (certification vs course)
+  - Dynamic certification count in tab navigation
+  - Status normalization (backend UPPERCASE → frontend lowercase)
+  - Expiry date field support (no description field per backend schema)
 - [x] Vitest + Testing Library test infrastructure
 - [x] Test utilities, fixtures, and mock helpers
 - [x] Comprehensive testing documentation (docs/TESTING.md)
@@ -1148,8 +1161,8 @@ Comprehensive test coverage across both frontend and backend with unit, integrat
 |-----------|-----------|-------|----------|-------------|
 | **Backend** | Unit Tests | 211 | All endpoints, repositories, utilities | Local (mocked AWS) |
 | **Backend** | E2E Tests | 133+ | Complete API flows | Deployed (real AWS) |
-| **Frontend** | Integration Tests | 90 | Auth + Blog services & hooks | Local (mocked API) |
-| **Total** | | **434+** | **100% passing** | Mixed |
+| **Frontend** | Integration Tests | 141 | Auth + Blog + Project + Certification services & hooks | Local (mocked API) |
+| **Total** | | **485+** | **100% passing** | Mixed |
 
 ### Running Tests
 
