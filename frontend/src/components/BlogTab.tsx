@@ -36,7 +36,18 @@ export function BlogTab({ triggerCreate, onCreateHandled }: BlogTabProps) {
   const { isOwner } = useAuth();
 
   // Fetch posts using React Query
-  const { data: posts = [], isLoading } = useBlogPosts();
+  // Owners need both published and draft posts, non-owners only see published
+  const { data: publishedPosts = [], isLoading: isLoadingPublished } = useBlogPosts(
+    { status: 'published' }
+  );
+  const { data: draftPosts = [], isLoading: isLoadingDrafts } = useBlogPosts(
+    { status: 'draft' },
+    isOwner // Only fetch drafts if user is owner
+  );
+
+  // Combine published and draft posts for owners
+  const posts = isOwner ? [...publishedPosts, ...draftPosts] : publishedPosts;
+  const isLoading = isLoadingPublished || (isOwner && isLoadingDrafts);
   const createMutation = useCreateBlogPost();
   const updateMutation = useUpdateBlogPost();
   const deleteMutation = useDeleteBlogPost();

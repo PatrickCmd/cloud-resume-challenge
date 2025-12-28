@@ -47,6 +47,7 @@ export const blogKeys = {
  * Fetch all blog posts with optional filtering.
  *
  * @param params - Optional query parameters (status, category, tag, limit, offset)
+ * @param enabled - Whether to enable the query (default: true)
  * @returns Query result with posts array, loading state, and error
  *
  * @example
@@ -57,14 +58,18 @@ export const blogKeys = {
  * // Get drafts only (owner)
  * const { data: drafts = [] } = useBlogPosts({ status: 'draft' });
  *
+ * // Conditionally fetch drafts
+ * const { data: drafts = [] } = useBlogPosts({ status: 'draft' }, isOwner);
+ *
  * // Filter by category
  * const { data: backendPosts = [] } = useBlogPosts({ category: 'Backend' });
  * ```
  */
-export function useBlogPosts(params?: BlogListParams) {
+export function useBlogPosts(params?: BlogListParams, enabled: boolean = true) {
   return useQuery({
     queryKey: blogKeys.list(params),
     queryFn: () => blogService.getAllPosts(params),
+    enabled,
     staleTime: 5 * 60 * 1000, // 5 minutes - posts don't change often
   });
 }
