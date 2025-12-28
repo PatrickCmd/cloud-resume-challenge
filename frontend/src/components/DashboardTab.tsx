@@ -1,25 +1,32 @@
-import { useEffect, useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { 
-  FileText, 
-  Award, 
-  FolderGit2, 
-  Newspaper, 
-  Plus, 
-  Eye, 
+import {
+  FileText,
+  Award,
+  FolderGit2,
+  Newspaper,
+  Plus,
+  Eye,
   EyeOff,
   TrendingUp,
   Clock,
   Users,
   BarChart3
 } from "lucide-react";
-import { mockBlogDB, BlogPostDraft } from "@/services/mockBlogDatabase";
-import { mockCertificationsDB, Certification } from "@/services/mockCertificationsDatabase";
-import { mockProjectsDB, Project } from "@/services/mockProjectsDatabase";
-import { mockVisitorService, DailyVisitors, MonthlyVisitors } from "@/services/mockVisitorService";
-import { mockAnalyticsService } from "@/services/mockAnalyticsService";
+import { useBlogPosts } from "@/hooks/useBlogPosts";
+import { useCertifications } from "@/hooks/useCertifications";
+import { useProjects } from "@/hooks/useProjects";
+import {
+  useVisitorCount,
+  useDailyVisitorTrends,
+  useMonthlyVisitorTrends,
+  useTotalViews,
+  useTopContent
+} from "@/hooks/useVisitorAnalytics";
+import { BlogPostNormalized } from "@/types/blog";
+import { CertificationNormalized } from "@/types/certification";
+import { ProjectNormalized } from "@/types/project";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { AreaChart, Area, XAxis, YAxis, BarChart, Bar, ResponsiveContainer } from "recharts";
 
@@ -49,120 +56,100 @@ interface TopViewedItem {
 }
 
 export function DashboardTab({ onNavigate }: DashboardTabProps) {
-  const [stats, setStats] = useState<Stats>({
-    blogs: { total: 0, published: 0, drafts: 0 },
-    certifications: { total: 0, published: 0, drafts: 0 },
-    projects: { total: 0, published: 0, drafts: 0 },
-  });
-  const [recentItems, setRecentItems] = useState<RecentItem[]>([]);
-  const [topViewedItems, setTopViewedItems] = useState<TopViewedItem[]>([]);
-  const [totalContentViews, setTotalContentViews] = useState(0);
-  const [isLoading, setIsLoading] = useState(true);
-  const [totalVisitors, setTotalVisitors] = useState(0);
-  const [dailyTrends, setDailyTrends] = useState<DailyVisitors[]>([]);
-  const [monthlyTrends, setMonthlyTrends] = useState<MonthlyVisitors[]>([]);
+  // Fetch all data using React Query hooks
+  const { data: publishedBlogs = [] } = useBlogPosts({ status: 'published' });
+  const { data: draftBlogs = [] } = useBlogPosts({ status: 'draft' });
+  const { data: publishedCerts = [] } = useCertifications({ status: 'published' });
+  const { data: draftCerts = [] } = useCertifications({ status: 'draft' });
+  const { data: publishedProjects = [] } = useProjects({ status: 'published' });
+  const { data: draftProjects = [] } = useProjects({ status: 'draft' });
+  const { data: visitorData } = useVisitorCount();
+  const { data: dailyTrends = [] } = useDailyVisitorTrends({ days: 30 });
+  const { data: monthlyTrends = [] } = useMonthlyVisitorTrends({ months: 6 });
+  const { data: topContent } = useTopContent({ limit: 5 });
+  const { data: totalContentViews = 0 } = useTotalViews();
 
-  useEffect(() => {
-    loadDashboardData();
-  }, []);
+  // Combine blogs, certifications, and projects
+  const blogs = [...publishedBlogs, ...draftBlogs];
+  const certifications = [...publishedCerts, ...draftCerts];
+  const projects = [...publishedProjects, ...draftProjects];
 
-  const loadDashboardData = async () => {
-    setIsLoading(true);
-    try {
-      const [blogs, certifications, projects, visitors, daily, monthly, topContent, contentViews] = await Promise.all([
-        mockBlogDB.getAllPosts(),
-        mockCertificationsDB.getAll(),
-        mockProjectsDB.getAll(),
-        mockVisitorService.getVisitorCount(),
-        mockVisitorService.getDailyTrends(),
-        mockVisitorService.getMonthlyTrends(),
-        mockAnalyticsService.getTopContent(5),
-        mockAnalyticsService.getTotalViews(),
-      ]);
-
-      setTotalVisitors(visitors);
-      setDailyTrends(daily);
-      setMonthlyTrends(monthly);
-      setTotalContentViews(contentViews);
-
-      // Build top viewed items with titles
-      const topItems: TopViewedItem[] = [];
-      
-      for (const item of topContent.blogs) {
-        const blog = blogs.find(b => b.id === item.contentId);
-        if (blog) {
-          topItems.push({ id: blog.id, title: blog.title, type: 'blog', views: item.views });
-        }
-      }
-      
-      for (const item of topContent.projects) {
-        const project = projects.find(p => p.id === item.contentId);
-        if (project) {
-          topItems.push({ id: project.id, title: project.name, type: 'project', views: item.views });
-        }
-      }
-      
-      for (const item of topContent.certifications) {
-        const cert = certifications.find(c => c.id === item.contentId);
-        if (cert) {
-          topItems.push({ id: cert.id, title: cert.name, type: 'certification', views: item.views });
-        }
-      }
-      
-      // Sort by views and take top 5
-      topItems.sort((a, b) => b.views - a.views);
-      setTopViewedItems(topItems.slice(0, 5));
-
-      // Calculate stats
-      setStats({
-        blogs: {
-          total: blogs.length,
-          published: blogs.filter((b) => b.status === "published").length,
-          drafts: blogs.filter((b) => b.status === "draft").length,
-        },
-        certifications: {
-          total: certifications.length,
-          published: certifications.filter((c) => c.status === "published").length,
-          drafts: certifications.filter((c) => c.status === "draft").length,
-        },
-        projects: {
-          total: projects.length,
-          published: projects.filter((p) => p.status === "published").length,
-          drafts: projects.filter((p) => p.status === "draft").length,
-        },
-      });
-
-      // Get recent items (last 5 updated across all types)
-      const allItems: RecentItem[] = [
-        ...blogs.map((b: BlogPostDraft) => ({
-          id: b.id,
-          title: b.title,
-          type: "blog" as const,
-          status: b.status,
-          updatedAt: b.updatedAt,
-        })),
-        ...certifications.map((c: Certification) => ({
-          id: c.id,
-          title: c.name,
-          type: "certification" as const,
-          status: c.status,
-          updatedAt: c.updatedAt,
-        })),
-        ...projects.map((p: Project) => ({
-          id: p.id,
-          title: p.name,
-          type: "project" as const,
-          status: p.status,
-          updatedAt: p.updatedAt,
-        })),
-      ];
-
-      allItems.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
-      setRecentItems(allItems.slice(0, 5));
-    } finally {
-      setIsLoading(false);
-    }
+  // Calculate stats
+  const stats: Stats = {
+    blogs: {
+      total: blogs.length,
+      published: publishedBlogs.length,
+      drafts: draftBlogs.length,
+    },
+    certifications: {
+      total: certifications.length,
+      published: publishedCerts.length,
+      drafts: draftCerts.length,
+    },
+    projects: {
+      total: projects.length,
+      published: publishedProjects.length,
+      drafts: draftProjects.length,
+    },
   };
+
+  // Build top viewed items with titles
+  const topViewedItems: TopViewedItem[] = [];
+  if (topContent) {
+    for (const item of topContent.blogs) {
+      const blog = blogs.find((b: BlogPostNormalized) => b.id === item.contentId);
+      if (blog) {
+        topViewedItems.push({ id: blog.id, title: blog.title, type: 'blog', views: item.views });
+      }
+    }
+
+    for (const item of topContent.projects) {
+      const project = projects.find((p: ProjectNormalized) => p.id === item.contentId);
+      if (project) {
+        topViewedItems.push({ id: project.id, title: project.name, type: 'project', views: item.views });
+      }
+    }
+
+    for (const item of topContent.certifications) {
+      const cert = certifications.find((c: CertificationNormalized) => c.id === item.contentId);
+      if (cert) {
+        topViewedItems.push({ id: cert.id, title: cert.name, type: 'certification', views: item.views });
+      }
+    }
+
+    // Sort by views and take top 5
+    topViewedItems.sort((a, b) => b.views - a.views);
+  }
+
+  // Get recent items (last 5 updated across all types)
+  const allItems: RecentItem[] = [
+    ...blogs.map((b: BlogPostNormalized) => ({
+      id: b.id,
+      title: b.title,
+      type: "blog" as const,
+      status: b.status,
+      updatedAt: b.updatedAt,
+    })),
+    ...certifications.map((c: CertificationNormalized) => ({
+      id: c.id,
+      title: c.name,
+      type: "certification" as const,
+      status: c.status,
+      updatedAt: c.updatedAt,
+    })),
+    ...projects.map((p: ProjectNormalized) => ({
+      id: p.id,
+      title: p.name,
+      type: "project" as const,
+      status: p.status,
+      updatedAt: p.updatedAt,
+    })),
+  ];
+
+  allItems.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+  const recentItems = allItems.slice(0, 5);
+
+  const isLoading = !visitorData;
 
   const getTypeIcon = (type: string) => {
     switch (type) {
@@ -216,7 +203,7 @@ export function DashboardTab({ onNavigate }: DashboardTabProps) {
             <Users className="w-4 h-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{totalVisitors.toLocaleString()}</div>
+            <div className="text-2xl font-bold">{visitorData?.total_visitors.toLocaleString() || 0}</div>
             <p className="text-xs text-muted-foreground">All-time visitors</p>
           </CardContent>
         </Card>
