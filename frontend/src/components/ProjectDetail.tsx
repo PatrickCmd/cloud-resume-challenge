@@ -1,11 +1,11 @@
 import { ArrowLeft, Edit, Send, Trash2, ExternalLink, Github, Building2, BarChart3 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Project } from "@/services/mockProjectsDatabase";
+import { ProjectNormalized } from "@/types/project";
 import { MarkdownRenderer } from "./MarkdownRenderer";
 
 interface ProjectDetailProps {
-  project: Project;
+  project: ProjectNormalized;
   viewCount?: number;
   onBack: () => void;
   onEdit?: () => void;

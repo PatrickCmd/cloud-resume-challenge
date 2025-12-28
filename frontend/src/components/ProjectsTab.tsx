@@ -3,12 +3,19 @@ import { FolderGit2, Star, Plus, ExternalLink, Circle, BarChart3 } from "lucide-
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useToast } from "@/hooks/use-toast";
-import { mockProjectsDB, Project } from "@/services/mockProjectsDatabase";
 import { ProjectEditor } from "./ProjectEditor";
 import { ProjectDetail } from "./ProjectDetail";
 import { useAuth } from "@/contexts/AuthContext";
 import { mockAnalyticsService } from "@/services/mockAnalyticsService";
+import {
+  useProjects,
+  useCreateProject,
+  useUpdateProject,
+  useDeleteProject,
+  usePublishProject,
+  useUnpublishProject,
+} from "@/hooks/useProjects";
+import { ProjectNormalized } from "@/types/project";
 
 type ViewMode = "list" | "view" | "create" | "edit";
 
@@ -31,14 +38,31 @@ interface ProjectsTabProps {
 
 export function ProjectsTab({ triggerCreate, onCreateHandled }: ProjectsTabProps) {
   const [mode, setMode] = useState<ViewMode>("list");
-  const [projects, setProjects] = useState<Project[]>([]);
-  const [selectedProject, setSelectedProject] = useState<Project | null>(null);
+  const [selectedProject, setSelectedProject] = useState<ProjectNormalized | null>(null);
   const [filter, setFilter] = useState<"published" | "drafts">("published");
-  const [isLoading, setIsLoading] = useState(false);
   const [viewCounts, setViewCounts] = useState<Map<string, number>>(new Map());
   const [currentViewCount, setCurrentViewCount] = useState(0);
-  const { toast } = useToast();
   const { isOwner } = useAuth();
+
+  // Fetch projects using React Query
+  // Owners need both published and draft projects, non-owners only see published
+  const { data: publishedProjects = [], isLoading: isLoadingPublished } = useProjects(
+    { status: 'published' }
+  );
+  const { data: draftProjects = [], isLoading: isLoadingDrafts } = useProjects(
+    { status: 'draft' },
+    isOwner // Only fetch drafts if user is owner
+  );
+
+  // Combine published and draft projects for owners
+  const projects = isOwner ? [...publishedProjects, ...draftProjects] : publishedProjects;
+  const isLoading = isLoadingPublished || (isOwner && isLoadingDrafts);
+
+  const createMutation = useCreateProject();
+  const updateMutation = useUpdateProject();
+  const deleteMutation = useDeleteProject();
+  const publishMutation = usePublishProject();
+  const unpublishMutation = useUnpublishProject();
 
   useEffect(() => {
     if (triggerCreate && isOwner) {
@@ -47,105 +71,146 @@ export function ProjectsTab({ triggerCreate, onCreateHandled }: ProjectsTabProps
     }
   }, [triggerCreate, isOwner, onCreateHandled]);
 
+  // Load view counts
   useEffect(() => {
-    loadProjects();
-  }, [filter]);
+    const loadViewCounts = async () => {
+      try {
+        const views = await mockAnalyticsService.getAllViewStats('project');
+        setViewCounts(views);
+      } catch (error) {
+        console.error('Failed to load view counts:', error);
+      }
+    };
+    loadViewCounts();
+  }, []);
 
-  const loadProjects = async () => {
-    const [data, views] = await Promise.all([
-      filter === "published" 
-        ? mockProjectsDB.getPublished()
-        : mockProjectsDB.getDrafts(),
-      mockAnalyticsService.getAllViewStats('project')
-    ]);
-    setProjects(data);
-    setViewCounts(views);
-  };
-
-  const handleCreate = async (data: Omit<Project, "id" | "createdAt" | "updatedAt" | "status">) => {
-    setIsLoading(true);
+  const handleCreate = async (data: Omit<ProjectNormalized, "id" | "createdAt" | "updatedAt" | "status">) => {
     try {
-      await mockProjectsDB.create(data);
-      toast({ title: "Draft saved", description: "Your project has been saved as a draft." });
+      const newProject = await createMutation.mutateAsync({
+        name: data.name,
+        description: data.description,
+        longDescription: data.longDescription,
+        tech: data.tech,
+        company: data.company,
+        githubUrl: data.githubUrl,
+        liveUrl: data.liveUrl,
+        imageUrl: data.imageUrl,
+        featured: data.featured,
+      });
+      setSelectedProject(newProject);
       setMode("list");
       setFilter("drafts");
-      loadProjects();
-    } finally {
-      setIsLoading(false);
+    } catch (error) {
+      console.error('Failed to create project:', error);
     }
   };
 
-  const handleCreateAndPublish = async (data: Omit<Project, "id" | "createdAt" | "updatedAt" | "status">) => {
-    setIsLoading(true);
+  const handleCreateAndPublish = async (data: Omit<ProjectNormalized, "id" | "createdAt" | "updatedAt" | "status">) => {
     try {
-      const project = await mockProjectsDB.create(data);
-      await mockProjectsDB.publish(project.id);
-      toast({ title: "Published", description: "Your project has been published." });
+      const newProject = await createMutation.mutateAsync({
+        name: data.name,
+        description: data.description,
+        longDescription: data.longDescription,
+        tech: data.tech,
+        company: data.company,
+        githubUrl: data.githubUrl,
+        liveUrl: data.liveUrl,
+        imageUrl: data.imageUrl,
+        featured: data.featured,
+      });
+      await publishMutation.mutateAsync(newProject.id);
       setMode("list");
       setFilter("published");
-      loadProjects();
-    } finally {
-      setIsLoading(false);
+    } catch (error) {
+      console.error('Failed to create and publish project:', error);
     }
   };
 
-  const handleUpdate = async (data: Omit<Project, "id" | "createdAt" | "updatedAt" | "status">) => {
+  const handleUpdate = async (data: Omit<ProjectNormalized, "id" | "createdAt" | "updatedAt" | "status">) => {
     if (!selectedProject) return;
-    setIsLoading(true);
     try {
-      await mockProjectsDB.update(selectedProject.id, data);
-      toast({ title: "Saved", description: "Your changes have been saved." });
+      await updateMutation.mutateAsync({
+        id: selectedProject.id,
+        data: {
+          name: data.name,
+          description: data.description,
+          longDescription: data.longDescription,
+          tech: data.tech,
+          company: data.company,
+          githubUrl: data.githubUrl,
+          liveUrl: data.liveUrl,
+          imageUrl: data.imageUrl,
+          featured: data.featured,
+        },
+      });
       setMode("list");
-      loadProjects();
-    } finally {
-      setIsLoading(false);
+    } catch (error) {
+      console.error('Failed to update project:', error);
     }
   };
 
-  const handleUpdateAndPublish = async (data: Omit<Project, "id" | "createdAt" | "updatedAt" | "status">) => {
+  const handleUpdateAndPublish = async (data: Omit<ProjectNormalized, "id" | "createdAt" | "updatedAt" | "status">) => {
     if (!selectedProject) return;
-    setIsLoading(true);
     try {
-      await mockProjectsDB.update(selectedProject.id, data);
-      await mockProjectsDB.publish(selectedProject.id);
-      toast({ title: "Published", description: "Your project has been published." });
+      await updateMutation.mutateAsync({
+        id: selectedProject.id,
+        data: {
+          name: data.name,
+          description: data.description,
+          longDescription: data.longDescription,
+          tech: data.tech,
+          company: data.company,
+          githubUrl: data.githubUrl,
+          liveUrl: data.liveUrl,
+          imageUrl: data.imageUrl,
+          featured: data.featured,
+        },
+      });
+      await publishMutation.mutateAsync(selectedProject.id);
       setMode("list");
       setFilter("published");
-      loadProjects();
-    } finally {
-      setIsLoading(false);
+    } catch (error) {
+      console.error('Failed to update and publish project:', error);
     }
   };
 
   const handlePublish = async () => {
     if (!selectedProject) return;
-    await mockProjectsDB.publish(selectedProject.id);
-    toast({ title: "Published", description: "Project is now public." });
-    const updated = await mockProjectsDB.getById(selectedProject.id);
-    if (updated) setSelectedProject(updated);
-    loadProjects();
+    try {
+      await publishMutation.mutateAsync(selectedProject.id);
+      setMode("list");
+      setFilter("published");
+      setSelectedProject(null);
+    } catch (error) {
+      console.error('Failed to publish project:', error);
+    }
   };
 
   const handleUnpublish = async () => {
     if (!selectedProject) return;
-    await mockProjectsDB.unpublish(selectedProject.id);
-    toast({ title: "Unpublished", description: "Project moved to drafts." });
-    const updated = await mockProjectsDB.getById(selectedProject.id);
-    if (updated) setSelectedProject(updated);
-    loadProjects();
+    try {
+      await unpublishMutation.mutateAsync(selectedProject.id);
+      setMode("list");
+      setFilter("drafts");
+      setSelectedProject(null);
+    } catch (error) {
+      console.error('Failed to unpublish project:', error);
+    }
   };
 
   const handleDelete = async () => {
     if (!selectedProject) return;
-    await mockProjectsDB.delete(selectedProject.id);
-    toast({ title: "Deleted", description: "Project has been deleted." });
-    setMode("list");
-    setSelectedProject(null);
-    loadProjects();
+    try {
+      await deleteMutation.mutateAsync(selectedProject.id);
+      setMode("list");
+      setSelectedProject(null);
+    } catch (error) {
+      console.error('Failed to delete project:', error);
+    }
   };
 
   const viewProject = async (id: string) => {
-    const project = await mockProjectsDB.getById(id);
+    const project = projects.find(p => p.id === id);
     if (project) {
       setSelectedProject(project);
       setMode("view");

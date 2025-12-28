@@ -1,6 +1,7 @@
 import { BookOpen, Award, FolderGit2, FileText, Newspaper, LayoutDashboard } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useBlogPosts } from "@/hooks/useBlogPosts";
+import { useProjects } from "@/hooks/useProjects";
 
 type Tab = "overview" | "certifications" | "projects" | "blog" | "cv" | "dashboard";
 
@@ -16,10 +17,14 @@ export function TabNavigation({ activeTab, onTabChange }: TabNavigationProps) {
   const { data: publishedBlogs = [] } = useBlogPosts({ status: 'published' });
   const publishedBlogCount = publishedBlogs.length;
 
+  // Fetch published project count
+  const { data: publishedProjects = [] } = useProjects({ status: 'published' });
+  const publishedProjectCount = publishedProjects.length;
+
   const publicTabs = [
     { id: "overview" as Tab, label: "Overview", icon: BookOpen },
     { id: "certifications" as Tab, label: "Certifications", icon: Award, count: 9 },
-    { id: "projects" as Tab, label: "Projects", icon: FolderGit2, count: 6 },
+    { id: "projects" as Tab, label: "Projects", icon: FolderGit2, count: publishedProjectCount },
     { id: "blog" as Tab, label: "Blog", icon: Newspaper, count: publishedBlogCount },
     { id: "cv" as Tab, label: "CV", icon: FileText },
   ];

@@ -7,14 +7,14 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import { Project } from "@/services/mockProjectsDatabase";
+import { ProjectNormalized } from "@/types/project";
 import { MarkdownRenderer } from "./MarkdownRenderer";
 import { useToast } from "@/hooks/use-toast";
 
 interface ProjectEditorProps {
-  project?: Project;
-  onSave: (data: Omit<Project, "id" | "createdAt" | "updatedAt" | "status">) => void;
-  onPublish: (data: Omit<Project, "id" | "createdAt" | "updatedAt" | "status">) => void;
+  project?: ProjectNormalized;
+  onSave: (data: Omit<ProjectNormalized, "id" | "createdAt" | "updatedAt" | "status">) => void;
+  onPublish: (data: Omit<ProjectNormalized, "id" | "createdAt" | "updatedAt" | "status">) => void;
   onCancel: () => void;
   isLoading?: boolean;
 }
