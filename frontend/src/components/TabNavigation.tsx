@@ -1,5 +1,6 @@
 import { BookOpen, Award, FolderGit2, FileText, Newspaper, LayoutDashboard } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { useBlogPosts } from "@/hooks/useBlogPosts";
 
 type Tab = "overview" | "certifications" | "projects" | "blog" | "cv" | "dashboard";
 
@@ -8,21 +9,26 @@ interface TabNavigationProps {
   onTabChange: (tab: Tab) => void;
 }
 
-const publicTabs = [
-  { id: "overview" as Tab, label: "Overview", icon: BookOpen },
-  { id: "certifications" as Tab, label: "Certifications", icon: Award, count: 9 },
-  { id: "projects" as Tab, label: "Projects", icon: FolderGit2, count: 6 },
-  { id: "blog" as Tab, label: "Blog", icon: Newspaper, count: 5 },
-  { id: "cv" as Tab, label: "CV", icon: FileText },
-];
-
-const ownerTabs = [
-  { id: "dashboard" as Tab, label: "Dashboard", icon: LayoutDashboard },
-  ...publicTabs,
-];
-
 export function TabNavigation({ activeTab, onTabChange }: TabNavigationProps) {
   const { isOwner } = useAuth();
+
+  // Fetch published blog count
+  const { data: publishedBlogs = [] } = useBlogPosts({ status: 'published' });
+  const publishedBlogCount = publishedBlogs.length;
+
+  const publicTabs = [
+    { id: "overview" as Tab, label: "Overview", icon: BookOpen },
+    { id: "certifications" as Tab, label: "Certifications", icon: Award, count: 9 },
+    { id: "projects" as Tab, label: "Projects", icon: FolderGit2, count: 6 },
+    { id: "blog" as Tab, label: "Blog", icon: Newspaper, count: publishedBlogCount },
+    { id: "cv" as Tab, label: "CV", icon: FileText },
+  ];
+
+  const ownerTabs = [
+    { id: "dashboard" as Tab, label: "Dashboard", icon: LayoutDashboard },
+    ...publicTabs,
+  ];
+
   const tabs = isOwner ? ownerTabs : publicTabs;
 
   return (
