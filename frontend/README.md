@@ -214,6 +214,19 @@ This frontend integrates with a serverless FastAPI backend deployed on AWS.
 - **Status Management** - Separate queries for published and draft certifications
 - **Expiry Dates** - Support for certification expiry date tracking
 
+### Visitor & Analytics Integration
+
+- **Visitor Service** - Type-safe visitor tracking API integration with Axios
+- **Analytics Service** - Type-safe analytics API integration with Axios
+- **React Query Hooks** - Data fetching and mutations for visitor tracking and analytics
+- **Visitor Tracking** - Automatic page visit tracking with backend cookie deduplication
+- **Content View Tracking** - Track views for blog posts, projects, and certifications
+- **Session Deduplication** - Frontend sessionStorage prevents duplicate view tracking
+- **Analytics Dashboard** - Real-time visitor counts, content views, and trends
+- **Top Content** - Statistics for most viewed content across all types
+- **Visitor Trends** - Daily and monthly visitor analytics
+- **Total Metrics** - Total visitors and total content views
+
 ### Environment Configuration
 
 Configure API endpoints in `.env` files:
@@ -244,7 +257,7 @@ Comprehensive testing infrastructure with Vitest and Testing Library.
 
 ### Test Coverage
 
-- **141 tests** across authentication, blog, project, and certification services and React Query hooks
+- **198 tests** across authentication, content management, visitor tracking, and analytics
 - **100% passing** - All integration tests verified
 - **Coverage**: Run `make test-coverage` to generate reports
 
@@ -256,7 +269,10 @@ Comprehensive testing infrastructure with Vitest and Testing Library.
 - Project Hooks: 16 tests (useProjects.test.tsx)
 - Certification Service: 23 tests (certificationService.test.ts)
 - Certification Hooks: 17 tests (useCertifications.test.tsx)
-- Total: 141 integration tests
+- Visitor Service: 14 tests (visitorService.test.ts)
+- Analytics Service: 23 tests (analyticsService.test.ts)
+- Visitor & Analytics Hooks: 20 tests (useVisitorAnalytics.test.tsx)
+- Total: 198 integration tests
 
 ### Running Tests
 
@@ -282,11 +298,14 @@ src/
 │   ├── authService.test.ts              # 14 tests - Auth API integration
 │   ├── blogService.test.ts              # 28 tests - Blog API integration
 │   ├── projectService.test.ts           # 21 tests - Project API integration
-│   └── certificationService.test.ts     # 23 tests - Certification API integration
+│   ├── certificationService.test.ts     # 23 tests - Certification API integration
+│   ├── visitorService.test.ts           # 14 tests - Visitor tracking API integration
+│   └── analyticsService.test.ts         # 23 tests - Analytics API integration
 ├── hooks/__tests__/
 │   ├── useBlogPosts.test.tsx            # 16 tests - Blog React Query hooks
 │   ├── useProjects.test.tsx             # 16 tests - Project React Query hooks
-│   └── useCertifications.test.tsx       # 17 tests - Certification React Query hooks
+│   ├── useCertifications.test.tsx       # 17 tests - Certification React Query hooks
+│   └── useVisitorAnalytics.test.tsx     # 20 tests - Visitor & Analytics React Query hooks
 ├── contexts/__tests__/
 │   └── AuthContext.test.tsx             # 12 tests - React context hooks
 └── test/

@@ -837,7 +837,7 @@ cloud-resume-challenge/
 - [x] Auth service layer (real API + mock for development)
 - [x] React AuthContext for authentication state management
 - [x] Environment configuration for API endpoints
-- [x] Frontend integration tests (141 tests, 100% passing)
+- [x] Frontend integration tests (198 tests, 100% passing)
   - Authentication: 26 tests (authService + AuthContext)
   - Blog Service: 28 tests (blogService API integration)
   - Blog Hooks: 16 tests (React Query hooks with cache management)
@@ -845,7 +845,10 @@ cloud-resume-challenge/
   - Project Hooks: 16 tests (React Query hooks with cache management)
   - Certification Service: 23 tests (certificationService API integration)
   - Certification Hooks: 17 tests (React Query hooks with cache management)
-  - Total: 141 integration tests
+  - Visitor Service: 14 tests (visitorService API integration)
+  - Analytics Service: 23 tests (analyticsService API integration)
+  - Visitor & Analytics Hooks: 20 tests (useVisitorAnalytics React Query hooks)
+  - Total: 198 integration tests
 - [x] Blog frontend-backend integration (Phase 2 complete)
   - Type-safe blog service with Axios HTTP client
   - React Query hooks for data fetching, caching, and mutations
@@ -874,6 +877,20 @@ cloud-resume-challenge/
   - Dynamic certification count in tab navigation
   - Status normalization (backend UPPERCASE → frontend lowercase)
   - Expiry date field support (no description field per backend schema)
+- [x] Visitor & Analytics Integration (Phase 5 complete)
+  - Type-safe visitor and analytics services with Axios HTTP client
+  - React Query hooks for visitor tracking and analytics data fetching
+  - Automatic visitor tracking on page load (VisitorCounter component)
+  - Content view tracking for blogs, projects, and certifications
+  - Backend cookie-based session deduplication for visitors
+  - Frontend sessionStorage deduplication for content views
+  - Analytics dashboard with real-time metrics
+  - Total visitor count and total content views
+  - Top viewed content statistics (blogs, projects, certifications)
+  - Daily and monthly visitor trends
+  - View counts displayed on content detail pages
+  - Integration tests (59 tests: 14 visitor service + 23 analytics service + 22 hooks)
+  - Real-time analytics tracking across all content types
 - [x] Vitest + Testing Library test infrastructure
 - [x] Test utilities, fixtures, and mock helpers
 - [x] Comprehensive testing documentation (docs/TESTING.md)
@@ -1161,8 +1178,8 @@ Comprehensive test coverage across both frontend and backend with unit, integrat
 |-----------|-----------|-------|----------|-------------|
 | **Backend** | Unit Tests | 211 | All endpoints, repositories, utilities | Local (mocked AWS) |
 | **Backend** | E2E Tests | 133+ | Complete API flows | Deployed (real AWS) |
-| **Frontend** | Integration Tests | 141 | Auth + Blog + Project + Certification services & hooks | Local (mocked API) |
-| **Total** | | **485+** | **100% passing** | Mixed |
+| **Frontend** | Integration Tests | 198 | Auth + Content + Visitor & Analytics services & hooks | Local (mocked API) |
+| **Total** | | **542+** | **100% passing** | Mixed |
 
 ### Running Tests
 

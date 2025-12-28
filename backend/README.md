@@ -765,7 +765,18 @@ PortfolioApiFunction:
   - Type filtering (certification/course) support
   - Dynamic certification count in tab navigation
   - Expiry date field support (no description field)
-- [x] Frontend integration tests (141 tests, 100% passing)
+- [x] Visitor & Analytics Integration (Phase 5)
+  - Type-safe visitor and analytics services with Axios HTTP client
+  - React Query hooks for visitor tracking and analytics data
+  - Visitor tracking (session-based, backend cookie deduplication)
+  - Content view tracking (blog, project, certification)
+  - Analytics dashboard with real-time data
+  - Top content statistics and trends
+  - Daily and monthly visitor trends
+  - Total views and visitor counts
+  - Session-based frontend deduplication for content views
+  - Integration tests (59 tests: 37 service + 22 hooks)
+- [x] Frontend integration tests (198 tests, 100% passing)
   - Authentication: 26 tests (authService + AuthContext)
   - Blog Service: 28 tests (blogService API integration)
   - Blog Hooks: 16 tests (React Query hooks tests)
@@ -773,6 +784,9 @@ PortfolioApiFunction:
   - Project Hooks: 16 tests (React Query hooks tests)
   - Certification Service: 23 tests (certificationService API integration)
   - Certification Hooks: 17 tests (React Query hooks tests)
+  - Visitor Service: 14 tests (visitorService API integration)
+  - Analytics Service: 23 tests (analyticsService API integration)
+  - Analytics Hooks: 20 tests (React Query hooks for visitor & analytics)
   - Comprehensive CRUD operation coverage
   - Cache invalidation and mutation testing
 - [x] All content CRUD operations in frontend
@@ -781,6 +795,7 @@ PortfolioApiFunction:
   - Draft and published content management
   - Owner-only access controls
   - Dynamic counts in tab navigation
+  - Real-time analytics tracking for all content types
 
 ### 🚧 Phase 6: Enhancement & Optimization (In Progress)
 - [ ] Add real-time analytics dashboard
