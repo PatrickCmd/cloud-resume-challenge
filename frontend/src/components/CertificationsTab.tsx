@@ -3,12 +3,19 @@ import { Award, Plus, ExternalLink, BarChart3 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useToast } from "@/hooks/use-toast";
-import { mockCertificationsDB, Certification } from "@/services/mockCertificationsDatabase";
 import { CertificationEditor } from "./CertificationEditor";
 import { CertificationDetail } from "./CertificationDetail";
 import { useAuth } from "@/contexts/AuthContext";
 import { mockAnalyticsService } from "@/services/mockAnalyticsService";
+import {
+  useCertifications,
+  useCreateCertification,
+  useUpdateCertification,
+  useDeleteCertification,
+  usePublishCertification,
+  useUnpublishCertification,
+} from "@/hooks/useCertifications";
+import { CertificationNormalized } from "@/types/certification";
 
 type ViewMode = "list" | "view" | "create" | "edit";
 
@@ -19,14 +26,31 @@ interface CertificationsTabProps {
 
 export function CertificationsTab({ triggerCreate, onCreateHandled }: CertificationsTabProps) {
   const [mode, setMode] = useState<ViewMode>("list");
-  const [certifications, setCertifications] = useState<Certification[]>([]);
-  const [selectedCert, setSelectedCert] = useState<Certification | null>(null);
+  const [selectedCert, setSelectedCert] = useState<CertificationNormalized | null>(null);
   const [filter, setFilter] = useState<"published" | "drafts">("published");
-  const [isLoading, setIsLoading] = useState(false);
   const [viewCounts, setViewCounts] = useState<Map<string, number>>(new Map());
   const [currentViewCount, setCurrentViewCount] = useState(0);
-  const { toast } = useToast();
   const { isOwner } = useAuth();
+
+  // Fetch certifications using React Query
+  // Owners need both published and draft certifications, non-owners only see published
+  const { data: publishedCertifications = [], isLoading: isLoadingPublished } = useCertifications(
+    { status: 'published' }
+  );
+  const { data: draftCertifications = [], isLoading: isLoadingDrafts } = useCertifications(
+    { status: 'draft' },
+    isOwner // Only fetch drafts if user is owner
+  );
+
+  // Combine published and draft certifications for owners
+  const certifications = isOwner ? [...publishedCertifications, ...draftCertifications] : publishedCertifications;
+  const isLoading = isLoadingPublished || (isOwner && isLoadingDrafts);
+
+  const createMutation = useCreateCertification();
+  const updateMutation = useUpdateCertification();
+  const deleteMutation = useDeleteCertification();
+  const publishMutation = usePublishCertification();
+  const unpublishMutation = useUnpublishCertification();
 
   useEffect(() => {
     if (triggerCreate && isOwner) {
@@ -35,105 +59,142 @@ export function CertificationsTab({ triggerCreate, onCreateHandled }: Certificat
     }
   }, [triggerCreate, isOwner, onCreateHandled]);
 
+  // Load view counts
   useEffect(() => {
-    loadCertifications();
-  }, [filter]);
+    const loadViewCounts = async () => {
+      try {
+        const views = await mockAnalyticsService.getAllViewStats('certification');
+        setViewCounts(views);
+      } catch (error) {
+        console.error('Failed to load view counts:', error);
+      }
+    };
+    loadViewCounts();
+  }, []);
 
-  const loadCertifications = async () => {
-    const [data, views] = await Promise.all([
-      filter === "published" 
-        ? mockCertificationsDB.getPublished()
-        : mockCertificationsDB.getDrafts(),
-      mockAnalyticsService.getAllViewStats('certification')
-    ]);
-    setCertifications(data);
-    setViewCounts(views);
-  };
-
-  const handleCreate = async (data: Omit<Certification, "id" | "createdAt" | "updatedAt" | "status">) => {
-    setIsLoading(true);
+  const handleCreate = async (data: Omit<CertificationNormalized, "id" | "createdAt" | "updatedAt" | "status">) => {
     try {
-      await mockCertificationsDB.create(data);
-      toast({ title: "Draft saved", description: "Your certification has been saved as a draft." });
+      const newCert = await createMutation.mutateAsync({
+        name: data.name,
+        issuer: data.issuer,
+        type: data.type,
+        dateEarned: data.dateEarned,
+        credentialUrl: data.credentialUrl,
+        expiry_date: data.expiry_date,
+        icon: data.icon,
+        featured: data.featured,
+      });
+      setSelectedCert(newCert);
       setMode("list");
       setFilter("drafts");
-      loadCertifications();
-    } finally {
-      setIsLoading(false);
+    } catch (error) {
+      console.error('Failed to create certification:', error);
     }
   };
 
-  const handleCreateAndPublish = async (data: Omit<Certification, "id" | "createdAt" | "updatedAt" | "status">) => {
-    setIsLoading(true);
+  const handleCreateAndPublish = async (data: Omit<CertificationNormalized, "id" | "createdAt" | "updatedAt" | "status">) => {
     try {
-      const cert = await mockCertificationsDB.create(data);
-      await mockCertificationsDB.publish(cert.id);
-      toast({ title: "Published", description: "Your certification has been published." });
+      const newCert = await createMutation.mutateAsync({
+        name: data.name,
+        issuer: data.issuer,
+        type: data.type,
+        dateEarned: data.dateEarned,
+        credentialUrl: data.credentialUrl,
+        expiry_date: data.expiry_date,
+        icon: data.icon,
+        featured: data.featured,
+      });
+      await publishMutation.mutateAsync(newCert.id);
       setMode("list");
       setFilter("published");
-      loadCertifications();
-    } finally {
-      setIsLoading(false);
+    } catch (error) {
+      console.error('Failed to create and publish certification:', error);
     }
   };
 
-  const handleUpdate = async (data: Omit<Certification, "id" | "createdAt" | "updatedAt" | "status">) => {
+  const handleUpdate = async (data: Omit<CertificationNormalized, "id" | "createdAt" | "updatedAt" | "status">) => {
     if (!selectedCert) return;
-    setIsLoading(true);
     try {
-      await mockCertificationsDB.update(selectedCert.id, data);
-      toast({ title: "Saved", description: "Your changes have been saved." });
+      await updateMutation.mutateAsync({
+        id: selectedCert.id,
+        data: {
+          name: data.name,
+          issuer: data.issuer,
+          type: data.type,
+          dateEarned: data.dateEarned,
+          credentialUrl: data.credentialUrl,
+          expiry_date: data.expiry_date,
+          icon: data.icon,
+          featured: data.featured,
+        },
+      });
       setMode("list");
-      loadCertifications();
-    } finally {
-      setIsLoading(false);
+    } catch (error) {
+      console.error('Failed to update certification:', error);
     }
   };
 
-  const handleUpdateAndPublish = async (data: Omit<Certification, "id" | "createdAt" | "updatedAt" | "status">) => {
+  const handleUpdateAndPublish = async (data: Omit<CertificationNormalized, "id" | "createdAt" | "updatedAt" | "status">) => {
     if (!selectedCert) return;
-    setIsLoading(true);
     try {
-      await mockCertificationsDB.update(selectedCert.id, data);
-      await mockCertificationsDB.publish(selectedCert.id);
-      toast({ title: "Published", description: "Your certification has been published." });
+      await updateMutation.mutateAsync({
+        id: selectedCert.id,
+        data: {
+          name: data.name,
+          issuer: data.issuer,
+          type: data.type,
+          dateEarned: data.dateEarned,
+          credentialUrl: data.credentialUrl,
+          expiry_date: data.expiry_date,
+          icon: data.icon,
+          featured: data.featured,
+        },
+      });
+      await publishMutation.mutateAsync(selectedCert.id);
       setMode("list");
       setFilter("published");
-      loadCertifications();
-    } finally {
-      setIsLoading(false);
+    } catch (error) {
+      console.error('Failed to update and publish certification:', error);
     }
   };
 
   const handlePublish = async () => {
     if (!selectedCert) return;
-    await mockCertificationsDB.publish(selectedCert.id);
-    toast({ title: "Published", description: "Certification is now public." });
-    const updated = await mockCertificationsDB.getById(selectedCert.id);
-    if (updated) setSelectedCert(updated);
-    loadCertifications();
+    try {
+      await publishMutation.mutateAsync(selectedCert.id);
+      setMode("list");
+      setFilter("published");
+      setSelectedCert(null);
+    } catch (error) {
+      console.error('Failed to publish certification:', error);
+    }
   };
 
   const handleUnpublish = async () => {
     if (!selectedCert) return;
-    await mockCertificationsDB.unpublish(selectedCert.id);
-    toast({ title: "Unpublished", description: "Certification moved to drafts." });
-    const updated = await mockCertificationsDB.getById(selectedCert.id);
-    if (updated) setSelectedCert(updated);
-    loadCertifications();
+    try {
+      await unpublishMutation.mutateAsync(selectedCert.id);
+      setMode("list");
+      setFilter("drafts");
+      setSelectedCert(null);
+    } catch (error) {
+      console.error('Failed to unpublish certification:', error);
+    }
   };
 
   const handleDelete = async () => {
     if (!selectedCert) return;
-    await mockCertificationsDB.delete(selectedCert.id);
-    toast({ title: "Deleted", description: "Certification has been deleted." });
-    setMode("list");
-    setSelectedCert(null);
-    loadCertifications();
+    try {
+      await deleteMutation.mutateAsync(selectedCert.id);
+      setMode("list");
+      setSelectedCert(null);
+    } catch (error) {
+      console.error('Failed to delete certification:', error);
+    }
   };
 
   const viewCertification = async (id: string) => {
-    const cert = await mockCertificationsDB.getById(id);
+    const cert = certifications.find(c => c.id === id);
     if (cert) {
       setSelectedCert(cert);
       setMode("view");

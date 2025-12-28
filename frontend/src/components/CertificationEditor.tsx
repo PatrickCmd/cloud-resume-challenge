@@ -13,12 +13,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Certification } from "@/services/mockCertificationsDatabase";
+import { CertificationNormalized } from "@/types/certification";
 
 interface CertificationEditorProps {
-  certification?: Certification;
-  onSave: (data: Omit<Certification, "id" | "createdAt" | "updatedAt" | "status">) => void;
-  onPublish: (data: Omit<Certification, "id" | "createdAt" | "updatedAt" | "status">) => void;
+  certification?: CertificationNormalized;
+  onSave: (data: Omit<CertificationNormalized, "id" | "createdAt" | "updatedAt" | "status">) => void;
+  onPublish: (data: Omit<CertificationNormalized, "id" | "createdAt" | "updatedAt" | "status">) => void;
   onCancel: () => void;
   isLoading?: boolean;
 }
@@ -39,9 +39,9 @@ export function CertificationEditor({
     certification?.type || "certification"
   );
   const [featured, setFeatured] = useState(certification?.featured || false);
-  const [description, setDescription] = useState(certification?.description || "");
   const [credentialUrl, setCredentialUrl] = useState(certification?.credentialUrl || "");
   const [dateEarned, setDateEarned] = useState(certification?.dateEarned || "");
+  const [expiryDate, setExpiryDate] = useState(certification?.expiry_date || "");
   const [activeTab, setActiveTab] = useState<"edit" | "preview">("edit");
 
   const formData = {
@@ -50,12 +50,12 @@ export function CertificationEditor({
     icon,
     type,
     featured,
-    description,
     credentialUrl: credentialUrl || undefined,
+    expiry_date: expiryDate || undefined,
     dateEarned,
   };
 
-  const isValid = name.trim() && issuer.trim() && description.trim() && dateEarned;
+  const isValid = name.trim() && issuer.trim() && dateEarned;
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -119,7 +119,7 @@ export function CertificationEditor({
             </div>
           </div>
 
-          <div className="grid md:grid-cols-3 gap-4">
+          <div className="grid md:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>Icon</Label>
               <Select value={icon} onValueChange={setIcon}>
@@ -147,6 +147,9 @@ export function CertificationEditor({
                 </SelectContent>
               </Select>
             </div>
+          </div>
+
+          <div className="grid md:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="dateEarned">Date Earned *</Label>
               <Input
@@ -156,17 +159,15 @@ export function CertificationEditor({
                 onChange={(e) => setDateEarned(e.target.value)}
               />
             </div>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="description">Description *</Label>
-            <Textarea
-              id="description"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder="Describe what this certification/course covers..."
-              rows={3}
-            />
+            <div className="space-y-2">
+              <Label htmlFor="expiryDate">Expiry Date (optional)</Label>
+              <Input
+                id="expiryDate"
+                type="date"
+                value={expiryDate}
+                onChange={(e) => setExpiryDate(e.target.value)}
+              />
+            </div>
           </div>
 
           <div className="space-y-2">
@@ -201,9 +202,11 @@ export function CertificationEditor({
                 <p className="text-muted-foreground mb-2">{issuer || "No issuer"}</p>
                 <p className="text-sm text-muted-foreground mb-3">
                   {type === "certification" ? "📜 Certification" : "📚 Course"} •{" "}
-                  {dateEarned ? new Date(dateEarned).toLocaleDateString() : "No date"}
+                  Earned: {dateEarned ? new Date(dateEarned).toLocaleDateString() : "No date"}
+                  {expiryDate && (
+                    <> • Expires: {new Date(expiryDate).toLocaleDateString()}</>
+                  )}
                 </p>
-                <p className="text-foreground">{description || "No description"}</p>
                 {credentialUrl && (
                   <a
                     href={credentialUrl}
