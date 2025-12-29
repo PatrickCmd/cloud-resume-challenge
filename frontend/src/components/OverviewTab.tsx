@@ -38,14 +38,21 @@ export function OverviewTab() {
       {/* Summary */}
       <div className="p-5 rounded-lg border border-border bg-card animate-fade-in">
         <p className="text-foreground leading-relaxed">
-          Back-End Software Engineer with <span className="font-semibold text-primary">4+ years</span> of professional experience building scalable backend systems, REST APIs, data pipelines, and cloud-native applications. Strong in Python, Django/FastAPI, PostgreSQL, and Docker, with additional experience in data engineering, machine learning tooling, and CI/CD automation. Passionate about solving real-world problems using clean architecture, automation, and infrastructure best practices.
+          I am a Backend & Cloud Engineer with <span className="font-semibold text-primary">4+ years</span> of strong expertise in Python and modern backend architectures. I design and build robust APIs, distributed systems, and scalable data pipelines using Django, FastAPI, PostgreSQL, and cloud-native tooling across AWS and GCP.
+        </p>
+        <p className="text-foreground leading-relaxed mt-4">
+          My work spans backend engineering, cloud infrastructure design, CI/CD automation, and end-to-end system reliability. I have experience supporting ML-enabled products, optimizing backend performance, and implementing architecture patterns that make systems secure, observable, and maintainable at scale.
+        </p>
+        <p className="text-foreground leading-relaxed mt-4">
+          I enjoy solving complex engineering problems with clean, systematic solutions and believe in building technology that is stable, efficient, and easy for teams to extend over time. I'm driven by a passion for automation, clarity in engineering, and delivering reliable platforms that power real-world applications.
         </p>
         <div className="flex flex-wrap gap-2 mt-4">
           <span className="skill-badge">Backend Engineering</span>
+          <span className="skill-badge">Cloud Infrastructure</span>
           <span className="skill-badge">Distributed Systems</span>
           <span className="skill-badge">Data Pipelines</span>
-          <span className="skill-badge">DevOps</span>
-          <span className="skill-badge">Cloud (AWS/GCP)</span>
+          <span className="skill-badge">CI/CD Automation</span>
+          <span className="skill-badge">System Reliability</span>
           <span className="skill-badge">MLOps</span>
         </div>
       </div>
