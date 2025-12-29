@@ -1320,7 +1320,7 @@ k6 run load-test.js
 ### Related Documentation
 
 - [Frontend Implementation](frontend/README.md)
-- [Backend Implementation](backend/README.md) _(coming soon)_
+- [Backend Implementation](backend/README.md)
 - [AWS Infrastructure](aws/README.md)
 - [Main README](README.md)
 
