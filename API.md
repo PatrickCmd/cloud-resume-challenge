@@ -53,9 +53,9 @@ The complete OpenAPI specification is available in [openapi.yml](openapi.yml).
 
 | Environment | URL | Description |
 |-------------|-----|-------------|
-| Production | `https://api.patrickcmd.dev/v1` | Production environment |
-| Staging | `https://staging-api.patrickcmd.dev/v1` | Staging environment |
-| Local | `http://localhost:8000/v1` | Local development |
+| Production | `https://api.patrickcmd.dev` | Production environment |
+| Staging | `https://staging-api.patrickcmd.dev` | Staging environment |
+| Local | `http://localhost:8000` | Local development |
 
 ### API Information
 
