@@ -36,14 +36,156 @@ Status      - String (for published/draft filtering)
 ```
 
 **Primary Key**:
-- **Partition Key**: `PK` (String)
-- **Sort Key**: `SK` (String)
+- **Partition Key (HASH)**: `PK` (String)
+- **Sort Key (RANGE)**: `SK` (String)
 
 **Global Secondary Index (GSI1)**:
 - **Index Name**: `GSI1`
-- **Partition Key**: `GSI1PK` (String)
-- **Sort Key**: `GSI1SK` (String)
+- **Partition Key (HASH)**: `GSI1PK` (String)
+- **Sort Key (RANGE)**: `GSI1SK` (String)
 - **Projection**: ALL (include all attributes)
+
+### Understanding HASH and RANGE Key Types
+
+**What are HASH and RANGE?**
+
+In DynamoDB, `HASH` and `RANGE` are the two key types that define how data is stored and queried:
+
+#### HASH Key (Partition Key)
+
+The **HASH key** (also called **Partition Key**) determines where your data is physically stored in DynamoDB's distributed storage system.
+
+**How it works:**
+- DynamoDB runs your HASH key value through an internal hash function
+- The hash function output determines which partition (physical storage unit) stores the item
+- All items with the same HASH key are stored in the same partition
+- HASH keys must be unique if there's no RANGE key, otherwise they can be duplicated
+
+**Example:**
+```python
+# All blog posts with different IDs go to different partitions
+PK = 'BLOG#123'  # Goes to partition A
+PK = 'BLOG#456'  # Goes to partition B
+PK = 'BLOG#789'  # Goes to partition C
+```
+
+**Why it's called HASH:**
+- Uses hash function for even data distribution across partitions
+- Provides horizontal scalability
+- Enables parallel processing across multiple servers
+
+#### RANGE Key (Sort Key)
+
+The **RANGE key** (also called **Sort Key**) allows multiple items with the same HASH key and enables efficient range queries.
+
+**How it works:**
+- Items with the same HASH key are sorted by their RANGE key values
+- Enables range queries (`begins_with`, `between`, `>`, `<`, `>=`, `<=`)
+- RANGE key is optional but highly recommended for flexibility
+
+**Example:**
+```python
+# Multiple items under same partition, sorted by SK
+PK = 'BLOG#123', SK = 'METADATA'      # Main blog post
+PK = 'BLOG#123', SK = 'COMMENT#001'   # Comment 1
+PK = 'BLOG#123', SK = 'COMMENT#002'   # Comment 2
+PK = 'BLOG#123', SK = 'VERSION#v1'    # Version history
+
+# All stored in same partition, sorted by SK alphabetically
+```
+
+**Why it's called RANGE:**
+- Allows range-based queries within a partition
+- Values are sorted in ascending order (lexicographically for strings)
+- Enables efficient "give me all items where SK starts with X" queries
+
+#### Do You Have to Use HASH for PK and RANGE for SK?
+
+**Yes, the key types are fixed by DynamoDB design:**
+
+1. **Partition Key (PK) MUST be HASH type**
+   - This is how DynamoDB distributes data across partitions
+   - You cannot change this - it's fundamental to DynamoDB's architecture
+
+2. **Sort Key (SK) MUST be RANGE type (if used)**
+   - Enables sorting and range queries within a partition
+   - Optional, but once added cannot be changed
+   - Must be RANGE type if specified
+
+3. **Cannot mix or swap key types**
+   - You cannot make PK a RANGE key
+   - You cannot make SK a HASH key
+   - This is enforced by DynamoDB's API
+
+**CloudFormation Key Type Specification:**
+```yaml
+KeySchema:
+  - AttributeName: PK
+    KeyType: HASH      # ← Must be HASH for partition key
+  - AttributeName: SK
+    KeyType: RANGE     # ← Must be RANGE for sort key
+```
+
+#### Practical Implications
+
+**Query Capabilities:**
+
+**With HASH key only:**
+```python
+# Can only get exact items
+dynamodb.get_item(Key={'PK': 'BLOG#123'})
+```
+
+**With HASH + RANGE keys:**
+```python
+# Can get exact items
+dynamodb.get_item(Key={'PK': 'BLOG#123', 'SK': 'METADATA'})
+
+# Can query ranges
+dynamodb.query(
+    KeyConditionExpression=Key('PK').eq('BLOG#123') &
+                           Key('SK').begins_with('COMMENT#')
+)
+
+# Can query with conditions
+dynamodb.query(
+    KeyConditionExpression=Key('PK').eq('BLOG#123') &
+                           Key('SK').between('COMMENT#001', 'COMMENT#999')
+)
+```
+
+**Data Distribution:**
+- **HASH key**: Distributes data across partitions (horizontal scaling)
+- **RANGE key**: Organizes data within partitions (sorting and filtering)
+
+#### Our Design Choice
+
+We use **composite primary key (HASH + RANGE)** for maximum flexibility:
+
+```python
+# Primary Key Structure
+PK (HASH):  'BLOG#<blogId>'      # Partition by entity
+SK (RANGE): 'METADATA'             # Sort within partition
+
+# GSI1 Structure (same rules apply)
+GSI1PK (HASH):  'BLOG#STATUS#PUBLISHED'  # Partition by status
+GSI1SK (RANGE): 'BLOG#2025-01-15'        # Sort by date
+```
+
+**Benefits of this design:**
+1. **HASH (PK)** ensures each entity has its own partition space
+2. **RANGE (SK)** enables related items under same entity (future: comments, versions)
+3. **GSI1 HASH** enables status-based partitioning (published vs draft)
+4. **GSI1 RANGE** enables chronological sorting
+
+#### Key Takeaways
+
+✅ **HASH = Partition Key = Where data is stored**
+✅ **RANGE = Sort Key = How data is sorted within partition**
+✅ **HASH key type is mandatory for PK**
+✅ **RANGE key type is mandatory for SK (if SK exists)**
+✅ **You cannot swap or change key types**
+✅ **Same rules apply to GSI keys**
 
 **Time To Live (TTL)**:
 - Attribute: `ExpiresAt` (Number, Unix timestamp)

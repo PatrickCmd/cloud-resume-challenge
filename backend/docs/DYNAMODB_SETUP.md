@@ -18,12 +18,73 @@ The Portfolio API uses a **single-table design** for DynamoDB, following best pr
 ### Key Design Features
 
 - **Single Table**: `portfolio-api-table`
-- **Primary Key**: PK (partition key) + SK (sort key)
+- **Primary Key**: PK (partition key / HASH) + SK (sort key / RANGE)
 - **Global Secondary Index**: GSI1 (GSI1PK + GSI1SK)
 - **Entity Types**: BLOG, PROJECT, CERTIFICATION, VISITOR_DAILY, VISITOR_SESSION, ANALYTICS_VIEW, ANALYTICS_SESSION
 - **TTL**: Automatic cleanup of session data via `ExpiresAt` attribute
 
 See [DYNAMODB-DESIGN.md](DYNAMODB-DESIGN.md) for complete design details.
+
+### Understanding Key Types: HASH vs RANGE
+
+DynamoDB uses two key types that determine how data is stored and queried:
+
+#### HASH Key (Partition Key)
+- **Purpose**: Determines physical storage location (which partition)
+- **How it works**: DynamoDB applies a hash function to distribute data evenly
+- **Our usage**: `PK` attribute is the HASH key
+- **Example**: `PK = 'BLOG#123'` → stored in partition based on hash of this value
+- **Query capability**: Exact match only (`Key('PK').eq('BLOG#123')`)
+
+#### RANGE Key (Sort Key)
+- **Purpose**: Enables sorting and range queries within a partition
+- **How it works**: Items with same HASH key are sorted by RANGE key value
+- **Our usage**: `SK` attribute is the RANGE key
+- **Example**: `SK = 'METADATA'`, `SK = 'COMMENT#001'`, `SK = 'COMMENT#002'`
+- **Query capability**: Range queries (`begins_with`, `between`, `>`, `<`)
+
+#### Key Type Rules
+
+**Important constraints you must follow:**
+
+1. **Partition Key MUST be HASH type** - This is how DynamoDB distributes data
+2. **Sort Key MUST be RANGE type** - This enables sorting and range queries
+3. **You cannot swap or mix key types** - DynamoDB API enforces this
+4. **Same rules apply to GSI keys** - GSI1PK is HASH, GSI1SK is RANGE
+
+**CloudFormation specification:**
+```yaml
+KeySchema:
+  - AttributeName: PK
+    KeyType: HASH      # ← Required for partition key
+  - AttributeName: SK
+    KeyType: RANGE     # ← Required for sort key
+```
+
+#### Why Use Both Keys?
+
+**With HASH key only:**
+- Can only retrieve exact items: `get_item(Key={'PK': 'BLOG#123'})`
+- No ability to query related items efficiently
+
+**With HASH + RANGE keys (our design):**
+- Retrieve exact items: `get_item(Key={'PK': 'BLOG#123', 'SK': 'METADATA'})`
+- Query related items: `query(Key('PK').eq('BLOG#123') & Key('SK').begins_with('COMMENT#'))`
+- Sort items within partition: All items with same PK automatically sorted by SK
+- Enable future expansion: Can add comments, versions, reactions under same PK
+
+**Our table structure:**
+```python
+# Primary Table
+PK (HASH):  'BLOG#<id>'              # Partition by entity ID
+SK (RANGE): 'METADATA'                # Sort key for main item
+
+# GSI1 (for status-based queries)
+GSI1PK (HASH):  'BLOG#STATUS#PUBLISHED'  # Partition by status
+GSI1SK (RANGE): 'BLOG#2025-01-15'        # Sort by date
+```
+
+For detailed explanation with examples, see the "Understanding HASH and RANGE Key Types" section in [DYNAMODB-DESIGN.md](DYNAMODB-DESIGN.md).
 
 ## Local Development Setup
 
