@@ -24,6 +24,7 @@ PROJECT_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 ENVIRONMENT="local"
 TABLE_NAME="portfolio-api-table"
 AWS_REGION="us-east-1"
+AWS_PROFILE="default"
 LOCAL_ENDPOINT="http://localhost:8000"
 OUTPUT_FORMAT="table"
 
@@ -73,6 +74,7 @@ GLOBAL OPTIONS:
     -e, --env ENV           Environment: local|remote (default: local)
     -t, --table TABLE       Table name (default: portfolio-api-table)
     -r, --region REGION     AWS region (default: us-east-1)
+    -p, --profile PROFILE   AWS CLI profile (default: default)
     -l, --local-endpoint URL Local DynamoDB endpoint (default: http://localhost:8000)
     -f, --format FORMAT     Output format: table|json|yaml (default: table)
 
@@ -160,6 +162,10 @@ while [[ $# -gt 0 ]]; do
             AWS_REGION="$2"
             shift 2
             ;;
+        -p|--profile)
+            AWS_PROFILE="$2"
+            shift 2
+            ;;
         -l|--local-endpoint)
             LOCAL_ENDPOINT="$2"
             shift 2
@@ -187,7 +193,7 @@ build_aws_cmd() {
         cmd="$cmd --endpoint-url $LOCAL_ENDPOINT"
     fi
 
-    cmd="$cmd --region $AWS_REGION"
+    cmd="$cmd --region $AWS_REGION --profile $AWS_PROFILE"
     echo "$cmd"
 }
 
@@ -305,6 +311,7 @@ cmd_list_blogs() {
             result=$(aws dynamodb query \
                 --endpoint-url "$LOCAL_ENDPOINT" \
                 --region "$AWS_REGION" \
+                --profile "$AWS_PROFILE" \
                 --table-name "$TABLE_NAME" \
                 --index-name "GSI1" \
                 --key-condition-expression "GSI1PK = :gsi1pk" \
@@ -314,6 +321,7 @@ cmd_list_blogs() {
         else
             result=$(aws dynamodb query \
                 --region "$AWS_REGION" \
+                --profile "$AWS_PROFILE" \
                 --table-name "$TABLE_NAME" \
                 --index-name "GSI1" \
                 --key-condition-expression "GSI1PK = :gsi1pk" \
@@ -363,6 +371,7 @@ cmd_list_projects() {
             result=$(aws dynamodb query \
                 --endpoint-url "$LOCAL_ENDPOINT" \
                 --region "$AWS_REGION" \
+                --profile "$AWS_PROFILE" \
                 --table-name "$TABLE_NAME" \
                 --index-name "GSI1" \
                 --key-condition-expression "GSI1PK = :gsi1pk" \
@@ -372,6 +381,7 @@ cmd_list_projects() {
         else
             result=$(aws dynamodb query \
                 --region "$AWS_REGION" \
+                --profile "$AWS_PROFILE" \
                 --table-name "$TABLE_NAME" \
                 --index-name "GSI1" \
                 --key-condition-expression "GSI1PK = :gsi1pk" \
@@ -568,6 +578,7 @@ cmd_top_content() {
         result=$(aws dynamodb query \
             --endpoint-url "$LOCAL_ENDPOINT" \
             --region "$AWS_REGION" \
+            --profile "$AWS_PROFILE" \
             --table-name "$TABLE_NAME" \
             --index-name "GSI1" \
             --key-condition-expression "GSI1PK = :gsi1pk" \
@@ -578,6 +589,7 @@ cmd_top_content() {
     else
         result=$(aws dynamodb query \
             --region "$AWS_REGION" \
+            --profile "$AWS_PROFILE" \
             --table-name "$TABLE_NAME" \
             --index-name "GSI1" \
             --key-condition-expression "GSI1PK = :gsi1pk" \
