@@ -86,11 +86,35 @@ export function MarkdownRenderer({ content }: MarkdownRendererProps) {
       continue;
     }
 
-    // Check for inline code and images
+    // Check for inline code, images, links and bold text
     const renderInlineContent = (text: string) => {
-      // Match inline images and inline code
-      const parts = text.split(/(!\[[^\]]*\]\([^)]+\)|`[^`]+`)/g);
+      const parts = text.split(/(!\[[^\]]*\]\([^)]+\)|`[^`]+`|\[[^\]]+\]\([^)\s]+\)|\*\*[^*]+\*\*)/g);
       return parts.map((part, idx) => {
+        // Link
+        const linkMatch = part.match(/^\[([^\]]+)\]\(([^)\s]+)\)$/);
+        if (linkMatch) {
+          const [, label, href] = linkMatch;
+          const external = /^https?:\/\//.test(href);
+          return (
+            <a
+              key={idx}
+              href={href}
+              target={external ? "_blank" : undefined}
+              rel={external ? "noopener noreferrer" : undefined}
+              className="font-medium text-foreground underline underline-offset-4 hover:text-primary"
+            >
+              {label}
+            </a>
+          );
+        }
+        // Bold
+        if (part.startsWith("**") && part.endsWith("**") && part.length > 4) {
+          return (
+            <strong key={idx} className="font-semibold text-foreground">
+              {part.slice(2, -2)}
+            </strong>
+          );
+        }
         // Inline image
         const inlineImageMatch = part.match(/^!\[([^\]]*)\]\(([^)]+)\)$/);
         if (inlineImageMatch) {
@@ -139,19 +163,27 @@ export function MarkdownRenderer({ content }: MarkdownRendererProps) {
         </h3>
       );
     }
-    // Lists
-    else if (line.startsWith("- ") || line.startsWith("* ")) {
+    // Lists: group consecutive items into one ul/ol
+    else if (line.startsWith("- ") || line.startsWith("* ") || /^\d+\./.test(line)) {
+      const ordered = /^\d+\./.test(line);
+      const items: React.ReactNode[] = [];
+      const isItem = (l: string) => (ordered ? /^\d+\./.test(l) : l.startsWith("- ") || l.startsWith("* "));
+      while (i < lines.length && isItem(lines[i])) {
+        const text = ordered ? lines[i].replace(/^\d+\.\s*/, "") : lines[i].slice(2);
+        items.push(
+          <li key={i} className="mb-1 text-foreground leading-relaxed">
+            {renderInlineContent(text)}
+          </li>
+        );
+        i++;
+      }
+      const ListTag = ordered ? "ol" : "ul";
       elements.push(
-        <li key={i} className="ml-6 mb-1 list-disc text-foreground">
-          {renderInlineContent(line.slice(2))}
-        </li>
+        <ListTag key={`list-${i}`} className={`my-3 ml-6 space-y-1 ${ordered ? "list-decimal" : "list-disc"}`}>
+          {items}
+        </ListTag>
       );
-    } else if (line.match(/^\d+\./)) {
-      elements.push(
-        <li key={i} className="ml-6 mb-1 list-decimal text-foreground">
-          {renderInlineContent(line.replace(/^\d+\.\s*/, ""))}
-        </li>
-      );
+      continue;
     }
     // Empty lines
     else if (line.trim() === "") {

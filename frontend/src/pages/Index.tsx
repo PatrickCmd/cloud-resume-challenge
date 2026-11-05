@@ -3,6 +3,7 @@ import { Hero } from "@/sections/Hero";
 import { About } from "@/sections/About";
 import { Skills } from "@/sections/Skills";
 import { Experience } from "@/sections/Experience";
+import { Projects } from "@/sections/Projects";
 import { TabNavigation, Tab } from "@/components/TabNavigation";
 import { CertificationsTab } from "@/components/CertificationsTab";
 import { ProjectsTab } from "@/components/ProjectsTab";
@@ -71,6 +72,7 @@ const Index = () => {
         <About />
         <Skills />
         <Experience />
+        <Projects />
       </div>
 
       {/* Tab Navigation */}
