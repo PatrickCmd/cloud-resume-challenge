@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ProfileHeader } from "@/components/ProfileHeader";
+import { Hero } from "@/sections/Hero";
 import { TabNavigation, Tab } from "@/components/TabNavigation";
 import { OverviewTab } from "@/components/OverviewTab";
 import { CertificationsTab } from "@/components/CertificationsTab";
@@ -68,9 +68,9 @@ const Index = () => {
         </div>
       </header>
 
-      {/* Profile Section */}
-      <div className="max-w-6xl mx-auto px-4 py-8">
-        <ProfileHeader />
+      {/* Hero */}
+      <div className="max-w-6xl mx-auto px-4">
+        <Hero />
       </div>
 
       {/* Tab Navigation */}
