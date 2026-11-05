@@ -6,16 +6,16 @@ function Badge({ cert }: { cert: Certification }) {
   const body = (
     <>
       {cert.badge && (
-        <img src={cert.badge} alt="" width={112} height={112} loading="lazy" decoding="async" className="h-28 w-28" />
+        <img src={cert.badge} alt="" width={112} height={112} loading="lazy" decoding="async" className="h-16 w-16 sm:h-28 sm:w-28" />
       )}
-      <span className="text-sm font-medium leading-snug text-foreground">{cert.name}</span>
+      <span className="text-xs font-medium leading-snug text-foreground sm:text-sm">{cert.name}</span>
       <span className="text-xs text-muted-foreground">
         {cert.issuer} · {cert.year}
       </span>
     </>
   );
   const className =
-    "flex h-full w-full flex-col items-center gap-2 rounded-lg border border-border bg-card p-5 text-center transition-colors";
+    "flex h-full w-full flex-col items-center gap-2 rounded-lg border border-border bg-card p-3 text-center transition-colors sm:p-5";
   return cert.credentialUrl ? (
     <a
       href={cert.credentialUrl}
@@ -46,7 +46,7 @@ export function Certifications() {
         title="Credentials"
         description="Each badge links to the verifiable record."
       />
-      <ul className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5" aria-label="Certifications">
+      <ul className="grid grid-cols-3 gap-2 sm:gap-4 lg:grid-cols-5" aria-label="Certifications">
         {featuredCertifications.map((cert) => (
           <li key={cert.id}>
             <Badge cert={cert} />
@@ -54,8 +54,11 @@ export function Certifications() {
         ))}
       </ul>
       {others.length > 0 && (
-        <div className="mt-8 max-w-[80ch]">
-          <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Courses and bootcamps</h3>
+        <details className="group mt-8 max-w-[80ch] sm:[&>summary]:pointer-events-none" open={typeof window !== "undefined" && window.innerWidth >= 640}>
+          <summary className="flex cursor-pointer list-none items-center gap-2 text-sm font-semibold uppercase tracking-wider text-muted-foreground [&::-webkit-details-marker]:hidden">
+            <span>Courses and bootcamps</span>
+            <span className="text-xs font-normal normal-case tracking-normal sm:hidden">({others.length}, tap to expand)</span>
+          </summary>
           <ul className="mt-3 grid gap-x-8 gap-y-2 sm:grid-cols-2">
             {others.map((cert) => (
               <li key={cert.id} className="text-sm text-muted-foreground">
@@ -79,7 +82,7 @@ export function Certifications() {
               </li>
             ))}
           </ul>
-        </div>
+        </details>
       )}
     </section>
   );
