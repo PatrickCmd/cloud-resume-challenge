@@ -6,6 +6,8 @@ import { Experience } from "@/sections/Experience";
 import { Projects } from "@/sections/Projects";
 import { Certifications } from "@/sections/Certifications";
 import { Writing } from "@/sections/Writing";
+import { Contact } from "@/sections/Contact";
+import { SiteFooter } from "@/components/SiteFooter";
 import { TabNavigation, Tab } from "@/components/TabNavigation";
 import { CertificationsTab } from "@/components/CertificationsTab";
 import { ProjectsTab } from "@/components/ProjectsTab";
@@ -14,10 +16,8 @@ import { DashboardTab } from "@/components/DashboardTab";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { LoginDialog } from "@/components/LoginDialog";
 import { UserMenu } from "@/components/UserMenu";
-import { VisitorCounter } from "@/components/VisitorCounter";
 import { useAuth } from "@/contexts/AuthContext";
 import { Github } from "lucide-react";
-import { profile } from "@/content/profile";
 
 const Index = () => {
   const [activeTab, setActiveTab] = useState<Tab>("projects");
@@ -77,6 +77,7 @@ const Index = () => {
         <Projects />
         <Certifications />
         <Writing />
+        <Contact />
       </div>
 
       {/* Tab Navigation */}
@@ -87,15 +88,7 @@ const Index = () => {
         {renderTab()}
       </main>
 
-      {/* Footer */}
-      <footer className="border-t border-border py-8 mt-16">
-        <div className="max-w-6xl mx-auto px-4 text-center text-sm text-muted-foreground">
-          <div className="flex items-center justify-center gap-4 mb-2">
-            <VisitorCounter />
-          </div>
-          <p>© {new Date().getFullYear()} {profile.name}. Built with ❤️</p>
-        </div>
-      </footer>
+      <SiteFooter />
     </div>
   );
 };
