@@ -1,9 +1,8 @@
-import { useEffect } from "react";
 import { Link, useParams } from "react-router-dom";
 import { ArrowLeft, Calendar, Clock } from "lucide-react";
 import { MarkdownRenderer } from "@/components/MarkdownRenderer";
 import { useBlogPost, useBlogPosts } from "@/hooks/useBlogPosts";
-import { profile } from "@/content/profile";
+import { usePageTitle } from "@/hooks/usePageTitle";
 import { formatPostDate, formatReadTime } from "@/lib/blog";
 
 function stripLeadingTitle(content: string, title: string): string {
@@ -33,12 +32,7 @@ export default function BlogPost() {
   // Posts often start with a "# Title" line that duplicates the page heading; drop it.
   const body = post ? stripLeadingTitle(post.content, post.title) : "";
 
-  useEffect(() => {
-    if (post) document.title = `${post.title} — ${profile.name}`;
-    return () => {
-      document.title = `${profile.name} — ${profile.title}`;
-    };
-  }, [post]);
+  usePageTitle(post ? post.title : null);
 
   return (
     <article className="mx-auto max-w-6xl px-4 py-12 md:py-16" aria-busy={isLoading}>

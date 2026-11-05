@@ -1,21 +1,15 @@
-import { useEffect } from "react";
 import { Link, useParams } from "react-router-dom";
 import { ArrowLeft, ArrowUpRight, Building2, Github } from "lucide-react";
 import { MarkdownRenderer } from "@/components/MarkdownRenderer";
 import { useProject } from "@/hooks/useProjects";
-import { profile } from "@/content/profile";
+import { usePageTitle } from "@/hooks/usePageTitle";
 
 /** Detail page for a project published through the content API (not a curated case study). */
 export default function ApiProject() {
   const { id = "" } = useParams();
   const { data: project, isLoading, isError } = useProject(id);
 
-  useEffect(() => {
-    if (project) document.title = `${project.name} — ${profile.name}`;
-    return () => {
-      document.title = `${profile.name} — ${profile.title}`;
-    };
-  }, [project]);
+  usePageTitle(project ? project.name : null);
 
   return (
     <article className="mx-auto max-w-6xl px-4 py-12 md:py-16" aria-busy={isLoading}>

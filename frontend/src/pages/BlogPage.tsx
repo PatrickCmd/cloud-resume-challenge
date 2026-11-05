@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { useBlogPosts } from "@/hooks/useBlogPosts";
 import { writingFallback } from "@/content/writing";
 import { formatPostDate, formatReadTime } from "@/lib/blog";
+import { usePageTitle } from "@/hooks/usePageTitle";
 
 interface ListPost {
   slug: string;
@@ -60,6 +61,7 @@ function SkeletonRow() {
 }
 
 export default function BlogPage() {
+  usePageTitle("Writing");
   const { data, isLoading, isError } = useBlogPosts({ status: "published", limit: 50, include_content: false });
 
   const posts: ListPost[] = (data ?? [])

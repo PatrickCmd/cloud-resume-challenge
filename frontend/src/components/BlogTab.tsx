@@ -353,18 +353,21 @@ export function BlogTab({ triggerCreate, onCreateHandled }: BlogTabProps) {
                       variant="ghost"
                       size="icon"
                       className="h-8 w-8"
+                      aria-label={`Read ${post.title}`}
+                      title="Read post"
                       onClick={(e) => {
                         e.stopPropagation();
                         trackAndViewPost(post);
                       }}
                     >
-                      <Eye className="w-4 h-4" />
+                      <Eye className="w-4 h-4" aria-hidden="true" />
                     </Button>
                     {isOwner && (
                       <>
                         <Button
                           variant="ghost"
                           size="icon"
+                          aria-label={`Edit ${post.title}`}
                           className="h-8 w-8"
                           onClick={(e) => {
                             e.stopPropagation();
@@ -372,18 +375,19 @@ export function BlogTab({ triggerCreate, onCreateHandled }: BlogTabProps) {
                             setViewMode("edit");
                           }}
                         >
-                          <Edit2 className="w-4 h-4" />
+                          <Edit2 className="w-4 h-4" aria-hidden="true" />
                         </Button>
                         <Button
                           variant="ghost"
                           size="icon"
+                          aria-label={`Delete ${post.title}`}
                           className="h-8 w-8 text-destructive hover:text-destructive"
                           onClick={(e) => {
                             e.stopPropagation();
                             handleDelete(post);
                           }}
                         >
-                          <Trash2 className="w-4 h-4" />
+                          <Trash2 className="w-4 h-4" aria-hidden="true" />
                         </Button>
                       </>
                     )}

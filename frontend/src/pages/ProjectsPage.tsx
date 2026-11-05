@@ -5,6 +5,7 @@ import { useProjects } from "@/hooks/useProjects";
 import { allContentProjects, apiProjectsNotInContent } from "@/lib/projects";
 import type { ProjectNormalized } from "@/types/project";
 import { profile } from "@/content/profile";
+import { usePageTitle } from "@/hooks/usePageTitle";
 
 function ApiProjectCard({ project }: { project: ProjectNormalized }) {
   const titleId = `api-project-${project.id}-title`;
@@ -63,6 +64,7 @@ function ApiProjectCard({ project }: { project: ProjectNormalized }) {
 }
 
 export default function ProjectsPage() {
+  usePageTitle("Projects");
   const { data: apiProjects = [], isLoading } = useProjects({ status: "published" });
   const extras = apiProjectsNotInContent(apiProjects);
 
