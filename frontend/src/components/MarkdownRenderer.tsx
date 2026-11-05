@@ -156,12 +156,13 @@ export function MarkdownRenderer({ content }: MarkdownRendererProps) {
       });
     };
 
-    // Headings
+    // Headings. Pages that render markdown already have their own h1, so a markdown
+    // "# " heading becomes an h2 to keep a single h1 per page.
     if (line.startsWith("# ")) {
       elements.push(
-        <h1 key={i} className="text-2xl font-bold mt-8 mb-4 text-foreground">
+        <h2 key={i} className="text-2xl font-bold mt-8 mb-4 text-foreground">
           {renderInlineContent(line.slice(2))}
-        </h1>
+        </h2>
       );
     } else if (line.startsWith("## ")) {
       elements.push(

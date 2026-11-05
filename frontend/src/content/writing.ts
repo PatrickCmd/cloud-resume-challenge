@@ -18,12 +18,12 @@ export interface WritingEntry {
 
 export const writingFallback: WritingEntry[] = [
   {
-    slug: "my-cloud-resume-challenge-journey",
+    slug: "my-cloud-resume-challenge-journey-building-a-full-stack-serverless-portfolio-on-aws",
     title: "My Cloud Resume Challenge Journey: Building a Full-Stack Serverless Portfolio on AWS",
     excerpt:
       "What it took to go from a static resume to a production serverless portfolio: CloudFront, Lambda, DynamoDB, Cognito, SAM, and the lessons along the way.",
-    publishedAt: "2025-01-15",
-    readTime: "15 min read",
+    publishedAt: "2025-12-28",
+    readTime: "9 min read",
     tags: ["AWS", "Serverless", "FastAPI", "React"],
   },
 ];

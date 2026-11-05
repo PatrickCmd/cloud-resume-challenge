@@ -3,22 +3,17 @@ import { Link } from "react-router-dom";
 import { SectionHeading } from "@/components/SectionHeading";
 import { useBlogPosts } from "@/hooks/useBlogPosts";
 import { writingFallback, type WritingEntry } from "@/content/writing";
+import { formatPostDate, formatReadTime } from "@/lib/blog";
 
 const LIMIT = 3;
-
-function formatDate(iso: string): string {
-  const date = new Date(iso);
-  if (Number.isNaN(date.getTime())) return iso;
-  return date.toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" });
-}
 
 function PostCard({ post }: { post: WritingEntry }) {
   const external = Boolean(post.url);
   const inner = (
     <>
       <p className="text-xs font-mono text-muted-foreground">
-        <time dateTime={post.publishedAt}>{formatDate(post.publishedAt)}</time>
-        {post.readTime ? ` · ${post.readTime}` : ""}
+        <time dateTime={post.publishedAt}>{formatPostDate(post.publishedAt)}</time>
+        {formatReadTime(post.readTime) ? ` · ${formatReadTime(post.readTime)}` : ""}
       </p>
       <h3 className="mt-2 text-base font-semibold leading-snug text-foreground group-hover:underline underline-offset-4">
         {post.title}
@@ -68,7 +63,7 @@ export function Writing() {
       title: p.title,
       excerpt: p.excerpt,
       publishedAt: p.publishedAt,
-      readTime: p.readTime,
+      readTime: formatReadTime(p.readTime) ?? undefined,
       tags: p.tags ?? [],
     }));
 
