@@ -4,6 +4,8 @@ import { About } from "@/sections/About";
 import { Skills } from "@/sections/Skills";
 import { Experience } from "@/sections/Experience";
 import { Projects } from "@/sections/Projects";
+import { Certifications } from "@/sections/Certifications";
+import { Writing } from "@/sections/Writing";
 import { TabNavigation, Tab } from "@/components/TabNavigation";
 import { CertificationsTab } from "@/components/CertificationsTab";
 import { ProjectsTab } from "@/components/ProjectsTab";
@@ -73,6 +75,8 @@ const Index = () => {
         <Skills />
         <Experience />
         <Projects />
+        <Certifications />
+        <Writing />
       </div>
 
       {/* Tab Navigation */}
