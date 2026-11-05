@@ -4,7 +4,14 @@ All notable changes to the portfolio frontend. The redesign below was delivered 
 commit per numbered item on branch `claude/funny-clarke-kranjz`; the audit that preceded it
 is in `docs/PORTFOLIO_AUDIT.md`.
 
-## Unreleased — fixes from the first live audit
+## Unreleased — favicon
+
+- Replaced the Lovable favicon with the site's own "PW" mark: `public/favicon.svg`,
+  a 16/32/48 px `favicon.ico`, `apple-touch-icon.png`, `icon-192.png`, `icon-512.png`
+  and a `site.webmanifest` with the theme colour. `scripts/generate-icons.cjs`
+  re-renders the rasters from the SVG.
+
+## Fixes from the first live audit
 
 Found by testing https://patrickcmd.dev after the redesign shipped (responsiveness,
 UI/UX, accessibility, data flow). One commit per item.

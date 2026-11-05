@@ -161,6 +161,7 @@ Static assets that derive from content and are committed to `public/`:
 
 - `og.png` (1200×630 share image): `node scripts/generate-og.cjs src/assets/avatar.jpg public/og.png`
 - `Patrick-Walukagga-Resume.pdf`: `node scripts/generate-resume.cjs`
+- Favicons (`favicon.ico`, `apple-touch-icon.png`, `icon-192.png`, `icon-512.png`) are rendered from `public/favicon.svg`: `node scripts/generate-icons.cjs`, then rebuild `favicon.ico` from the 16/32/48 px frames (see the script header). Edit the SVG to change the mark.
 
 Both scripts need Playwright with Chromium (`npx playwright install chromium` once). Rerun them when the name, title, headline, experience, skills or certifications change. `sitemap.xml` needs no script: a Vite plugin in `vite.config.ts` writes it on every build from `projects.ts`.
 
