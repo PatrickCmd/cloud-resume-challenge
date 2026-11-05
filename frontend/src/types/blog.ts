@@ -92,6 +92,8 @@ export interface BlogListParams {
   tag?: string;
   limit?: number;
   offset?: number;
+  /** false asks the API for a list without post bodies (content is ""). */
+  include_content?: boolean;
 }
 
 /**

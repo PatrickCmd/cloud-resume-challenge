@@ -60,7 +60,7 @@ function SkeletonRow() {
 }
 
 export default function BlogPage() {
-  const { data, isLoading, isError } = useBlogPosts({ status: "published", limit: 50 });
+  const { data, isLoading, isError } = useBlogPosts({ status: "published", limit: 50, include_content: false });
 
   const posts: ListPost[] = (data ?? [])
     .slice()

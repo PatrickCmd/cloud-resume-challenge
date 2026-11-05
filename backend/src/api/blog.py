@@ -22,12 +22,20 @@ async def list_blog_posts(
     category: str | None = Query(None, description="Filter by category"),
     limit: int = Query(20, ge=1, le=100),
     last_key: str | None = Query(None, description="Pagination token from previous response"),
+    include_content: bool = Query(
+        True,
+        description=(
+            "Set to false to omit the markdown body of each post. Lists only need title, "
+            "excerpt and metadata, and bodies can be hundreds of kilobytes."
+        ),
+    ),
     blog_repo: BlogRepository = Depends(get_blog_repository),
 ):
     """
     List all blog posts with pagination.
 
     Public endpoint - returns published posts by default if no status filter provided.
+    Pass include_content=false for a lightweight list; fetch a single post for its body.
     """
     # Default to PUBLISHED if no filter specified
     if status_filter is None:
@@ -60,6 +68,9 @@ async def list_blog_posts(
         limit=limit,
         last_evaluated_key=last_evaluated_key,
     )
+
+    if not include_content:
+        result["items"] = [{**item, "content": ""} for item in result["items"]]
 
     return result
 

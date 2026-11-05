@@ -22,7 +22,7 @@ function stripLeadingTitle(content: string, title: string): string {
  */
 export default function BlogPost() {
   const { slug = "" } = useParams();
-  const list = useBlogPosts({ status: "published", limit: 50 });
+  const list = useBlogPosts({ status: "published", limit: 50, include_content: false });
   const summary = (list.data ?? []).find((p) => p.slug === slug);
   const needsDetail = !!summary && !summary.content;
   const detail = useBlogPost(summary?.id ?? "", needsDetail);

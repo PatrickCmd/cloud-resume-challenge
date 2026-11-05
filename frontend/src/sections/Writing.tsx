@@ -52,7 +52,7 @@ function PostCard({ post }: { post: WritingEntry }) {
 }
 
 export function Writing() {
-  const { data, isError, isLoading } = useBlogPosts({ status: "published" });
+  const { data, isError, isLoading } = useBlogPosts({ status: "published", limit: LIMIT, include_content: false });
 
   const fromApi: WritingEntry[] = (data ?? [])
     .slice()
