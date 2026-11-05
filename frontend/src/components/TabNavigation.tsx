@@ -1,10 +1,10 @@
-import { Award, FolderGit2, FileText, Newspaper, LayoutDashboard } from "lucide-react";
+import { Award, FolderGit2, Newspaper, LayoutDashboard } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useBlogPosts } from "@/hooks/useBlogPosts";
 import { useProjects } from "@/hooks/useProjects";
 import { useCertifications } from "@/hooks/useCertifications";
 
-type Tab = "overview" | "certifications" | "projects" | "blog" | "cv" | "dashboard";
+type Tab = "certifications" | "projects" | "blog" | "dashboard";
 
 interface TabNavigationProps {
   activeTab: Tab;
@@ -30,11 +30,10 @@ export function TabNavigation({ activeTab, onTabChange }: TabNavigationProps) {
     { id: "certifications" as Tab, label: "Certifications", icon: Award, count: publishedCertificationCount },
     { id: "projects" as Tab, label: "Projects", icon: FolderGit2, count: publishedProjectCount },
     { id: "blog" as Tab, label: "Blog", icon: Newspaper, count: publishedBlogCount },
-    { id: "cv" as Tab, label: "CV", icon: FileText },
   ];
 
   const ownerTabs = [
-    { id: "dashboard" as Tab, label: "Dashboard", icon: LayoutDashboard },
+    { id: "dashboard" as Tab, label: "Dashboard", icon: LayoutDashboard, count: 0 },
     ...publicTabs,
   ];
 

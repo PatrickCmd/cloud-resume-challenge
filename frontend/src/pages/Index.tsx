@@ -2,11 +2,11 @@ import { useState } from "react";
 import { Hero } from "@/sections/Hero";
 import { About } from "@/sections/About";
 import { Skills } from "@/sections/Skills";
+import { Experience } from "@/sections/Experience";
 import { TabNavigation, Tab } from "@/components/TabNavigation";
 import { CertificationsTab } from "@/components/CertificationsTab";
 import { ProjectsTab } from "@/components/ProjectsTab";
 import { BlogTab } from "@/components/BlogTab";
-import { CVTab } from "@/components/CVTab";
 import { DashboardTab } from "@/components/DashboardTab";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { LoginDialog } from "@/components/LoginDialog";
@@ -42,8 +42,6 @@ const Index = () => {
         return <ProjectsTab triggerCreate={createAction === "projects"} onCreateHandled={clearCreateAction} />;
       case "blog":
         return <BlogTab triggerCreate={createAction === "blog"} onCreateHandled={clearCreateAction} />;
-      case "cv":
-        return <CVTab />;
       default:
         return null;
     }
@@ -72,6 +70,7 @@ const Index = () => {
         <Hero />
         <About />
         <Skills />
+        <Experience />
       </div>
 
       {/* Tab Navigation */}
