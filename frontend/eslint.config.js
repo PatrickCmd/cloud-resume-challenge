@@ -23,4 +23,11 @@ export default tseslint.config(
       "@typescript-eslint/no-unused-vars": "off",
     },
   },
+  {
+    // Test files mock axios responses loosely; keep `any` visible but non-blocking there.
+    files: ["**/__tests__/**/*.{ts,tsx}", "src/test/**/*.{ts,tsx}"],
+    rules: {
+      "@typescript-eslint/no-explicit-any": "warn",
+    },
+  },
 );

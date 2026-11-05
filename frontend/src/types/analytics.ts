@@ -83,7 +83,7 @@ export interface AnalyticsOverview {
   total_views: number;
   unique_visitors: number;
   top_pages: PageView[];
-  recent_activity: any[];
+  recent_activity: unknown[];
 }
 
 /**

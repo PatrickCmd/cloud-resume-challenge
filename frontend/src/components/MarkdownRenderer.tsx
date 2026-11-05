@@ -1,5 +1,18 @@
-import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
+import { PrismLight as SyntaxHighlighter } from "react-syntax-highlighter";
 import { oneDark, oneLight } from "react-syntax-highlighter/dist/esm/styles/prism";
+import python from "react-syntax-highlighter/dist/esm/languages/prism/python";
+import bash from "react-syntax-highlighter/dist/esm/languages/prism/bash";
+import json from "react-syntax-highlighter/dist/esm/languages/prism/json";
+import yaml from "react-syntax-highlighter/dist/esm/languages/prism/yaml";
+import typescript from "react-syntax-highlighter/dist/esm/languages/prism/typescript";
+import javascript from "react-syntax-highlighter/dist/esm/languages/prism/javascript";
+import sql from "react-syntax-highlighter/dist/esm/languages/prism/sql";
+import docker from "react-syntax-highlighter/dist/esm/languages/prism/docker";
+import hcl from "react-syntax-highlighter/dist/esm/languages/prism/hcl";
+
+// Register only the languages the posts use; the full Prism bundle is ~600 kB.
+const languages = { python, py: python, bash, sh: bash, shell: bash, json, yaml, yml: yaml, typescript, ts: typescript, tsx: typescript, javascript, js: javascript, jsx: javascript, sql, docker, dockerfile: docker, hcl, terraform: hcl };
+Object.entries(languages).forEach(([name, lang]) => SyntaxHighlighter.registerLanguage(name, lang));
 import { useTheme } from "./ThemeProvider";
 
 interface MarkdownRendererProps {
@@ -86,11 +99,35 @@ export function MarkdownRenderer({ content }: MarkdownRendererProps) {
       continue;
     }
 
-    // Check for inline code and images
+    // Check for inline code, images, links and bold text
     const renderInlineContent = (text: string) => {
-      // Match inline images and inline code
-      const parts = text.split(/(!\[[^\]]*\]\([^)]+\)|`[^`]+`)/g);
+      const parts = text.split(/(!\[[^\]]*\]\([^)]+\)|`[^`]+`|\[[^\]]+\]\([^)\s]+\)|\*\*[^*]+\*\*)/g);
       return parts.map((part, idx) => {
+        // Link
+        const linkMatch = part.match(/^\[([^\]]+)\]\(([^)\s]+)\)$/);
+        if (linkMatch) {
+          const [, label, href] = linkMatch;
+          const external = /^https?:\/\//.test(href);
+          return (
+            <a
+              key={idx}
+              href={href}
+              target={external ? "_blank" : undefined}
+              rel={external ? "noopener noreferrer" : undefined}
+              className="font-medium text-foreground underline underline-offset-4 hover:text-primary"
+            >
+              {label}
+            </a>
+          );
+        }
+        // Bold
+        if (part.startsWith("**") && part.endsWith("**") && part.length > 4) {
+          return (
+            <strong key={idx} className="font-semibold text-foreground">
+              {part.slice(2, -2)}
+            </strong>
+          );
+        }
         // Inline image
         const inlineImageMatch = part.match(/^!\[([^\]]*)\]\(([^)]+)\)$/);
         if (inlineImageMatch) {
@@ -139,19 +176,27 @@ export function MarkdownRenderer({ content }: MarkdownRendererProps) {
         </h3>
       );
     }
-    // Lists
-    else if (line.startsWith("- ") || line.startsWith("* ")) {
+    // Lists: group consecutive items into one ul/ol
+    else if (line.startsWith("- ") || line.startsWith("* ") || /^\d+\./.test(line)) {
+      const ordered = /^\d+\./.test(line);
+      const items: React.ReactNode[] = [];
+      const isItem = (l: string) => (ordered ? /^\d+\./.test(l) : l.startsWith("- ") || l.startsWith("* "));
+      while (i < lines.length && isItem(lines[i])) {
+        const text = ordered ? lines[i].replace(/^\d+\.\s*/, "") : lines[i].slice(2);
+        items.push(
+          <li key={i} className="mb-1 text-foreground leading-relaxed">
+            {renderInlineContent(text)}
+          </li>
+        );
+        i++;
+      }
+      const ListTag = ordered ? "ol" : "ul";
       elements.push(
-        <li key={i} className="ml-6 mb-1 list-disc text-foreground">
-          {renderInlineContent(line.slice(2))}
-        </li>
+        <ListTag key={`list-${i}`} className={`my-3 ml-6 space-y-1 ${ordered ? "list-decimal" : "list-disc"}`}>
+          {items}
+        </ListTag>
       );
-    } else if (line.match(/^\d+\./)) {
-      elements.push(
-        <li key={i} className="ml-6 mb-1 list-decimal text-foreground">
-          {renderInlineContent(line.replace(/^\d+\.\s*/, ""))}
-        </li>
-      );
+      continue;
     }
     // Empty lines
     else if (line.trim() === "") {

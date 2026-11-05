@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200" viewBox="0 0 200 200" role="img" aria-label="AWS Certified Solutions Architect">
+  <defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#3a4a5c"/><stop offset="1" stop-color="#232f3e"/></linearGradient></defs>
+  <polygon points="100,6 182,53 182,147 100,194 18,147 18,53" fill="url(#g)" stroke="#ff9900" stroke-width="6" stroke-linejoin="round"/>
+  <polygon points="100,22 168,61 168,139 100,178 32,139 32,61" fill="none" stroke="#ffffff" stroke-opacity="0.18" stroke-width="2"/>
+  <text x="100" y="78" text-anchor="middle" font-family="Inter, system-ui, sans-serif" font-size="13" font-weight="600" fill="#ffffff" opacity="0.85">AWS Certified</text>
+  <text x="100" y="104" text-anchor="middle" font-family="Inter, system-ui, sans-serif" font-size="17" font-weight="700" fill="#ffffff">Solutions Architect</text>
+  <rect x="58" y="118" width="84" height="22" rx="11" fill="#ff9900"/>
+  <text x="100" y="133" text-anchor="middle" font-family="Inter, system-ui, sans-serif" font-size="10" font-weight="700" letter-spacing="1" fill="#232f3e">ASSOCIATE</text>
+</svg>

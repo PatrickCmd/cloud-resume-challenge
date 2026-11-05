@@ -21,6 +21,7 @@ import {
   BlogPostNormalized,
 } from '@/types/blog';
 import { useToast } from '@/hooks/use-toast';
+import { RequestError } from '@/types/api';
 
 // ============================================================================
 // Query Keys
@@ -95,7 +96,7 @@ export function useBlogPost(id: string, enabled = true) {
     queryFn: () => blogService.getPostById(id),
     enabled: enabled && !!id,
     staleTime: 5 * 60 * 1000,
-    retry: (failureCount, error: any) => {
+    retry: (failureCount, error: RequestError) => {
       // Don't retry on 404 - post doesn't exist
       if (error?.statusCode === 404 || error?.response?.status === 404) {
         return false;
@@ -168,7 +169,7 @@ export function useCreateBlogPost() {
         description: "Your post has been created as a draft.",
       });
     },
-    onError: (error: any) => {
+    onError: (error: RequestError) => {
       toast({
         variant: "destructive",
         title: "Failed to create post",
@@ -212,7 +213,7 @@ export function useUpdateBlogPost() {
         description: "Your changes have been saved.",
       });
     },
-    onError: (error: any) => {
+    onError: (error: RequestError) => {
       toast({
         variant: "destructive",
         title: "Failed to update post",
@@ -256,7 +257,7 @@ export function useDeleteBlogPost() {
         description: "The post has been permanently deleted.",
       });
     },
-    onError: (error: any) => {
+    onError: (error: RequestError) => {
       toast({
         variant: "destructive",
         title: "Failed to delete post",
@@ -293,7 +294,7 @@ export function usePublishBlogPost() {
         description: "Your post is now visible to everyone.",
       });
     },
-    onError: (error: any) => {
+    onError: (error: RequestError) => {
       toast({
         variant: "destructive",
         title: "Failed to publish post",
@@ -330,7 +331,7 @@ export function useUnpublishBlogPost() {
         description: "Your post is now a draft.",
       });
     },
-    onError: (error: any) => {
+    onError: (error: RequestError) => {
       toast({
         variant: "destructive",
         title: "Failed to unpublish post",

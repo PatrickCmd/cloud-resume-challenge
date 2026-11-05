@@ -1,10 +1,10 @@
 # Patrick's Portfolio Website
 
-A modern, responsive portfolio website showcasing my professional experience, projects, and skills. Built as part of the Cloud Resume Challenge.
+The frontend for [patrickcmd.dev](https://patrickcmd.dev): a single-scroll landing page for Patrick Walukagga, Software & AI Engineer, plus the project case studies, blog and owner admin area that sit behind it. Built as part of the Cloud Resume Challenge and served from S3 + CloudFront.
 
-## Live Demo
+## Live Site
 
-**Lovable Live URL**: https://patrick-persona-page.lovable.app/
+**https://patrickcmd.dev** (API: https://api.patrickcmd.dev)
 
 ## Tech Stack
 
@@ -137,18 +137,54 @@ make stop            # Stop running dev servers on port 5173
 - `npm run build:dev` - Build in development mode
 - `npm run preview` - Preview production build locally
 - `npm run lint` - Run ESLint to check code quality
+- `npm run typecheck` - Type-check with `tsc --noEmit`
 - `npm test` - Run tests in watch mode
 - `npm run test:run` - Run all tests once (for CI/CD)
 - `npm run test:ui` - Run tests with visual UI
 - `npm run test:coverage` - Generate coverage report
+
+## Content (`src/content/`)
+
+All copy on the public pages lives in typed TypeScript files under `src/content/`. Edit these, not the components.
+
+| File | What it holds | Rendered by |
+|---|---|---|
+| `profile.ts` | Name, title, headline, description, location, employer, email, links (GitHub, LinkedIn, X, AI twin, resume), availability pill text, About paragraph, resume summary, education. Helpers `yearsOfExperience()` and `profileFacts()`. | Hero, About, Contact, header, footer, resume PDF, metadata |
+| `skills.ts` | Four `SkillGroup`s (Backend, Data, Cloud & Infra, AI/ML) and `coreStack`. | Skills section, resume PDF |
+| `experience.ts` | `ExperienceEntry[]` newest first: company, role, location, `start`/`end` (`YYYY-MM`, `end: null` for the current role), 2–3 outcome bullets, tech tags. Helpers `formatPeriod()` and `isOlderThan()`. Roles that ended more than five years ago collapse behind "Show earlier roles". | Experience timeline, resume PDF |
+| `projects.ts` | `Project[]`: slug, title, one-line problem, outcome, tags, cover image, links, `caseStudy`, `featured`. The first six `featured` entries make the home-page grid. | Projects section, `/projects/:slug`, sitemap |
+| `case-studies/<slug>.md` | Markdown with `## Context`, `## Architecture`, `## Decisions`, `## Results`. Bundled as raw strings via `import.meta.glob`; the slug must match a project with `caseStudy: true`. | `/projects/:slug` |
+| `certifications.ts` | Credentials with `badge` image path and `credentialUrl` (Credly). `featured` ones form the badge row. | Certifications section, resume PDF |
+| `writing.ts` | Static fallback list for the Writing section when the blog API is unreachable. | Writing section |
+
+Static assets that derive from content and are committed to `public/`:
+
+- `og.png` (1200×630 share image): `node scripts/generate-og.cjs src/assets/avatar.jpg public/og.png`
+- `Patrick-Walukagga-Resume.pdf`: `node scripts/generate-resume.cjs`
+
+Both scripts need Playwright with Chromium (`npx playwright install chromium` once). Rerun them when the name, title, headline, experience, skills or certifications change. `sitemap.xml` needs no script: a Vite plugin in `vite.config.ts` writes it on every build from `projects.ts`.
+
+## Routes
+
+| Path | Page | Source of data |
+|---|---|---|
+| `/` | Landing page: Hero, About, Skills, Experience, Projects, Certifications, Writing, Contact | `src/content/` (Writing also asks the blog API) |
+| `/projects` | All projects | Portfolio API |
+| `/projects/:slug` | Case study | `src/content/case-studies/` |
+| `/blog`, `/blog/:slug` | Posts | Portfolio API |
+| `/admin` | Owner login, dashboard and editors for projects, posts and certifications | Portfolio API (Cognito-protected) |
+
+Everything except `/` is lazy-loaded. The owner login is only reachable at `/admin`.
 
 ## Project Structure
 
 ```
 frontend/
 ├── src/
-│   ├── components/       # Reusable React components
-│   ├── pages/            # Page components
+│   ├── content/          # All public copy (see "Content" above)
+│   ├── sections/         # Landing-page sections (Hero, About, Skills, ...)
+│   ├── components/       # Reusable React components, Layout, SiteHeader, SiteFooter
+│   ├── pages/            # Route components (Home, CaseStudy, BlogPost, Admin, ...)
 │   ├── hooks/            # Custom React hooks
 │   ├── lib/              # Utility functions
 │   │   └── apiClient.ts  # Axios HTTP client with JWT interceptors
@@ -165,7 +201,8 @@ frontend/
 │   │   ├── setup.ts      # Global test setup
 │   │   └── utils.tsx     # Test helpers and fixtures
 │   └── main.tsx          # Application entry point
-├── public/               # Static assets
+├── public/               # Static assets (og.png, resume PDF, badges, project covers)
+├── scripts/              # generate-og.cjs, generate-resume.cjs
 ├── docs/                 # Documentation
 │   └── TESTING.md        # Testing guide (comprehensive)
 ├── dist/                 # Production build output (generated)
@@ -193,7 +230,6 @@ This frontend integrates with a serverless FastAPI backend deployed on AWS.
 - **CRUD Operations** - Create, read, update, delete blog posts
 - **Publish/Unpublish** - Workflow for managing draft and published posts
 - **Status Management** - Separate queries for published and draft posts
-- **Dynamic Counts** - Real-time blog count in tab navigation
 
 ### Projects Integration
 
@@ -326,7 +362,7 @@ See [docs/TESTING.md](docs/TESTING.md) for:
 
 ### Code Quality
 
-The project uses ESLint for code quality checks. Run linting with:
+ESLint and TypeScript both run clean (`npm run lint`, `npm run typecheck`). Run linting with:
 
 Using Make:
 ```sh
@@ -340,7 +376,7 @@ npm run lint
 
 ### Styling
 
-Tailwind CSS is configured with custom theme extensions. See [tailwind.config.ts](tailwind.config.ts) for configuration.
+Tailwind CSS with design tokens as CSS variables in [src/index.css](src/index.css) (light and dark; the theme follows the system by default). Colors meet WCAG AA contrast, prose is capped at 72ch, and `prefers-reduced-motion` disables animations. See [tailwind.config.ts](tailwind.config.ts) for the Tailwind side.
 
 ### Components
 
@@ -348,11 +384,11 @@ UI components are built using shadcn-ui, which provides accessible, customizable
 
 ## Deployment
 
-This project is deployed on Lovable's hosting platform. Any changes pushed to the main branch are automatically deployed.
+The site is hosted on AWS (S3 + CloudFront + Route 53). `npm run build` produces `dist/`, which the Ansible playbooks in [`../aws/playbooks`](../aws/playbooks) upload and invalidate; see the root [README](../README.md#deployment-workflow) for the full flow. CloudFront maps 403/404 to `index.html`, so the client-side routes above work on direct load.
 
-To deploy manually:
-1. Visit the [Lovable Project](https://lovable.dev)
-2. Navigate to Share → Publish
+### Continuous integration
+
+[`.github/workflows/frontend-ci.yml`](../.github/workflows/frontend-ci.yml) runs `npm run lint`, `npm run typecheck`, `npm run test:run` and `npm run build` on every pull request that touches `frontend/`.
 
 ## Contributing
 

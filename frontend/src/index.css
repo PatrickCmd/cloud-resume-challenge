@@ -2,8 +2,6 @@
 @tailwind components;
 @tailwind utilities;
 
-@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap');
-
 @layer base {
   :root {
     --background: 0 0% 100%;
@@ -15,7 +13,8 @@
     --popover: 0 0% 100%;
     --popover-foreground: 210 12% 16%;
 
-    --primary: 142 71% 45%;
+    /* Green darkened to 4.5:1+ against white text (AA for normal text). */
+    --primary: 142 72% 29%;
     --primary-foreground: 0 0% 100%;
 
     --secondary: 210 14% 93%;
@@ -32,7 +31,7 @@
 
     --border: 210 18% 87%;
     --input: 210 18% 87%;
-    --ring: 142 71% 45%;
+    --ring: 142 72% 29%;
 
     --radius: 0.375rem;
 
@@ -62,8 +61,9 @@
     --popover: 215 27% 10%;
     --popover-foreground: 210 17% 98%;
 
+    /* Bright green on a dark foreground keeps 7:1+ in dark mode. */
     --primary: 142 71% 45%;
-    --primary-foreground: 0 0% 100%;
+    --primary-foreground: 216 28% 7%;
 
     --secondary: 215 25% 15%;
     --secondary-foreground: 210 17% 98%;
@@ -101,6 +101,23 @@
 @layer base {
   * {
     @apply border-border;
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    html {
+      scroll-behavior: auto;
+    }
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
   }
 
   body {

@@ -136,7 +136,7 @@ Built with Django REST Framework, featuring:
   },
 ];
 
-let mockDatabase: Project[] = initialProjects.map((project, index) => ({
+const mockDatabase: Project[] = initialProjects.map((project, index) => ({
   ...project,
   id: `proj-${index + 1}`,
   status: "published" as const,

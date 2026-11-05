@@ -6,6 +6,7 @@
  */
 
 import { apiClient } from '@/lib/apiClient';
+import { RequestError } from '@/types/api';
 import {
   Certification,
   CertificationNormalized,
@@ -94,7 +95,8 @@ export const certificationService = {
     try {
       const response = await apiClient.axios.get<Certification>(`/certifications/${id}`);
       return normalizeCertification(response.data);
-    } catch (error: any) {
+    } catch (err) {
+      const error = err as RequestError;
       // Return null for 404 errors (certification not found)
       if (error?.response?.status === 404 || error?.statusCode === 404) {
         return null;
@@ -121,7 +123,8 @@ export const certificationService = {
     try {
       const response = await apiClient.axios.put<Certification>(`/certifications/${id}`, data);
       return normalizeCertification(response.data);
-    } catch (error: any) {
+    } catch (err) {
+      const error = err as RequestError;
       // Return null for 404 errors
       if (error?.response?.status === 404 || error?.statusCode === 404) {
         return null;
@@ -137,7 +140,8 @@ export const certificationService = {
     try {
       await apiClient.axios.delete(`/certifications/${id}`);
       return true;
-    } catch (error: any) {
+    } catch (err) {
+      const error = err as RequestError;
       // Return false for 404 errors
       if (error?.response?.status === 404 || error?.statusCode === 404) {
         return false;
@@ -153,7 +157,8 @@ export const certificationService = {
     try {
       const response = await apiClient.axios.post<Certification>(`/certifications/${id}/publish`);
       return normalizeCertification(response.data);
-    } catch (error: any) {
+    } catch (err) {
+      const error = err as RequestError;
       // Return null for 404 errors
       if (error?.response?.status === 404 || error?.statusCode === 404) {
         return null;
@@ -169,7 +174,8 @@ export const certificationService = {
     try {
       const response = await apiClient.axios.post<Certification>(`/certifications/${id}/unpublish`);
       return normalizeCertification(response.data);
-    } catch (error: any) {
+    } catch (err) {
+      const error = err as RequestError;
       // Return null for 404 errors
       if (error?.response?.status === 404 || error?.statusCode === 404) {
         return null;

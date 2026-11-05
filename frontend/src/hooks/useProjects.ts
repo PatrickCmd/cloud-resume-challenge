@@ -21,6 +21,7 @@ import {
   ProjectNormalized,
 } from '@/types/project';
 import { useToast } from '@/hooks/use-toast';
+import { RequestError } from '@/types/api';
 
 // ============================================================================
 // Query Keys
@@ -94,7 +95,7 @@ export function useProject(id: string, enabled = true) {
     queryFn: () => projectService.getProjectById(id),
     enabled: enabled && !!id,
     staleTime: 5 * 60 * 1000,
-    retry: (failureCount, error: any) => {
+    retry: (failureCount, error: RequestError) => {
       // Don't retry on 404 - project doesn't exist
       if (error?.statusCode === 404 || error?.response?.status === 404) {
         return false;
@@ -148,7 +149,7 @@ export function useCreateProject() {
         description: "Your project has been created as a draft.",
       });
     },
-    onError: (error: any) => {
+    onError: (error: RequestError) => {
       toast({
         variant: "destructive",
         title: "Failed to create project",
@@ -192,7 +193,7 @@ export function useUpdateProject() {
         description: "Your changes have been saved.",
       });
     },
-    onError: (error: any) => {
+    onError: (error: RequestError) => {
       toast({
         variant: "destructive",
         title: "Failed to update project",
@@ -236,7 +237,7 @@ export function useDeleteProject() {
         description: "The project has been permanently deleted.",
       });
     },
-    onError: (error: any) => {
+    onError: (error: RequestError) => {
       toast({
         variant: "destructive",
         title: "Failed to delete project",
@@ -273,7 +274,7 @@ export function usePublishProject() {
         description: "Your project is now visible to everyone.",
       });
     },
-    onError: (error: any) => {
+    onError: (error: RequestError) => {
       toast({
         variant: "destructive",
         title: "Failed to publish project",
@@ -310,7 +311,7 @@ export function useUnpublishProject() {
         description: "Your project is now a draft.",
       });
     },
-    onError: (error: any) => {
+    onError: (error: RequestError) => {
       toast({
         variant: "destructive",
         title: "Failed to unpublish project",
