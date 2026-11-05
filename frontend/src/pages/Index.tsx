@@ -13,6 +13,7 @@ import { UserMenu } from "@/components/UserMenu";
 import { VisitorCounter } from "@/components/VisitorCounter";
 import { useAuth } from "@/contexts/AuthContext";
 import { Github } from "lucide-react";
+import { profile } from "@/content/profile";
 
 const Index = () => {
   const [activeTab, setActiveTab] = useState<Tab>("overview");
@@ -86,7 +87,7 @@ const Index = () => {
           <div className="flex items-center justify-center gap-4 mb-2">
             <VisitorCounter />
           </div>
-          <p>© {new Date().getFullYear()} Patrick Walukagga. Built with ❤️</p>
+          <p>© {new Date().getFullYear()} {profile.name}. Built with ❤️</p>
         </div>
       </footer>
     </div>
