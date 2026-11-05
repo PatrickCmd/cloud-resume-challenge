@@ -1,5 +1,18 @@
-import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
+import { PrismLight as SyntaxHighlighter } from "react-syntax-highlighter";
 import { oneDark, oneLight } from "react-syntax-highlighter/dist/esm/styles/prism";
+import python from "react-syntax-highlighter/dist/esm/languages/prism/python";
+import bash from "react-syntax-highlighter/dist/esm/languages/prism/bash";
+import json from "react-syntax-highlighter/dist/esm/languages/prism/json";
+import yaml from "react-syntax-highlighter/dist/esm/languages/prism/yaml";
+import typescript from "react-syntax-highlighter/dist/esm/languages/prism/typescript";
+import javascript from "react-syntax-highlighter/dist/esm/languages/prism/javascript";
+import sql from "react-syntax-highlighter/dist/esm/languages/prism/sql";
+import docker from "react-syntax-highlighter/dist/esm/languages/prism/docker";
+import hcl from "react-syntax-highlighter/dist/esm/languages/prism/hcl";
+
+// Register only the languages the posts use; the full Prism bundle is ~600 kB.
+const languages = { python, py: python, bash, sh: bash, shell: bash, json, yaml, yml: yaml, typescript, ts: typescript, tsx: typescript, javascript, js: javascript, jsx: javascript, sql, docker, dockerfile: docker, hcl, terraform: hcl };
+Object.entries(languages).forEach(([name, lang]) => SyntaxHighlighter.registerLanguage(name, lang));
 import { useTheme } from "./ThemeProvider";
 
 interface MarkdownRendererProps {
