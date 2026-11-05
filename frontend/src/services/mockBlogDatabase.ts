@@ -7,7 +7,7 @@ export interface BlogPostDraft extends BlogPost {
 }
 
 // Initialize mock database with existing posts as published
-let mockDatabase: BlogPostDraft[] = initialPosts.map((post) => ({
+const mockDatabase: BlogPostDraft[] = initialPosts.map((post) => ({
   ...post,
   status: "published" as const,
   createdAt: post.publishedAt,

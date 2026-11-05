@@ -14,6 +14,7 @@ import {
   CertificationListParams,
 } from '@/types/certification';
 import { useToast } from '@/hooks/use-toast';
+import { RequestError } from '@/types/api';
 
 /**
  * Query key factory for certifications.
@@ -51,7 +52,7 @@ export function useCertification(id: string, enabled: boolean = true) {
     queryKey: certificationKeys.detail(id),
     queryFn: () => certificationService.getCertificationById(id),
     enabled: enabled && !!id,
-    retry: (failureCount, error: any) => {
+    retry: (failureCount, error: RequestError) => {
       // Don't retry on 404 errors
       if (error?.statusCode === 404 || error?.response?.status === 404) {
         return false;
@@ -100,7 +101,7 @@ export function useCreateCertification() {
         description: 'Certification created successfully',
       });
     },
-    onError: (error: any) => {
+    onError: (error: RequestError) => {
       toast({
         title: 'Error',
         description: error?.message || 'Failed to create certification',
@@ -129,7 +130,7 @@ export function useUpdateCertification() {
         description: 'Certification updated successfully',
       });
     },
-    onError: (error: any) => {
+    onError: (error: RequestError) => {
       toast({
         title: 'Error',
         description: error?.message || 'Failed to update certification',
@@ -157,7 +158,7 @@ export function useDeleteCertification() {
         description: 'Certification deleted successfully',
       });
     },
-    onError: (error: any) => {
+    onError: (error: RequestError) => {
       toast({
         title: 'Error',
         description: error?.message || 'Failed to delete certification',
@@ -185,7 +186,7 @@ export function usePublishCertification() {
         description: 'Certification published successfully',
       });
     },
-    onError: (error: any) => {
+    onError: (error: RequestError) => {
       toast({
         title: 'Error',
         description: error?.message || 'Failed to publish certification',
@@ -213,7 +214,7 @@ export function useUnpublishCertification() {
         description: 'Certification unpublished successfully',
       });
     },
-    onError: (error: any) => {
+    onError: (error: RequestError) => {
       toast({
         title: 'Error',
         description: error?.message || 'Failed to unpublish certification',

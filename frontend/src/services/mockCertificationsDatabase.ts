@@ -97,7 +97,7 @@ const initialCertifications: Omit<Certification, "id" | "createdAt" | "updatedAt
   },
 ];
 
-let mockDatabase: Certification[] = initialCertifications.map((cert, index) => ({
+const mockDatabase: Certification[] = initialCertifications.map((cert, index) => ({
   ...cert,
   id: `cert-${index + 1}`,
   status: "published" as const,

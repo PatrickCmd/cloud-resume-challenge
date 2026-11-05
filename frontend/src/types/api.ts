@@ -97,7 +97,7 @@ export interface ApiError {
   message?: string; // Custom error message
   error?: string; // Error type
   statusCode?: number; // HTTP status code
-  details?: Record<string, any>; // Additional error details
+  details?: Record<string, unknown>; // Additional error details
 }
 
 /**
@@ -130,3 +130,15 @@ export interface SuccessResponse {
   message: string;
   success: boolean;
 }
+
+/**
+ * Shape of errors thrown by the API client or axios, as seen by hooks and services.
+ * Every field is optional because the error may come from the network, the proxy,
+ * or the application layer.
+ */
+export type RequestError = Error & {
+  detail?: string;
+  error?: string;
+  statusCode?: number;
+  response?: { status?: number };
+};

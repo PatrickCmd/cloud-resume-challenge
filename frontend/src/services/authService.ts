@@ -23,7 +23,7 @@ const AUTH_STORAGE_KEY = 'portfolio_auth_user';
  * Decode JWT token payload without verification.
  * Used to extract user info from ID token.
  */
-function decodeJwtPayload(token: string): any {
+function decodeJwtPayload(token: string): Record<string, unknown> {
   try {
     const parts = token.split('.');
     if (parts.length !== 3) {
@@ -53,12 +53,12 @@ function extractUserFromToken(idToken: string): User {
   }
 
   return {
-    sub: payload.sub,
-    email: payload.email,
-    'cognito:username': payload['cognito:username'],
-    'custom:role': payload['custom:role'] || 'public',
-    email_verified: payload.email_verified,
-    name: payload.name,
+    sub: String(payload.sub ?? ''),
+    email: String(payload.email ?? ''),
+    'cognito:username': String(payload['cognito:username'] ?? ''),
+    'custom:role': payload['custom:role'] === 'owner' ? 'owner' : 'public',
+    email_verified: payload.email_verified === true,
+    name: payload.name === undefined ? undefined : String(payload.name),
   };
 }
 
@@ -110,7 +110,7 @@ class AuthService {
       localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(mockUser));
 
       return { user: mockUser, error: null };
-    } catch (error: any) {
+    } catch (error) {
       const apiError = error as ApiError;
       const errorMessage =
         apiError.detail ||

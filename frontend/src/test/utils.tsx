@@ -94,7 +94,7 @@ export const mockUser = {
 /**
  * Mock JWT token with user claims.
  */
-export function createMockJWT(claims: Record<string, any> = {}) {
+export function createMockJWT(claims: Record<string, unknown> = {}) {
   const header = { alg: 'RS256', typ: 'JWT' };
   const payload = {
     sub: 'test-user-id',

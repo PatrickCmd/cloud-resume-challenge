@@ -6,6 +6,7 @@
  */
 
 import { apiClient } from '@/lib/apiClient';
+import { RequestError } from '@/types/api';
 import {
   Project,
   ProjectNormalized,
@@ -43,7 +44,7 @@ export const projectService = {
     // Handle both array and paginated response formats
     const projects: Project[] = Array.isArray(response.data)
       ? response.data
-      : response.data.items || (response.data as any).projects || [];
+      : response.data.items || (response.data as { projects?: Project[] }).projects || [];
 
     return projects.map(normalizeProject);
   },
@@ -85,7 +86,8 @@ export const projectService = {
     try {
       const response = await apiClient.axios.get<Project>(`/projects/${id}`);
       return normalizeProject(response.data);
-    } catch (error: any) {
+    } catch (err) {
+      const error = err as RequestError;
       // Return null for 404, throw for other errors
       if (error?.response?.status === 404 || error?.statusCode === 404) {
         return null;
@@ -116,7 +118,8 @@ export const projectService = {
     try {
       const response = await apiClient.axios.put<Project>(`/projects/${id}`, data);
       return normalizeProject(response.data);
-    } catch (error: any) {
+    } catch (err) {
+      const error = err as RequestError;
       if (error?.response?.status === 404 || error?.statusCode === 404) {
         return null;
       }
@@ -134,7 +137,8 @@ export const projectService = {
     try {
       await apiClient.axios.delete(`/projects/${id}`);
       return true;
-    } catch (error: any) {
+    } catch (err) {
+      const error = err as RequestError;
       if (error?.response?.status === 404 || error?.statusCode === 404) {
         return false;
       }
@@ -153,7 +157,8 @@ export const projectService = {
     try {
       const response = await apiClient.axios.post<Project>(`/projects/${id}/publish`);
       return normalizeProject(response.data);
-    } catch (error: any) {
+    } catch (err) {
+      const error = err as RequestError;
       if (error?.response?.status === 404 || error?.statusCode === 404) {
         return null;
       }
@@ -172,7 +177,8 @@ export const projectService = {
     try {
       const response = await apiClient.axios.post<Project>(`/projects/${id}/unpublish`);
       return normalizeProject(response.data);
-    } catch (error: any) {
+    } catch (err) {
+      const error = err as RequestError;
       if (error?.response?.status === 404 || error?.statusCode === 404) {
         return null;
       }

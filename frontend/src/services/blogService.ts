@@ -15,6 +15,7 @@
  */
 
 import { apiClient } from '@/lib/apiClient';
+import { RequestError } from '@/types/api';
 import {
   BlogPost,
   BlogPostCreate,
@@ -93,7 +94,8 @@ class BlogService {
     try {
       const response = await apiClient.axios.get<BlogPost>(`/blogs/${id}`);
       return normalizeBlogPost(response.data);
-    } catch (error: any) {
+    } catch (err) {
+      const error = err as RequestError;
       if (error.statusCode === 404 || error.response?.status === 404) {
         return null;
       }
@@ -128,7 +130,8 @@ class BlogService {
     try {
       const response = await apiClient.axios.put<BlogPost>(`/blogs/${id}`, data);
       return normalizeBlogPost(response.data);
-    } catch (error: any) {
+    } catch (err) {
+      const error = err as RequestError;
       if (error.statusCode === 404 || error.response?.status === 404) {
         return null;
       }
@@ -147,7 +150,8 @@ class BlogService {
     try {
       await apiClient.axios.delete(`/blogs/${id}`);
       return true;
-    } catch (error: any) {
+    } catch (err) {
+      const error = err as RequestError;
       if (error.statusCode === 404 || error.response?.status === 404) {
         return false;
       }
@@ -168,7 +172,8 @@ class BlogService {
     try {
       const response = await apiClient.axios.post<PublishResponse>(`/blogs/${id}/publish`);
       return normalizeBlogPost(response.data);
-    } catch (error: any) {
+    } catch (err) {
+      const error = err as RequestError;
       if (error.statusCode === 404 || error.response?.status === 404) {
         return null;
       }
@@ -189,7 +194,8 @@ class BlogService {
     try {
       const response = await apiClient.axios.post<PublishResponse>(`/blogs/${id}/unpublish`);
       return normalizeBlogPost(response.data);
-    } catch (error: any) {
+    } catch (err) {
+      const error = err as RequestError;
       if (error.statusCode === 404 || error.response?.status === 404) {
         return null;
       }
@@ -208,7 +214,8 @@ class BlogService {
       // Try backend endpoint first (if implemented)
       const response = await apiClient.axios.get<{ categories: string[] }>('/blogs/categories');
       return response.data.categories;
-    } catch (error: any) {
+    } catch (err) {
+      const error = err as RequestError;
       // Fallback: extract categories from all blogs
       if (error.statusCode === 404 || error.response?.status === 404) {
         const posts = await this.getAllPosts({ status: 'all' });
