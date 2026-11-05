@@ -1,4 +1,4 @@
-import { BookOpen, Award, FolderGit2, FileText, Newspaper, LayoutDashboard } from "lucide-react";
+import { Award, FolderGit2, FileText, Newspaper, LayoutDashboard } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useBlogPosts } from "@/hooks/useBlogPosts";
 import { useProjects } from "@/hooks/useProjects";
@@ -27,7 +27,6 @@ export function TabNavigation({ activeTab, onTabChange }: TabNavigationProps) {
   const publishedCertificationCount = publishedCertifications.length;
 
   const publicTabs = [
-    { id: "overview" as Tab, label: "Overview", icon: BookOpen },
     { id: "certifications" as Tab, label: "Certifications", icon: Award, count: publishedCertificationCount },
     { id: "projects" as Tab, label: "Projects", icon: FolderGit2, count: publishedProjectCount },
     { id: "blog" as Tab, label: "Blog", icon: Newspaper, count: publishedBlogCount },
@@ -55,11 +54,11 @@ export function TabNavigation({ activeTab, onTabChange }: TabNavigationProps) {
               >
                 <tab.icon className="w-4 h-4" />
                 {tab.label}
-                {tab.count && (
+                {tab.count ? (
                   <span className="ml-1 px-2 py-0.5 text-xs rounded-full bg-secondary text-muted-foreground">
                     {tab.count}
                   </span>
-                )}
+                ) : null}
               </button>
             </li>
           ))}

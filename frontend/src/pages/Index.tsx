@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { Hero } from "@/sections/Hero";
+import { About } from "@/sections/About";
+import { Skills } from "@/sections/Skills";
 import { TabNavigation, Tab } from "@/components/TabNavigation";
-import { OverviewTab } from "@/components/OverviewTab";
 import { CertificationsTab } from "@/components/CertificationsTab";
 import { ProjectsTab } from "@/components/ProjectsTab";
 import { BlogTab } from "@/components/BlogTab";
@@ -16,7 +17,7 @@ import { Github } from "lucide-react";
 import { profile } from "@/content/profile";
 
 const Index = () => {
-  const [activeTab, setActiveTab] = useState<Tab>("overview");
+  const [activeTab, setActiveTab] = useState<Tab>("projects");
   const [createAction, setCreateAction] = useState<string | null>(null);
   const { user, isLoading, isOwner } = useAuth();
 
@@ -34,9 +35,7 @@ const Index = () => {
   const renderTab = () => {
     switch (activeTab) {
       case "dashboard":
-        return isOwner ? <DashboardTab onNavigate={handleDashboardNavigate} /> : <OverviewTab />;
-      case "overview":
-        return <OverviewTab />;
+        return isOwner ? <DashboardTab onNavigate={handleDashboardNavigate} /> : null;
       case "certifications":
         return <CertificationsTab triggerCreate={createAction === "certifications"} onCreateHandled={clearCreateAction} />;
       case "projects":
@@ -46,7 +45,7 @@ const Index = () => {
       case "cv":
         return <CVTab />;
       default:
-        return <OverviewTab />;
+        return null;
     }
   };
 
@@ -71,6 +70,8 @@ const Index = () => {
       {/* Hero */}
       <div className="max-w-6xl mx-auto px-4">
         <Hero />
+        <About />
+        <Skills />
       </div>
 
       {/* Tab Navigation */}
