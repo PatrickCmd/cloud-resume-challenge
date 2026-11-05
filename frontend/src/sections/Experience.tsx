@@ -3,6 +3,7 @@ import { ChevronDown } from "lucide-react";
 import { SectionHeading } from "@/components/SectionHeading";
 import { Button } from "@/components/ui/button";
 import { experience, formatPeriod, isOlderThan, type ExperienceEntry } from "@/content/experience";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 const COLLAPSE_AFTER_YEARS = 5;
 
@@ -59,11 +60,17 @@ function TimelineItem({ entry }: { entry: ExperienceEntry }) {
   );
 }
 
+const MOBILE_INITIAL = 3;
+
 export function Experience() {
   const [showEarlier, setShowEarlier] = useState(false);
   const earlierId = useId();
-  const recent = experience.filter((e) => !isOlderThan(e, COLLAPSE_AFTER_YEARS));
-  const earlier = experience.filter((e) => isOlderThan(e, COLLAPSE_AFTER_YEARS));
+  const isMobile = useIsMobile();
+  const recentAll = experience.filter((e) => !isOlderThan(e, COLLAPSE_AFTER_YEARS));
+  const earlierAll = experience.filter((e) => isOlderThan(e, COLLAPSE_AFTER_YEARS));
+  // Phones show the three latest roles first; everything else sits behind the toggle.
+  const recent = isMobile ? recentAll.slice(0, MOBILE_INITIAL) : recentAll;
+  const earlier = isMobile ? [...recentAll.slice(MOBILE_INITIAL), ...earlierAll] : earlierAll;
 
   return (
     <section
@@ -77,17 +84,12 @@ export function Experience() {
         title="Where I have worked"
         description="Backend and AI roles across startups, consultancies and remote teams since 2017."
       />
-      <ol className="relative border-l-2 border-border ml-2 pl-0 list-none">
+      <ol id={earlierId} className="relative border-l-2 border-border ml-2 pl-0 list-none">
         {recent.map((entry) => (
           <TimelineItem key={`${entry.company}-${entry.start}`} entry={entry} />
         ))}
-        {earlier.length > 0 && showEarlier && (
-          <div id={earlierId} className="contents">
-            {earlier.map((entry) => (
-              <TimelineItem key={`${entry.company}-${entry.start}`} entry={entry} />
-            ))}
-          </div>
-        )}
+        {showEarlier &&
+          earlier.map((entry) => <TimelineItem key={`${entry.company}-${entry.start}`} entry={entry} />)}
       </ol>
       {earlier.length > 0 && (
         <div className="mt-8 ml-2 pl-8">
@@ -99,7 +101,7 @@ export function Experience() {
             aria-controls={earlierId}
             className="gap-2"
           >
-            {showEarlier ? "Hide earlier roles" : `Show ${earlier.length} earlier roles`}
+            {showEarlier ? "Show fewer roles" : `Show ${earlier.length} earlier roles`}
             <ChevronDown
               className={`h-4 w-4 transition-transform motion-reduce:transition-none ${showEarlier ? "rotate-180" : ""}`}
               aria-hidden="true"

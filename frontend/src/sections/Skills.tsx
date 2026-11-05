@@ -27,10 +27,14 @@ export function Skills() {
                 <Icon className="h-5 w-5 text-primary" aria-hidden="true" />
                 {group.title}
               </h3>
-              <ul className="mt-4 space-y-2 text-sm text-muted-foreground">
+              {/* Chips on phones keep the section short; a list reads better with room. */}
+              <ul className="mt-4 flex flex-wrap gap-1.5 text-sm text-muted-foreground sm:block sm:space-y-2">
                 {group.items.map((item) => (
-                  <li key={item} className="flex gap-2">
-                    <span className="mt-[0.55em] h-1.5 w-1.5 shrink-0 rounded-full bg-border" aria-hidden="true" />
+                  <li
+                    key={item}
+                    className="rounded-md border border-border bg-secondary/60 px-2 py-0.5 text-xs sm:flex sm:gap-2 sm:border-0 sm:bg-transparent sm:px-0 sm:py-0 sm:text-sm"
+                  >
+                    <span className="mt-[0.55em] hidden h-1.5 w-1.5 shrink-0 rounded-full bg-border sm:block" aria-hidden="true" />
                     <span>{item}</span>
                   </li>
                 ))}

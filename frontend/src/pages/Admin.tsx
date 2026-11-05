@@ -7,12 +7,14 @@ import { DashboardTab } from "@/components/DashboardTab";
 import { LoginDialog } from "@/components/LoginDialog";
 import { UserMenu } from "@/components/UserMenu";
 import { useAuth } from "@/contexts/AuthContext";
+import { usePageTitle } from "@/hooks/usePageTitle";
 
 /**
  * Owner area: login, dashboard and the content editors. Nothing here is linked from the
  * public pages; it is reached directly at /admin.
  */
 export default function Admin() {
+  usePageTitle("Admin");
   const [activeTab, setActiveTab] = useState<Tab>("dashboard");
   const [createAction, setCreateAction] = useState<string | null>(null);
   const { user, isLoading, isOwner } = useAuth();

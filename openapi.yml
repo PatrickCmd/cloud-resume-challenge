@@ -196,6 +196,14 @@ paths:
             type: integer
             minimum: 0
             default: 0
+        - name: include_content
+          in: query
+          description: >-
+            Set to false to omit the markdown body of each post (content is returned as an
+            empty string). Use for lists; fetch GET /blogs/{id} for the body.
+          schema:
+            type: boolean
+            default: true
       responses:
         '200':
           description: Blog posts retrieved successfully

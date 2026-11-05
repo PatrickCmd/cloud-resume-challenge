@@ -105,6 +105,32 @@ class TestListBlogs:
         assert len(data["items"]) == 2
         mock_blog_repo.list_posts.assert_called_once()
 
+    def test_list_blogs_without_content(
+        self, test_client, override_get_blog_repository, mock_blog_repo, sample_blog_list_response
+    ):
+        """include_content=false strips the markdown body but keeps every other field."""
+        mock_blog_repo.list_posts.return_value = sample_blog_list_response
+
+        response = test_client.get("/blogs?include_content=false")
+
+        assert response.status_code == status.HTTP_200_OK
+        data = response.json()
+        assert data["count"] == 2
+        assert all(item["content"] == "" for item in data["items"])
+        assert data["items"][0]["title"] == "First Post"
+        assert data["items"][0]["excerpt"] == "Excerpt 1"
+
+    def test_list_blogs_includes_content_by_default(
+        self, test_client, override_get_blog_repository, mock_blog_repo, sample_blog_list_response
+    ):
+        """Existing clients keep receiving the body unless they opt out."""
+        mock_blog_repo.list_posts.return_value = sample_blog_list_response
+
+        response = test_client.get("/blogs")
+
+        data = response.json()
+        assert data["items"][0]["content"] == "Content 1"
+
     def test_list_blogs_with_status_filter(
         self, test_client, override_get_blog_repository, mock_blog_repo, sample_blog_list_response
     ):

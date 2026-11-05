@@ -6,8 +6,10 @@ import { Projects } from "@/sections/Projects";
 import { Certifications } from "@/sections/Certifications";
 import { Writing } from "@/sections/Writing";
 import { Contact } from "@/sections/Contact";
+import { usePageTitle } from "@/hooks/usePageTitle";
 
 export default function Home() {
+  usePageTitle(undefined);
   return (
     <div className="mx-auto max-w-6xl px-4">
       <Hero />

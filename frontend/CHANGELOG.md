@@ -4,7 +4,37 @@ All notable changes to the portfolio frontend. The redesign below was delivered 
 commit per numbered item on branch `claude/funny-clarke-kranjz`; the audit that preceded it
 is in `docs/PORTFOLIO_AUDIT.md`.
 
-## Unreleased — professional redesign
+## Unreleased — fixes from the first live audit
+
+Found by testing https://patrickcmd.dev after the redesign shipped (responsiveness,
+UI/UX, accessibility, data flow). One commit per item.
+
+1. **Blog deep links.** `/blog` is a read-only list in the site's style; posts link to
+   `/blog/<slug>`, so they can be shared and Back returns to the list. The old editor
+   tab now lives only under `/admin`. The static fallback post uses the real slug.
+2. **Content-free post lists.** Backend `GET /blogs?include_content=false` returns posts
+   without bodies (the single published post is 370 kB because of an embedded image);
+   the Writing section and the blog list use it, so the home page downloads 828 B
+   instead of 370 kB. The post page fetches the body by id. **Needs a backend deploy.**
+3. **`/projects` redesigned.** Curated projects from `content/projects.ts` first, then
+   API-published projects that are not already covered, with the same cards as the
+   home grid. `/projects/p/:id` shows an API project's long description.
+4. **Certifications.** `content/certifications.ts` mirrors the API: 14 credentials with
+   Credly / ExamPro / DataTalks.Club / Coursera links, official Credly badge artwork
+   (`public/badges/*.png`), and the AI courses (RAG, LLM Zoomcamp, GenAI Bootcamp,
+   MLOps Zoomcamp) listed. Resume PDF regenerated.
+5. **Shorter home page on phones.** Three projects and three roles by default with
+   "Show more", 2:1 covers, skills as chips, a three-column badge grid and a collapsed
+   courses list. iPhone 13 page height: ~11,900 → ~8,700 CSS px.
+6. **Sweep.** Per-route `document.title`, accessible names on the blog admin icon
+   buttons, `noindex` on the 404 shell, valid `ol > li` timeline markup, API read time
+   shown as "n min read", one `h1` per blog post (markdown `#` renders as `h2`).
+
+Not changed: inline text links under 24 px tall are flagged by target-size heuristics
+but are exempt as in-sentence links; the blog post's embedded base64 image should move
+to S3 in the admin editor to shrink the post itself (content change, not code).
+
+## Previous release — professional redesign
 
 ### Prerequisite (chore)
 - Lint and typecheck are green (0 errors; 123 warnings remain, mostly `no-explicit-any` in

@@ -1,22 +1,16 @@
-import { useEffect } from "react";
 import { Link, Navigate, useParams } from "react-router-dom";
 import { ArrowLeft, ArrowUpRight, Github } from "lucide-react";
 import { MarkdownRenderer } from "@/components/MarkdownRenderer";
 import { findProject } from "@/content/projects";
 import { getCaseStudy } from "@/content/case-studies";
-import { profile } from "@/content/profile";
+import { usePageTitle } from "@/hooks/usePageTitle";
 
 export default function CaseStudy() {
   const { slug = "" } = useParams();
   const project = findProject(slug);
   const markdown = getCaseStudy(slug);
 
-  useEffect(() => {
-    if (project) document.title = `${project.title} — ${profile.name}`;
-    return () => {
-      document.title = `${profile.name} — ${profile.title}`;
-    };
-  }, [project]);
+  usePageTitle(project ? project.title : null);
 
   if (!project || !markdown) {
     return <Navigate to="/404" replace />;

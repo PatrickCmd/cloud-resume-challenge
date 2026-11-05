@@ -12,6 +12,8 @@ eggs/
 .eggs/
 lib/
 lib64/
+# The Python rule above must not hide the frontend helper modules.
+!frontend/src/lib/
 parts/
 sdist/
 var/
