@@ -94,9 +94,18 @@ ${experience
   </div>
   <div>
     <h2>Certifications</h2>
-    <ul>${certifications.map((c) => `<li>${esc(c.name)} · ${esc(c.issuer)} (${c.year})</li>`).join("")}</ul>
+    <ul>${certifications
+      .filter((c) => c.kind === "certification")
+      .map((c) => `<li>${esc(c.name)} · ${esc(c.issuer)} (${c.year})</li>`)
+      .join("")}</ul>
   </div>
 </div>
+<p style="margin-top:4pt;font-size:8.5pt;color:#444;line-height:1.3"><strong>Courses:</strong> ${esc(
+  certifications
+    .filter((c) => c.kind === "course")
+    .map((c) => `${c.name}, ${c.year}`)
+    .join(" · "),
+)}</p>
 </body></html>`;
 
 (async () => {

@@ -100,7 +100,7 @@ export function profileFacts(now: Date = new Date()): { label: string; value: st
   return [
     { label: "Currently", value: `Software Engineer at ${profile.employer.name}` },
     { label: "Experience", value: `${yearsOfExperience(now)}+ years in backend and cloud` },
-    { label: "Certified", value: "AWS Solutions Architect Associate, AWS Cloud Practitioner" },
+    { label: "Certified", value: "AWS Solutions Architect Associate, AWS Cloud Practitioner, Kubernetes (LFS250)" },
     { label: "Based in", value: `${profile.location} (${profile.timezone})` },
   ];
 }
