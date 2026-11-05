@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { SectionHeading } from "@/components/SectionHeading";
 import { featuredProjects, type Project } from "@/content/projects";
 
-function ProjectCard({ project, priority }: { project: Project; priority: boolean }) {
+export function ProjectCard({ project, priority }: { project: Project; priority: boolean }) {
   const titleId = `project-${project.slug}-title`;
   return (
     <article
